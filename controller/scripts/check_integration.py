@@ -48,7 +48,7 @@ def hook_metadata(cwd, binary):
 
 
 def main():
-    cwd=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else ROOT.parent
+    cwd=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else ROOT.parents[1]
     print('检查聊天目录：',cwd)
     try:
         with socket.socket(socket.AF_UNIX) as connection:

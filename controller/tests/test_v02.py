@@ -12,7 +12,7 @@ class PermissionTests(unittest.TestCase):
   self.assertTrue(review_policy({'tool_name':'Bash','cwd':'/tmp/project','tool_input':{'command':'pwd','sandbox_permissions':'require_escalated'}})[0])
  def test_long_workspace_uses_complete_project_label(self):
   from service import project_label
-  cwd='/Users/alice/Documents/Codex/2026-10-23/codex-companion-controller-ai-passport-folotoy'
+  cwd='/Users/developer/Documents/Codex/2026-10-23/codex-companion-controller-ai-passport-folotoy'
   label=project_label(cwd)
   self.assertIn('codex-companion-controller-ai-passport-folotoy',label)
   self.assertLessEqual(len(label),72)

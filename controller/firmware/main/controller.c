@@ -6,7 +6,7 @@
 uint32_t controller_view_hash(const controller_t *s) {
  uint32_t h=2166136261u;
  const char *strings[]={s->id,s->state,s->command,s->project,s->scope,s->receipt,s->face,
-  s->reset_id,s->reset_status,s->usage_status,s->hook_status,s->transport};
+  s->reset_id,s->reset_status,s->usage_status,s->hook_status,s->transport,s->review_text};
  for(unsigned i=0;i<sizeof(strings)/sizeof(strings[0]);i++) {
   for(const unsigned char *p=(const unsigned char *)strings[i];*p;p++)h=(h^*p)*16777619u;
   h=(h^0xffu)*16777619u;
@@ -14,8 +14,9 @@ uint32_t controller_view_hash(const controller_t *s) {
  for(int i=0;i<s->history_count && i<8;i++)
   for(const unsigned char *p=(const unsigned char *)s->history[i];*p;p++)h=(h^*p)*16777619u;
  const int values[]={s->page,s->option,s->stage,s->selected,s->online,s->request_visible,
-  s->can_allow,s->can_deny,s->mac_confirm,s->sound,s->muted,s->volume,s->volume_edit,
-  s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count};
+  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->sound,s->muted,s->volume,s->volume_edit,
+  s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count,
+  s->review_protocol,s->review_page,s->review_loaded,s->review_total};
  for(unsigned i=0;i<sizeof(values)/sizeof(values[0]);i++)h=(h^(uint32_t)values[i])*16777619u;
  return h;
 }
@@ -30,7 +31,34 @@ void controller_request(controller_t *s, const char *id) {
  if(strcmp(s->id,id)) {
   controller_cancel_input(s); snprintf(s->id,sizeof(s->id),"%s",id);
   s->request=*id!=0; s->request_visible=s->request; s->muted=false;
+  s->review_protocol=0; s->review_page=0; s->review_loaded=-1; s->review_total=0; s->review_text[0]=0;
  }
+}
+bool controller_review_final(const controller_t *s) {
+ return s->review_protocol!=1 || (s->review_total>0 && s->review_page==s->review_total && s->review_loaded==s->review_page);
+}
+void controller_review_snapshot(controller_t *s,int page,int total,const char *text) {
+ if(total<1 || total>4096 || page<0 || page>total || strlen(text)>=sizeof(s->review_text))return;
+ if(s->review_protocol!=1) { controller_cancel_input(s);s->review_page=0;s->review_loaded=-1; }
+ s->review_protocol=1; s->review_total=total;
+ if(page==s->review_page) { s->review_loaded=page;snprintf(s->review_text,sizeof(s->review_text),"%s",text); }
+ else {
+  // A delayed queued page command can move the Bridge back. Re-request the
+  // desired page instead of getting stuck with stale final-screen flags.
+  s->review_loaded=-1;
+  if(s->stage==1)controller_cancel_input(s);
+ }
+}
+static action_t review_move(controller_t *s,int key,bool held) {
+ if(s->stage==2)return ACTION_NONE;
+ int next=s->review_page;
+ if(held && key==0)next=0;
+ else if(s->review_loaded==s->review_page && s->review_page<s->review_total)
+  next+=key==0?-1:1;
+ if(next<0)next=0;
+ if(next==s->review_page)return ACTION_NONE;
+ s->review_page=next; s->selected=-1; s->stage=0;
+ return ACTION_REVIEW;
 }
 void controller_press(controller_t *s,int key,int64_t now) {
  if(s->key>=0) return;
@@ -48,8 +76,11 @@ action_t controller_tick(controller_t *s,int64_t now) {
  int threshold=(s->key==2 && (s->stage==1 || s->reset_stage==2))?1000:650;
  if(now-s->pressed_at<threshold) return ACTION_NONE;
  s->consumed=true;
- if(s->key!=2) { turn(s,s->key==0?-1:1); return ACTION_NONE; }
- if(s->request_visible && s->stage==1 && s->online && s->request && now<s->expires) {
+ if(s->key!=2) {
+  if(s->request_visible && s->review_protocol==1)return review_move(s,s->key,true);
+  turn(s,s->key==0?-1:1); return ACTION_NONE;
+ }
+ if(s->request_visible && !s->user_input && controller_review_final(s) && s->stage==1 && s->online && s->request && now<s->expires) {
   if((s->selected==1 && s->can_deny) || (s->selected==0 && s->can_allow)) {
    s->stage=2; return s->selected==0?ACTION_ALLOW:ACTION_DENY;
   }
@@ -70,6 +101,7 @@ action_t controller_release(controller_t *s,int key,int64_t now) {
  if(s->request_visible && (!s->online || now>=s->expires))return ACTION_NONE;
  if(key!=2) {
   if(s->request_visible) {
+   if(s->review_protocol==1 && !controller_review_final(s))return review_move(s,key,false);
    if(s->stage==0 && ((key==0 && s->can_allow) || (key==1 && s->can_deny))) s->selected=key;
    else if(s->stage==1) {
     if(key==0) { s->stage=0; s->selected=-1; }
@@ -84,6 +116,8 @@ action_t controller_release(controller_t *s,int key,int64_t now) {
    s->option=(s->option+(key==0?-1:1)+count)%count;
   } else turn(s,key==0?-1:1);
  } else if(s->request_visible && s->stage==0) {
+  if(!controller_review_final(s)) { s->muted=true; return ACTION_MUTE; }
+  if(s->user_input) { s->request_visible=false; s->page=0; return ACTION_DISMISS; }
   if((s->selected==1 && s->can_deny) || (s->selected==0 && s->can_allow)) s->stage=1;
   else if(!s->can_allow && !s->can_deny) { s->muted=true; return ACTION_MUTE; }
  } else if(!s->request_visible && s->page==3) {

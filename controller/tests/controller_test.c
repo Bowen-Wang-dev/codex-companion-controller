@@ -86,5 +86,43 @@ int main(void) {
  controller_init(&s); s.page=3; s.option=1;
  controller_press(&s,2,12000);
  assert(controller_release(&s,2,12100)==ACTION_TEST_AUDIO);
- puts("controller: navigation/hold/permission/expiry/disconnect assertions passed");
+ // A reply reminder can be acknowledged, but can never approve a scope.
+ controller_init(&s); s.online=true; s.last_rx=1000; controller_request(&s,"human-input");
+ s.expires=10000; s.user_input=true; s.can_allow=false; s.can_deny=false;
+ controller_press(&s,2,1100); assert(controller_release(&s,2,1200)==ACTION_DISMISS);
+ assert(!s.request_visible && s.page==0 && s.stage==0);
+ s.request_visible=true; s.can_allow=true; s.selected=0; s.stage=1;
+ controller_press(&s,2,1400); assert(controller_tick(&s,2400)==ACTION_NONE);
+ assert(controller_release(&s,2,2500)==ACTION_NONE);
+ // Detail navigation cannot select/confirm approval. Loading a page is async;
+ // stale packets cannot unlock or overwrite the selected page.
+ controller_init(&s);s.online=true;s.last_rx=1000;
+ controller_request(&s,"paged");s.expires=99999;s.can_allow=true;
+ controller_review_snapshot(&s,0,3,"first");
+ assert(s.review_protocol==1 && !controller_review_final(&s));
+ tap(&s,0,1100);assert(s.review_page==0 && s.selected==-1);
+ tap(&s,2,1300);assert(s.stage==0 && s.selected==-1);
+ tap(&s,1,1500);assert(s.review_page==1 && s.selected==-1);
+ tap(&s,1,1700);assert(s.review_page==1); // Wait for page content before another turn.
+ controller_review_snapshot(&s,0,3,"stale");assert(s.review_loaded==-1);
+ assert(!controller_review_final(&s));
+ controller_review_snapshot(&s,1,3,"second");tap(&s,1,1900);
+ controller_review_snapshot(&s,2,3,"last detail");tap(&s,1,2100);
+ assert(s.review_page==3 && !controller_review_final(&s));
+ tap(&s,0,2300);tap(&s,2,2500);assert(s.selected==-1 && s.stage==0);
+ controller_review_snapshot(&s,3,3,"");assert(controller_review_final(&s));
+ controller_review_snapshot(&s,2,3,"late");assert(s.review_loaded==-1 && !controller_review_final(&s));
+ controller_review_snapshot(&s,3,3,"");assert(controller_review_final(&s));
+ tap(&s,0,2700);tap(&s,2,2900);assert(s.stage==1 && s.selected==0);
+ controller_press(&s,0,3100);assert(controller_tick(&s,3750)==ACTION_REVIEW);
+ assert(s.review_page==0 && s.stage==0 && s.selected==-1 && s.request_visible);
+ controller_release(&s,0,3800);
+ // After re-reading, the final allow still needs a fresh short OK then hold.
+ for(int i=0;i<3;i++) { controller_review_snapshot(&s,i,3,"review");tap(&s,1,3900+i*200); }
+ controller_review_snapshot(&s,3,3,"");s.last_rx=4500;
+ tap(&s,0,4500);tap(&s,2,4700);controller_press(&s,2,4900);
+ assert(controller_tick(&s,5899)==ACTION_NONE);assert(controller_tick(&s,5900)==ACTION_ALLOW);
+ assert(controller_release(&s,2,6000)==ACTION_NONE);
+ controller_request(&s,"replacement");assert(s.review_page==0 && s.review_protocol==0 && s.selected==-1);
+ puts("controller: navigation/hold/permission/expiry/disconnect/input-notice/paged-review assertions passed");
 }

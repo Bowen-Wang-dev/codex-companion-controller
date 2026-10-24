@@ -85,10 +85,7 @@ def main():
     backups=ROOT/'private'/'hook-backups' if args.user and not args.output else None
     save(target, merge, backups)
     if args.user and not args.output:
-        # Source releases use repo/controller; the original local layout used
-        # repo/outputs/PassportController. Clean only the corresponding project.
-        project_root=ROOT.parent if (ROOT.parent/'mac-demo').is_dir() else ROOT.parents[1]
-        projects={project_root.resolve(),*(p.resolve() for p in args.remove_project_copy)}
+        projects={ROOT.parents[1].resolve(),*(p.resolve() for p in args.remove_project_copy)}
         for project in sorted(projects):
             local = project.resolve() / '.codex' / 'hooks.json'
             if local.exists():

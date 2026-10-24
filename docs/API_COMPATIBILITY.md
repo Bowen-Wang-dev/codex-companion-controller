@@ -9,7 +9,7 @@
 分三层实现，保留现有固件协议：
 
 1. **推理提供商**：优先使用 Codex 官方用户级 `model_provider` / `model_providers` 配置，核对 Responses、SSE 完成事件、工具调用 ID、工具结果、多轮输入和实际模型目录。只有 Chat Completions 兼容不能视为可用。
-2. **会话与审批**：继续在 Mac 通过受支持的 Hooks 或与界面共享的 App Server 处理。模型 API 不负责 Mac 文件系统授权；禁止将模型生成的“允许”当成人的按键批准。App 现有会话的接入仍须独立验证。
+2. **会话与审批**：继续在 Mac 通过受支持的 Hooks 或与界面共享的 App Server 处理。当前 ChatGPT 模式、已核对 App 版本的原聊天已通过真实目录申请的设备允许／拒绝；每个第三方配置仍须重新验证。模型 API 不负责 Mac 文件系统授权，禁止将模型生成的“允许”当成人的按键批准。
 3. **用量提供商**：将 ChatGPT 订阅窗口／重置次数与第三方 token 用量／预算／余额独立表示。没有服务商官方余额接口时显示“不支持查询”，不推算剩余额度或使用假重置时间。
 
 后续验收清单：
@@ -30,7 +30,7 @@ The compatibility target is third-party services or gateways exposing Codex/Open
 Keep the firmware protocol and separate three responsibilities:
 
 1. **Inference provider:** use official user-level `model_provider` / `model_providers` configuration where possible. Validate Responses, SSE completion events, tool call IDs/results, replayed conversation input and model catalogs. Chat Completions support alone is insufficient.
-2. **Sessions and approvals:** keep supported Hooks or a shared App Server on the Mac. A model API cannot grant Mac filesystem permissions. Model-generated approval text must never count as a physical user decision. Attaching to an existing desktop App session remains a separate validation task.
+2. **Sessions and approvals:** keep supported Hooks or a shared App Server on the Mac. The current ChatGPT configuration and checked App build passed physical Allow/Deny of real directory requests in the original chat; each third-party configuration still needs independent validation. A model API cannot grant Mac filesystem permissions, and model-generated approval text must never count as a physical user decision.
 3. **Usage provider:** keep ChatGPT windows/reset credits separate from provider token usage, budgets, and balances. Without a documented provider balance endpoint, show an unsupported state instead of inventing remaining quota or reset times.
 
 Acceptance checklist:

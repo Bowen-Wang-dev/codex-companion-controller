@@ -228,12 +228,12 @@ class NativeWebSocketTests(unittest.TestCase):
 
 
 class PermissionOutcomeTests(unittest.TestCase):
-    def test_actual_user_project_and_folder_are_completely_visible(self):
+    def test_portable_project_and_folder_are_completely_visible(self):
         params=request()['params']
-        params['cwd']='/Users/alice/Documents/Codex/2026-10-23/codex-companion-controller-ai-passport-folotoy'
+        params['cwd']='/Users/developer/Documents/Codex/2026-10-23/codex-companion-controller-ai-passport-folotoy'
         self.assertTrue(permission_display(params)[3])
-        params['cwd']='/Users/alice/Documents/Codex/2026-10-24/codex-approve-deny-2'
-        path='/Users/alice/Documents/Codex-approval-hardware-test'
+        params['cwd']='/Users/developer/Documents/Codex/2026-10-24/codex-approve-deny-2'
+        path='/Users/developer/Documents/approval-test'
         params['permissions']={'network':None,'fileSystem':{'read':None,'write':[path]}}
         _,summary,_,can_allow,_=permission_display(params)
         self.assertTrue(can_allow);self.assertIn(path,summary)

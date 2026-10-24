@@ -57,7 +57,7 @@ static void send_json(cJSON *o) {
  if(line) {
   // Single main task owns TX; bounded writes never block button/audio tasks indefinitely.
   const char *kind=text(o,"type");
-  network_send(line,!strcmp(kind,"decision") || !strcmp(kind,"reset"));
+  network_send(line,!strcmp(kind,"decision") || !strcmp(kind,"reset") || !strcmp(kind,"review_page"));
   char frame[512]; int len=snprintf(frame,sizeof(frame),"PC1 %s\n",line);
   if(len>0 && len<sizeof(frame)) usb_serial_jtag_write_bytes(frame,len,pdMS_TO_TICKS(10));
   cJSON_free(line);
@@ -66,9 +66,11 @@ static void send_json(cJSON *o) {
 }
 static void hello(void) {
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","hello");
- cJSON_AddStringToObject(o,"firmware","0.2.3"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddStringToObject(o,"firmware","0.2.4"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
  cJSON_AddBoolToObject(o,"readonly_notices",true);
  cJSON_AddBoolToObject(o,"prehook_review",true);
+ cJSON_AddBoolToObject(o,"user_input_notices",true);
+ cJSON_AddNumberToObject(o,"review_protocol",1);
  cJSON_AddNumberToObject(o,"battery",battery_percent());
  sound_health_t audio=sound_health();
  cJSON_AddStringToObject(o,"audio_state",audio.state==SOUND_READY?"ready":audio.state==SOUND_ERROR?"error":"starting");
@@ -93,11 +95,25 @@ static void action(action_t a) {
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.reset_id); send_json(o); return;
  }
  if(a==ACTION_MUTE) { sound_cancel_permission(); return; }
+ if(a==ACTION_REVIEW) {
+  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","review_page");
+  cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
+  cJSON_AddStringToObject(o,"digest",s.digest); cJSON_AddNumberToObject(o,"review_page",s.review_page);
+  send_json(o); return;
+ }
+ if(a==ACTION_DISMISS) {
+  sound_cancel_permission();
+  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","dismiss");
+  cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
+  cJSON_AddStringToObject(o,"digest",s.digest); send_json(o); return;
+ }
  if(a!=ACTION_ALLOW && a!=ACTION_DENY) return;
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","decision");
  cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
  cJSON_AddStringToObject(o,"digest",s.digest);
- cJSON_AddStringToObject(o,"choice",a==ACTION_ALLOW?"allow":"deny"); send_json(o);
+ cJSON_AddStringToObject(o,"choice",a==ACTION_ALLOW?"allow":"deny");
+ if(s.review_protocol==1)cJSON_AddNumberToObject(o,"review_page",s.review_page);
+ send_json(o);
  snprintf(s.receipt,sizeof(s.receipt),"Sent; waiting for Mac");
 }
 static void snapshot(cJSON *o) {
@@ -140,6 +156,18 @@ static void snapshot(cJSON *o) {
   snprintf(s.scope,sizeof(s.scope),"%s",text(o,"scope"));
   s.can_allow=cJSON_IsTrue(cJSON_GetObjectItem(o,"can_allow"));
   s.can_deny=!cJSON_IsFalse(cJSON_GetObjectItem(o,"can_deny"));
+  if(number(o,"review_protocol",0)==1) {
+   // Malformed, clipped, or stale pages must never unlock a decision.
+   if(s.review_protocol!=1) { controller_cancel_input(&s);s.review_protocol=1;s.review_loaded=-1; }
+   cJSON *page=cJSON_GetObjectItem(o,"review_page"),*total=cJSON_GetObjectItem(o,"review_total");
+   if(cJSON_IsNumber(page) && cJSON_IsNumber(total) && page->valuedouble==page->valueint && total->valuedouble==total->valueint)
+    controller_review_snapshot(&s,page->valueint,total->valueint,text(o,"review_text"));
+   if(!controller_review_final(&s)) { s.can_allow=false;s.can_deny=false; }
+  } else if(s.review_protocol==1) { s.can_allow=false;s.can_deny=false;controller_cancel_input(&s); }
+  bool user_input=!strcmp(text(o,"request_kind"),"user_input");
+  if(s.user_input!=user_input)controller_cancel_input(&s);
+  s.user_input=user_input;
+  if(s.user_input) { s.can_allow=false; s.can_deny=false; }
   bool mac_confirm=!strcmp(text(o,"action_mode"),"mac_confirm");
   if(s.mac_confirm!=mac_confirm) { controller_cancel_input(&s);s.mac_confirm=mac_confirm; }
   if(changed) { reminders=0; next_reminder=now_ms()+s.interval*1000; sound_volume(s.volume); sound_mute(!s.sound); sound_play(SOUND_PERMISSION); }
@@ -256,7 +284,7 @@ static void render(void) {
  label(r,96,12,48,s.online?(!strcmp(s.transport,"wifi")?"Wi-Fi":"USB"):"离线",s.online?0x8bf0cd:0xffbf5c,12);
  battery_indicator(r);
  if(s.request_visible) {
-  label(r,16,42,144,"权限请求",0xffbf5c,14);
+  label(r,16,42,144,s.user_input?"等待你回复":s.review_protocol==1?s.command:"权限请求",0xffbf5c,14);
 #if HAVE_PETS
   lv_obj_t *face=lv_image_create(r); lv_image_set_src(face,pet_asset("permission"));
   lv_image_set_scale(face,128); lv_obj_set_pos(face,144,20);
@@ -265,13 +293,29 @@ static void render(void) {
    label(r,16,106,210,s.selected==0?(s.mac_confirm?"在 Mac 确认本次权限？":"确认批准本次请求？"):"确认拒绝本次请求？",0xffffff,14);
    label(r,16,150,210,"释放按键后，\n长按确认 1 秒提交。",0xffbf5c,14);
    label(r,16,212,210,s.command,0xffffff,12);
-   label(r,16,277,210,"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
+   label(r,16,277,210,s.review_protocol==1?"上键取消 · 下键静音\n长按上键：从头查看":"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
+  } else if(s.review_protocol==1) {
+   bool ready=s.review_loaded==s.review_page;
+   if(!controller_review_final(&s)) {
+    if(s.review_page==s.review_total)snprintf(b,sizeof(b),"正在读取确认页");
+    else snprintf(b,sizeof(b),"请求详情 %d / %d",s.review_page+1,s.review_total);
+    label(r,16,94,210,b,0x8bf0cd,14);
+    lv_obj_t *body=label(r,16,120,210,ready?s.review_text:"正在读取本页…",0xffffff,16);
+    lv_obj_set_style_text_line_space(body,2,0);lv_obj_set_height(body,160);
+    label(r,16,288,210,"上/下翻阅 · 确认静音",0x92a6b9,12);
+   } else {
+    label(r,16,94,210,s.user_input?"请在 Mac 回复此问题":"详情已到最后一页",0x8bf0cd,16);
+    label(r,16,131,210,s.scope,0x92a6b9,14);
+    label(r,16,190,210,"建议先在 Mac 查看\n长按上键：从头查看",0xffbf5c,14);
+    label(r,16,247,210,s.stage==2?"已发送，等待回执":s.user_input?"按确认：标记已读":s.selected==0?"> 允许 · 按确认继续":s.selected==1?"> 拒绝 · 按确认继续":s.can_allow?"上键允许 · 下键拒绝":"请在 Mac 审阅 · 下键拒绝",0xffffff,14);
+    label(r,16,291,210,s.user_input?"已读不会代替你的回复":"无默认选择 · 二次确认提交",0x92a6b9,12);
+   }
   } else {
    lv_obj_t *command=label(r,16,94,210,s.command,0xffffff,12); lv_obj_set_height(command,36);
    lv_obj_t *project=label(r,16,130,210,s.project,0x92a6b9,12); lv_obj_set_height(project,120);
    lv_obj_t *scope=label(r,16,254,210,s.scope,0x92a6b9,12); lv_obj_set_height(scope,36);
    if(s.stage==2) label(r,16,294,210,"已发送，等待处理",0xffbf5c,12);
-   else label(r,16,294,210,!s.can_deny?"在 Mac 确认 · 按确认静音":s.selected==1?"> 拒绝 · 确认继续":s.selected==0?(s.mac_confirm?"> 在 Mac 确认":"> 批准 · 确认继续"):s.mac_confirm?"上到 Mac · 下拒绝":s.can_allow?"上批准 · 下拒绝":"需 Mac 审阅 · 下键拒绝",0xffffff,14);
+   else label(r,16,294,210,s.user_input?"在 Mac 回复 · 确认已读":!s.can_deny?"在 Mac 确认 · 按确认静音":s.selected==1?"> 拒绝 · 确认继续":s.selected==0?(s.mac_confirm?"> 在 Mac 确认":"> 批准 · 确认继续"):s.mac_confirm?"上到 Mac · 下拒绝":s.can_allow?"上批准 · 下拒绝":"需 Mac 审阅 · 下键拒绝",0xffffff,14);
   }
 
  } else if(s.page==0) {
@@ -362,6 +406,10 @@ void app_main(void) {
    if(e.down)controller_press(&s,e.key,e.at); else action(controller_release(&s,e.key,e.at));
   }
   bool was_online=s.online; action(controller_tick(&s,now));
+  static int64_t last_review_retry;
+  if(s.request_visible && s.online && s.review_protocol==1 && s.review_loaded!=s.review_page && now-last_review_retry>=500) {
+   action(ACTION_REVIEW);last_review_retry=now;
+  }
   if(was_online && !s.online) { sound_mute(!s.sound); sound_play(SOUND_DISCONNECTED); }
   if(s.request && s.online && !s.muted && s.sound && reminders<3 && now>=next_reminder) {
    sound_play(SOUND_PERMISSION); reminders++; next_reminder=now+s.interval*1000;

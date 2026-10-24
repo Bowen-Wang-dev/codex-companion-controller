@@ -12,6 +12,7 @@ import threading
 import time
 import uuid
 from hook_policy import display as hook_display
+from approval_review import native_view
 
 from websockets.exceptions import WebSocketException
 from websockets.sync.client import unix_connect
@@ -215,7 +216,7 @@ class NativeApprovals:
         try:
             started=params.get('startedAtMs')
             if not isinstance(started,(int,float)) or started>time.time()*1000+5000:return
-            ttl=110-max(0,time.time()-started/1000)
+            ttl=(600 if broker.review_protocol==1 else 110)-max(0,time.time()-started/1000)
             if ttl<=0 or not params.get('turnId') or not params.get('itemId'):return
             if method=='item/permissions/requestApproval':
                 command,project,scope,can_allow,grant=permission_display(params)
@@ -233,11 +234,16 @@ class NativeApprovals:
                     scope='范围过长或复杂 · CLI 审阅'
                     if method=='item/commandExecution/requestApproval':command='复杂命令 · 在 CLI 查看'
                 allow_result={'decision':'accept'};deny_result={'decision':'decline'}
+            view=native_view(method,params) if broker.review_protocol==1 else None
+            if view:
+                command,project,scope,can_allow=(view[k] for k in ('command','project','scope','can_allow'))
+                allow_result=view['allow_result'];deny_result=view['deny_result']
             with broker.lock:
                 if not broker.online() or broker.request or pending['resolved'].is_set():return
                 req={'id':str(uuid.uuid4()),'command':command,'project':project,'scope':scope,'can_allow':can_allow,
                      'deadline':time.monotonic()+ttl,'digest':hashlib.sha256(json.dumps(message,sort_keys=True).encode()).hexdigest(),
                      'choice':None,'cancelled':False,'boot':broker.boot,'session':self.thread_id,'source':'native'}
+                if view:req.update(review_pages=view['review_pages'],review_index=0,review_furthest=0,review_delivered=-1)
                 broker.request=req;broker.notice=None
             while time.monotonic()<req['deadline']:
                 # Serialize resolutions and submissions. Never submit after a

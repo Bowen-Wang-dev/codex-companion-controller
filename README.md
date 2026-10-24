@@ -4,7 +4,7 @@
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.3** · Bridge **0.2.3-hookfix1** · Mac demo **0.4.0**
+> Firmware **0.2.4** · Bridge **0.2.4-app-relay-preview-human1** · Mac demo **0.4.0**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
@@ -13,7 +13,9 @@
 把 FoloToy AI Passport 变成 Codex 的实体状态显示器、三键控制器和 Emoji 电子宠物。Mac Bridge 负责账户、会话和审批，ESP32-C3 负责显示、按键、Wi-Fi 与提示音。
 
 ```text
-Codex App / CLI → Hooks 或共享 App Server → Mac Bridge → HTTPS / Wi-Fi → AI Passport
+Codex desktop App → version-checked stdio relay → Mac Bridge → HTTPS / Wi-Fi → AI Passport
+Codex Hooks → Mac Bridge (task state and user-action notifications)
+Codex CLI → shared App Server → Mac Bridge (optional)
 ```
 
 ### 当前功能与真实边界
@@ -25,12 +27,17 @@ Codex App / CLI → Hooks 或共享 App Server → Mac Bridge → HTTPS / Wi-Fi 
 | 额外额度重置 | 已实现二次确认和幂等提交；测试没有消耗真实重置次数 |
 | 任务状态、事件记录与三秒回待机 | 已实现；Hook 的 Stop 表示本轮结束，不保证整个项目成功 |
 | BB 机提醒、音量 0–100%、10% 步进 | 已实现；三声约 1200 Hz，每声 180 ms，间隔 120 ms |
-| 普通 PermissionRequest Hook 审批 | 支持完整可显示且已识别的操作；复杂或过长内容在 Mac 审阅 |
-| App 内置目录／网络权限申请 | 设备可拒绝或转到 Mac；**直接授予仍未接通** |
+| App 内置目录权限申请 | **已实机验证设备直接批准与拒绝**，保留 App 界面和原聊天 |
+| App 网络权限与命令审批 | 已实现原生协议及主机测试；这些类型未因目录测试而自动视为实机验收 |
+| 长请求与中文说明 | 完整分页显示实际路径、原因、工作目录、权限和有效期；无需模型精简 |
+| 普通 PermissionRequest Hook 审批 | 新固件支持完整输入分页；只处理实际收到的官方 Hook |
+| 等待用户操作／回复 | 设备提醒、翻阅、确认已读；已读不代替 Mac 上的回答 |
 | CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
 | 第三方 OpenAI／GPT／Codex 兼容 API | **后续计划，当前 Bridge 未实现提供商适配，也未验证具体服务商** |
 
-用户已在实机验证 App 原生权限申请的设备提醒、设备拒绝和继续到 Mac。设备“允许后转到 Mac”不等于设备已授予目录权限。不能把主机测试通过写成所有 App 审批均已完成。
+实机组合为 App **26.1016.62342**、固件 0.2.4 和加密 Wi-Fi Bridge。真实目录申请经设备批准后由 Codex 授予，经设备拒绝后未授予；记录已匹配硬件选择与官方工具结果。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
+
+App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
 
 ### 表情与三键
 
@@ -44,7 +51,7 @@ Codex App / CLI → Hooks 或共享 App Server → Mac Bridge → HTTPS / Wi-Fi 
 | 拒绝／失败 | 😭 |
 | 本轮完成 | 🥳 |
 
-拒绝直接显示 😭，没有中间表情。普通浏览页短按、长按方向键都换页；设置和事件页短按选择、长按换页。审批不预选：上／下选择，短按确认，松开后再次长按约 1 秒提交。电源键不作为第四个应用键；固件不依赖同时按上下键静音。
+拒绝直接显示 😭，没有中间表情。普通浏览页短按、长按方向键都换页；设置和事件页短按选择、长按换页。长请求详情页上下键只翻阅，全部翻至末尾后才选择允许／拒绝；长按上键回到开头并清除选择。审批不预选：上允许／下拒绝，短按确认，松开后再次长按约 1 秒提交。电源键不作为第四个应用键；固件不依赖同时按上下键静音。
 
 ### 项目结构
 
@@ -84,7 +91,9 @@ bash controller/scripts/build.sh
 
 这个源码仓库不包含 Apple 图像。未导入资源时固件显示素材缺失提示；这不是完整视觉体验的成品镜像。导入有权使用的 Apple 原图见 [controller/README.md](controller/README.md)。
 
-首次使用：在 Mac 登录官方 Codex；构建自己的固件，使用 `刷入并启动.command` 的备份及应用区刷写流程；运行 `配置无线连接.command`，用 USB 和设备确认完成配对。之后运行 `安装通知接入.command`，由用户审阅并信任 Hooks，再完整重开 App。日常运行 `仅启动桥接.command`，保持 Mac 和设备处于可互访的网络。具体入口与限制见 [controller/README.md](controller/README.md)。
+首次使用：在 Mac 登录官方 Codex，构建固件并通过备份及应用区刷写流程更新设备。运行 `配置无线连接.command`，用 USB 和设备确认完成配对。通过 `安装通知接入.command` 注册并审阅 Hooks。
+
+桌面 App 实体审批：先停止旧 Bridge 并退出 App，再运行 `controller/启动桌面App实体审批.command`，打开原聊天。之后若仅更新 Bridge，只在 Bridge 终端 Control+C，再运行 `controller/仅启动桌面App桥接.command`；保持 App 打开，无需刷机。普通 `仅启动桥接.command` 是通知／同步模式，不等于 App 实体审批入口。具体版本限制与入口见 [controller/README.md](controller/README.md)。
 
 ### 数据、素材与后续 API 兼容
 
@@ -101,7 +110,9 @@ bash controller/scripts/build.sh
 A physical Codex status display, three-button controller, and emoji companion for the FoloToy AI Passport. The Mac Bridge owns account access, sessions, and approval routing; the ESP32-C3 owns the screen, buttons, Wi-Fi, and audio.
 
 ```text
-Codex App / CLI → Hooks or shared App Server → Mac Bridge → HTTPS / Wi-Fi → AI Passport
+Codex desktop App → version-checked stdio relay → Mac Bridge → HTTPS / Wi-Fi → AI Passport
+Codex Hooks → Mac Bridge (task state and user-action notifications)
+Codex CLI → shared App Server → Mac Bridge (optional)
 ```
 
 ### Current capabilities and limits
@@ -113,12 +124,17 @@ Codex App / CLI → Hooks or shared App Server → Mac Bridge → HTTPS / Wi-Fi 
 | Extra rate-limit reset | Confirmation and idempotent submission implemented; tests did not spend real credits |
 | Task state, history, return to idle after three seconds | Implemented; a Hook Stop means the turn ended, not that the whole project passed |
 | Pager alerts and 0–100% volume in 10% steps | Implemented; three tones around 1200 Hz, 180 ms each with 120 ms gaps |
-| Ordinary PermissionRequest Hook approvals | Supported for recognized operations whose required details fit the display |
-| Built-in App directory/network permission grants | Device denial or handoff to Mac; **direct grants are not connected yet** |
+| Built-in App directory permission requests | **Physical Allow and Deny verified in the real App**, retaining its UI and original chat |
+| App network and command approvals | Native protocol implementation and host tests; directory tests do not validate every approval type |
+| Long requests and readable Chinese details | Complete paged paths, reason, working directory, permissions and validity; no model summarization |
+| Ordinary PermissionRequest Hook approvals | Complete input pagination on new firmware, for Hooks actually received |
+| User-action / reply requests | Device notification, reading and acknowledgement; acknowledgement does not answer the Mac question |
 | CLI sharing an App Server with the Bridge | Protocol integration and host tests implemented; full hardware acceptance remains separate |
 | Third-party OpenAI/GPT/Codex-compatible APIs | **Planned. No provider adapter or specific third-party service has been validated** |
 
-The user has verified real App permission notifications, hardware denial, and continuation to the Mac. Continuing to the Mac does not grant filesystem access. Host tests do not prove complete desktop App approval coverage.
+The verified combination is App **26.1016.62342**, firmware 0.2.4 and the encrypted Wi-Fi Bridge. Real directory requests were granted after physical Allow and remained ungranted after physical Deny. Bound device choices were matched against official tool results. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
+
+The App launch adapter uses internal switches present in the checked build, not stable public settings. Version changes reject the old adapter. Native approvals use the official App Server protocol while preserving the App's account and original chat. Missing file diffs and unsupported extra-grant semantics still require Mac review. These directory tests do not establish every client or permission type.
 
 ### Expressions and controls
 
@@ -132,7 +148,7 @@ The user has verified real App permission notifications, hardware denial, and co
 | Denied / failed | 😭 |
 | Turn completed | 🥳 |
 
-Denial shows 😭 immediately without an intermediate face. On browsing pages, short and long direction presses change pages. On settings/history pages, short presses select content and long presses change pages. Approvals have no default selection: select with Up/Down, press Confirm, release it, then hold Confirm again for about one second. The power button is not a fourth application key; firmware does not depend on an Up+Down mute chord.
+Denial shows 😭 immediately without an intermediate face. On browsing pages, short and long direction presses change pages. On settings/history pages, short presses select content and long presses change pages. During request review, Up/Down browse details; choices appear only after the final detail page. Holding Up returns to the beginning and clears the choice. No option is preselected: Up selects Allow, Down selects Deny, short Confirm opens confirmation, then a fresh one-second Confirm hold submits. The power button is not a fourth application key; firmware does not depend on an Up+Down mute chord.
 
 ### Repository layout
 
@@ -172,7 +188,9 @@ bash controller/scripts/build.sh
 
 Apple artwork is excluded. Firmware built without imported assets displays a missing-artwork message; this source checkout is not a ready-to-flash image with the complete visuals. See [controller/README.md](controller/README.md) for importing authorized Apple originals.
 
-For first setup, sign into official Codex on the Mac, build your firmware, and use `刷入并启动.command` to back up and update the application partition. Run `配置无线连接.command` for USB pairing with physical confirmation. Run `安装通知接入.command`, review and trust the Hooks yourself, then fully restart the App. For daily use run `仅启动桥接.command` and keep the Mac and device on reachable networks. See [controller/README.md](controller/README.md) for launcher translations and limitations.
+For first setup, sign into official Codex, build firmware and use the backup/application-only flash workflow. Run `配置无线连接.command` for USB pairing with physical confirmation. Register and review Hooks with `安装通知接入.command`.
+
+For desktop App physical approvals, stop the old Bridge and quit the App, then run `controller/启动桌面App实体审批.command` and reopen the original chat. For Bridge-only updates, stop just the Bridge with Control+C and run `controller/仅启动桌面App桥接.command`, keeping the App open; no flashing is needed. The ordinary `仅启动桥接.command` starts notification/sync mode, not the desktop approval adapter. See [controller/README.md](controller/README.md) for translated launchers and version limits.
 
 ### Data, artwork and API compatibility
 
