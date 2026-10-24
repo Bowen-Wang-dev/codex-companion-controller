@@ -1,0 +1,2 @@
+# websockets is pinned and vendored separately; see vendor/README.md.
+pyserial==3.5

@@ -1,0 +1,42 @@
+# Local secrets, pairing identities, full-flash backups and runtime state
+**/private/
+**/.env
+**/.env.*
+!**/.env.example
+**/auth.json
+**/wireless.json
+**/wireless-pending.json
+**/*-journal.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/.codex/
+# Generated Apple artwork and firmware containing it are never source releases
+**/pet_assets.h
+**/assets/generated/
+**/apple-originals/
+**/dist/
+**/*.bin
+**/*.elf
+**/*.map
+**/*.zip
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.heic
+**/*.webp
+# Local build output and dependency caches
+**/build/
+**/.build/
+**/managed_components/
+**/sdkconfig
+**/sdkconfig.old
+**/*.app/
+**/.venv/
+**/*venv/
+**/__pycache__/
+**/*.pyc
+**/*.log
+**/node_modules/
+**/.DS_Store
