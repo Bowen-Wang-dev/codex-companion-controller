@@ -122,14 +122,14 @@ class Relay:
             except queue.Empty:event={'kind':'heartbeat'}
             try:
                 with self.arbiter.lock:sessions=sorted(self.sessions)
-                self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,**event})
+                self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,'approval_receipts':1,**event})
             except (OSError,ValueError):pass
 
     def review(self,pending):
         message=pending['message'];connection=None
         try:
             with self.arbiter.lock:sessions=sorted(self.sessions)
-            self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,'kind':'heartbeat'})
+            self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,'approval_receipts':1,'kind':'heartbeat'})
             encoded=json.dumps({'type':'desktop_request','relay':self.id,
                 'method':message['method'],'native_id':message['id'],'params':message.get('params')}).encode()+b'\n'
             if len(encoded)>65536:return
@@ -140,7 +140,13 @@ class Relay:
                 pending['connection']=connection
             connection.sendall(encoded)
             with connection.makefile('rb') as stream:result=json.loads(stream.readline(65537))
-            self.arbiter.from_device(pending,result)
+            with self.arbiter.lock:
+                if self.arbiter.from_device(pending,result):
+                    decision=result['result'];params=message.get('params') or {}
+                    allow=bool(decision.get('permissions')) if message['method']=='item/permissions/requestApproval' else decision.get('decision')=='accept'
+                    self.event({'kind':'approval/submitted','thread':params.get('threadId'),
+                        'turn':params.get('turnId'),'item':params.get('itemId'),
+                        'request_id':result.get('request_id'),'choice':'allow' if allow else 'deny'})
         except (OSError,ValueError,TypeError):pass # App's own approval remains available.
         finally:
             if connection:connection.close()

@@ -128,6 +128,51 @@ class DesktopBrokerTests(unittest.TestCase):
         self.b.device_message({'type':'hello','boot':'changed'},'wifi');self.wait(lambda:bool(result))
         self.assertEqual(result,[{}])
 
+    def submitted_request(self):
+        self.b.desktop_event({'relay':'relay','sessions':['desktop-thread'],'kind':'heartbeat','approval_receipts':1})
+        result=[];worker=threading.Thread(target=lambda:result.append(self.b.desktop_request(self.request())),daemon=True)
+        self.workers.append(worker);worker.start();self.wait(lambda:self.b.request is not None)
+        view=self.b.snapshot()
+        self.assertTrue(self.b.decision({'boot':'boot','epoch':self.b.epoch,'id':view['req_id'],
+            'digest':view['digest'],'choice':'allow'}))
+        worker.join(timeout=1);self.assertTrue(result)
+        return {'relay':'relay','sessions':['desktop-thread'],'approval_receipts':1,
+            'kind':'approval/submitted','thread':'desktop-thread','turn':'turn','item':'tool-call',
+            'request_id':result[0]['request_id'],'choice':'allow'}
+
+    def test_delivery_receipt_shows_delight_for_three_seconds_then_real_state(self):
+        event=self.submitted_request()
+        self.assertEqual(self.b.state,'approval_sent');self.assertEqual(self.b.snapshot()['face'],'')
+        self.b.desktop_event(dict(event,item='wrong'));self.assertEqual(self.b.snapshot()['face'],'')
+        self.b.desktop_event(event)
+        self.assertEqual(self.b.state,'working');self.assertEqual(self.b.snapshot()['face'],'delight')
+        self.assertEqual(self.b.receipt,'批准已送达 Codex')
+        self.assertGreater(self.b.expression_until-time.monotonic(),2.5)
+        self.b.expression_until=time.monotonic()-1;self.assertEqual(self.b.snapshot()['face'],'')
+        self.b.desktop_event(event);self.assertEqual(self.b.snapshot()['face'],'') # Duplicate cannot replay.
+
+    def test_receipt_timeout_and_reboot_never_fake_success(self):
+        event=self.submitted_request()
+        self.b.desktop_deliveries[event['request_id']]['until']=time.monotonic()-1
+        view=self.b.snapshot();self.assertEqual(view['state'],'working');self.assertEqual(view['face'],'')
+        self.assertIn('未确认',view['receipt'])
+        self.b.desktop_event(event);self.assertEqual(self.b.snapshot()['face'],'')
+        self.b.device_message({'type':'hello','boot':'reboot'},'wifi')
+        self.b.desktop_event(event);self.assertEqual(self.b.snapshot()['face'],'')
+
+    def test_actual_denial_cannot_be_overwritten_by_late_delivery_receipt(self):
+        event=self.submitted_request()
+        self.b.event({'hook_event_name':'PostToolUse','session_id':'desktop-thread','turn_id':'turn',
+            'tool_use_id':'tool-call','permission_outcome':'denied'})
+        self.b.desktop_event(event)
+        self.assertEqual(self.b.state,'denied');self.assertEqual(self.b.snapshot()['face'],'crying')
+
+    def test_server_resolved_without_delivery_is_not_success(self):
+        self.submitted_request()
+        self.b.desktop_event({'relay':'relay','sessions':['desktop-thread'],'kind':'serverRequest/resolved',
+            'thread':'desktop-thread','request_id':'approval-1'})
+        self.assertEqual(self.b.state,'approval_sent');self.assertEqual(self.b.snapshot()['face'],'')
+
 
 class UserInputNoticeTests(unittest.TestCase):
     def setUp(self):
@@ -181,6 +226,7 @@ message=json.loads(sys.argv[1]);print(json.dumps(message),flush=True)
 reply=json.loads(sys.stdin.readline())
 print(json.dumps({'method':'fixture/echo','params':reply}),flush=True)
 print(json.dumps({'method':'serverRequest/resolved','params':{'threadId':'desktop-thread','requestId':message['id']}}),flush=True)
+sys.stdin.readline() # Keep the backend alive until receipt assertions finish.
 '''
         with tempfile.TemporaryDirectory(prefix='pcc-relay-',dir='/tmp') as folder:
             path=Path(folder)/'bridge.sock'
@@ -216,6 +262,14 @@ print(json.dumps({'method':'serverRequest/resolved','params':{'threadId':'deskto
                             self.assertEqual(echo['method'],'fixture/echo')
                             self.assertEqual(echo['params']['result'],{'permissions':{'network':{'enabled':True}},'scope':'turn'} if physical and choice=='allow' else {'permissions':{},'scope':'turn'})
                             resolved=json.loads(app_reader.readline());self.assertEqual(resolved['method'],'serverRequest/resolved')
+                            if physical:
+                                deadline=time.monotonic()+2
+                                expected='批准已送达 Codex' if choice=='allow' else '拒绝已送达 Codex'
+                                while b.receipt!=expected and time.monotonic()<deadline:time.sleep(.005)
+                                self.assertEqual(b.receipt,expected)
+                                self.assertEqual(b.snapshot()['face'],'delight' if choice=='allow' else 'crying')
+                            else:self.assertEqual(b.snapshot()['face'],'')
+                            app_writer.write(b'fixture-finish\n');app_writer.flush()
                             worker.join(timeout=2);self.assertFalse(worker.is_alive())
                         finally:
                             relay.stopping.set();relay.arbiter.close()

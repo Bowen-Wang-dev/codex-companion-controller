@@ -14,11 +14,11 @@ from service import Broker,desktop_reply
 
 def params():
     return {'threadId':'thread','turnId':'turn','itemId':'item','environmentId':None,
-        'startedAtMs':int(time.time()*1000),'cwd':'/Users/developer/很长的项目名称',
+        'startedAtMs':int(time.time()*1000),'cwd':'/Users/bowen/很长的项目名称',
         'reason':'只申请测试权限，不会创建或修改文件。'*8,
         'permissions':{'network':{'enabled':True},'fileSystem':{'read':None,
-            'write':['/Users/developer/Documents/'+'long-folder-name/'*14+'folder',
-                     '/Users/developer/另一个测试目录']}}}
+            'write':['/Users/bowen/Documents/'+'long-folder-name/'*14+'folder',
+                     '/Users/bowen/另一个测试目录']}}}
 
 
 class LayoutTests(unittest.TestCase):
@@ -133,6 +133,29 @@ class BrokerPagesTests(unittest.TestCase):
         self.assertFalse(self.b.review_page(dict(self.message(review_page=1),digest='wrong')))
         self.assertTrue(self.b.review_page(self.message(review_page=1)))
         self.assertFalse(self.b.review_page(self.message(review_page=2))) # Not sent page 1 yet.
+
+    def test_new_firmware_can_jump_over_140_pages_but_must_confirm_loaded_endpoint(self):
+        self.b.review_jumps=True
+        self.b.request['review_pages']=['detail']*140
+        view=self.b.snapshot()
+        self.assertFalse(self.b.review_page(self.message(review_page=139)))
+        self.assertTrue(self.b.review_page(self.message(review_page=140)))
+        self.assertFalse(self.b.decision(self.message(choice='allow',review_page=140)))
+        view=self.b.snapshot();self.assertTrue(view['can_allow'])
+        self.assertTrue(self.b.review_page(self.message(review_page=0)))
+        self.assertFalse(self.b.decision(self.message(choice='allow',review_page=140)))
+        self.assertFalse(self.b.snapshot()['can_allow'])
+        self.assertTrue(self.b.review_page(self.message(review_page=140)))
+        self.assertFalse(self.b.review_page(self.message(review_page=141)))
+        self.assertFalse(self.b.review_page(dict(self.message(review_page=0),boot='old')))
+        self.b.snapshot()
+        self.assertTrue(self.b.decision(self.message(choice='allow',review_page=140)))
+
+    def test_jump_capability_is_explicit_and_cleared_on_old_firmware_handshake(self):
+        self.b.device_message({'type':'hello','boot':'boot','review_protocol':1,'review_jumps':True},'wifi')
+        self.assertTrue(self.b.review_jumps)
+        self.b.device_message({'type':'hello','boot':'boot','review_protocol':1},'wifi')
+        self.assertFalse(self.b.review_jumps)
 
     def test_final_page_bound_choice_returns_exact_native_grant(self):
         view=self.advance();self.assertTrue(view['can_allow']);self.assertEqual(view['review_text'],'')

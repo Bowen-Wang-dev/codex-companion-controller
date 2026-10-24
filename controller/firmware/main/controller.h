@@ -4,7 +4,7 @@
 typedef struct {
  int page, option, selected, stage, key;
  int64_t pressed_at, last_rx, expires, delight_until;
- bool consumed, online, request, request_visible, can_allow, can_deny, muted, sound, volume_edit, mac_confirm, user_input;
+ bool consumed, online, request, request_visible, can_allow, can_deny, muted, sound, volume_edit, mac_confirm, user_input, handling_on_mac;
  char id[40], epoch[40], digest[65], state[20], command[192], project[96];
  char scope[128], receipt[96];
  int review_protocol, review_page, review_total, review_loaded;
@@ -20,7 +20,7 @@ typedef struct {
  char hook_status[128];
 } controller_t;
 typedef enum { ACTION_NONE, ACTION_DENY, ACTION_ALLOW, ACTION_MUTE, ACTION_RESET, ACTION_PAIR,
- ACTION_TEST_AUDIO, ACTION_PREVIEW_AUDIO, ACTION_TOUCH, ACTION_DISMISS, ACTION_REVIEW } action_t;
+ ACTION_TEST_AUDIO, ACTION_PREVIEW_AUDIO, ACTION_TOUCH, ACTION_DISMISS, ACTION_REVIEW, ACTION_MAC } action_t;
 void controller_init(controller_t *s);
 void controller_press(controller_t *s, int key, int64_t now);
 action_t controller_tick(controller_t *s, int64_t now);

@@ -88,6 +88,9 @@ class Broker:
         self.input_notices = []
         self.desktop_mode = False
         self.review_protocol = 0
+        self.review_jumps = False
+        self.desktop_deliveries = {}
+        self.last_device_delivery = None
         self.last_device_decision = None
 
     def desktop_session(self,session):
@@ -102,12 +105,31 @@ class Broker:
                 self.desktop_relays.pop(relay,None)
                 for pending in self.hook_pending:
                     if pending.get('relay')==relay:pending['cancelled']=True
+                self.desktop_deliveries={k:v for k,v in self.desktop_deliveries.items() if v['relay']!=relay}
+                if self.state=='approval_sent':
+                    self.set_state('idle');self.receipt='App 已断开 · 请在 Mac 检查结果'
             else:
                 if relay not in self.desktop_relays and len(self.desktop_relays)>=16:return {}
-                self.desktop_relays[relay]={'at':time.monotonic(),'sessions':set(sessions)}
+                self.desktop_relays[relay]={'at':time.monotonic(),'sessions':set(sessions),
+                    'approval_receipts':event.get('approval_receipts')==1}
             thread=event.get('thread')
             if thread not in sessions:return {}
-            if kind=='turn/started':
+            if kind=='approval/submitted':
+                # This receipt is emitted only after the relay wins arbitration
+                # and flushes the exact reply to the App's real backend. It is
+                # a delivery receipt, not proof that a command has succeeded.
+                pending=self.desktop_deliveries.get(event.get('request_id'))
+                if not pending or any(event.get(k)!=pending[k] for k in ('relay','thread','turn','item','choice')):return {}
+                if pending['boot']!=self.boot or time.monotonic()>=pending['until']:return {}
+                self.desktop_deliveries.pop(event['request_id'])
+                allow=pending['choice']=='allow'
+                if self.state=='approval_sent':self.set_state('working' if allow else 'denied')
+                self.expression='delight' if allow else 'crying'
+                self.expression_until=time.monotonic()+3
+                self.receipt='批准已送达 Codex' if allow else '拒绝已送达 Codex'
+                self.last_device_delivery={'id':event['request_id'],'choice':pending['choice'],
+                    'at':int(time.time()),'stage':'submitted'}
+            elif kind=='turn/started':
                 self.active_session=thread;self.set_state('working')
             elif kind=='turn/completed' and thread==self.active_session:
                 status=event.get('status')
@@ -146,7 +168,8 @@ class Broker:
             'tool_input':params}
         view={'command':command.replace('CLI','Mac'),'project':project,'scope':scope.replace('CLI','Mac'),
             'can_allow':can_allow,'can_deny':True,'allow_result':allow,'deny_result':deny,
-            'relay':relay,'native_item':item,'native_method':method}
+            'relay':relay,'native_item':item,'native_method':method,
+            'delivery_receipt':registered.get('approval_receipts',False)}
         # Old firmware keeps its bounded, single-screen policy. Only an explicit
         # capability handshake enables full, paged review and long approvals.
         if self.review_protocol == 1:
@@ -202,10 +225,11 @@ class Broker:
     def status(self):
         with self.lock:
             return {'online':self.online(),'transport':self.transport,'firmware':self.firmware,'battery':self.battery,
-                    'bridge_revision':'0.2.4-app-relay-preview-human1',
+                    'bridge_revision':'0.2.5-review-jumps-receipts',
                     'review_protocol':self.review_protocol,
                     'review_format':'中文说明',
                     'last_device_decision':self.last_device_decision,
+                    'last_device_delivery':self.last_device_delivery,
                     'hook_count':self.hook_count,'hook_age':round(time.monotonic()-self.last_hook,1) if self.last_hook else None,
                     'permission_pending':bool(self.request),'directory_notice_pending':bool(self.notice),
                     'permission_notice_pending':bool(self.notice),'notification_version':3,
@@ -213,6 +237,7 @@ class Broker:
                     'approval_capabilities':{'permission_hook':'allow_deny',
                         'builtin_permission_pre_hook':'continue_on_mac_or_deny' if self.prehook_review else 'notify_only'},
                     'desktop':{'connected':any(time.monotonic()-r['at']<8 for r in self.desktop_relays.values()),
+                        'approval_receipts':any(time.monotonic()-r['at']<8 and r.get('approval_receipts') for r in self.desktop_relays.values()),
                         'session_count':len({s for r in self.desktop_relays.values() if time.monotonic()-r['at']<8 for s in r['sessions']})},
                     'input_notice_count':len(self.input_notices),
                     'event_counts':dict(self.event_counts),'tool_counts':dict(self.tool_counts),'audio':dict(self.audio),
@@ -268,10 +293,12 @@ class Broker:
                 outcome=event.get('permission_outcome')
                 if outcome in ('granted','denied','partial'):
                     self.native_awaiting=None
+                    self.desktop_deliveries={k:v for k,v in self.desktop_deliveries.items()
+                        if (v['thread'],v['turn'],v['item'])!=(session,event.get('turn_id'),event.get('tool_use_id'))}
                     self.set_state('denied' if outcome=='denied' else 'working')
                     self.expression='delight' if outcome=='granted' else 'crying' if outcome=='denied' else ''
-                    self.expression_until=time.monotonic()+(1.2 if outcome=='granted' else 2.5)
-                    self.receipt='权限已授予' if outcome=='granted' else '权限未授予' if outcome=='denied' else '仅部分权限授予 · 请在 CLI 查看'
+                    self.expression_until=time.monotonic()+3
+                    self.receipt='权限已授予' if outcome=='granted' else '权限未授予' if outcome=='denied' else '仅部分权限授予 · 请在 Mac 查看'
                     return {}
             if name in ('UserPromptSubmit', 'PreToolUse'):
                 self.set_state('working')
@@ -381,10 +408,16 @@ class Broker:
                         if req['choice']=='allow':
                             self.awaiting_execution={'session':req['session'],'tool':event.get('tool_name'),'digest':hashlib.sha256(json.dumps(event.get('tool_input'),sort_keys=True).encode()).hexdigest(),'until':time.monotonic()+120}
                         if source=='desktop':
+                            if req.get('delivery_receipt'):
+                                if len(self.desktop_deliveries)>=8:self.desktop_deliveries.pop(next(iter(self.desktop_deliveries)))
+                                self.desktop_deliveries[req['id']]={'relay':req['relay'],'thread':req['session'],
+                                    'turn':req['turn'],'item':req['native_item'],'choice':req['choice'],
+                                    'boot':req['boot'],'until':time.monotonic()+10}
                             if req['choice']=='allow' and req.get('native_method')=='item/permissions/requestApproval':
                                 self.native_awaiting={'session':req['session'],'turn':req['turn'],
                                     'item':req['native_item'],'until':time.monotonic()+120}
                             req['result']={'type':'desktop_decision','result':req['allow_result'] if req['choice']=='allow' else req['deny_result']}
+                            if req.get('delivery_receipt'):req['result']['request_id']=req['id']
                         elif source=='prehook':
                             req['result']={'hookSpecificOutput':{'hookEventName':'PreToolUse',
                                 'permissionDecision':'deny','permissionDecisionReason':'用户在 AI Passport 拒绝本次权限请求'}}
@@ -429,7 +462,7 @@ class Broker:
             return True
 
     def review_page(self,message):
-        """A bound request can move one page at a time, or jump back to start."""
+        """Bound page navigation; new firmware can jump to either endpoint."""
         with self.lock:
             req=self.request
             if not req and not self.notice and self.input_notices:
@@ -439,9 +472,10 @@ class Broker:
             if any(message.get(k)!=v for k,v in (('boot',req.get('boot',self.boot)),('epoch',self.epoch),('id',req['id']),('digest',req['digest']))):return False
             index=message.get('review_page');current=req['review_index']
             if type(index) is not int or not 0<=index<=len(req['review_pages']):return False
-            if index not in (0,current,current-1,current+1) or index>req['review_furthest']+1:return False
+            endpoint=self.review_jumps and index in (0,len(req['review_pages']))
+            if not endpoint and (index not in (0,current,current-1,current+1) or index>req['review_furthest']+1):return False
             # Do not move past a page that was never sent to the device.
-            if index>current and req['review_delivered']!=current:return False
+            if not endpoint and index>current and req['review_delivered']!=current:return False
             req['review_index']=index;req['review_furthest']=max(req['review_furthest'],index)
             return True
 
@@ -456,6 +490,17 @@ class Broker:
 
     def snapshot(self):
         with self.lock:
+            expired=[key for key,value in self.desktop_deliveries.items() if time.monotonic()>=value['until']]
+            for key in expired:self.desktop_deliveries.pop(key)
+            if expired and self.state=='approval_sent':
+                self.set_state('working')
+                self.receipt='回执未确认 · 请在 Mac 查看'
+            # Legacy relay/Hook outcomes can be absent. Never leave a sticky
+            # approval_sent screen or manufacture a successful permission grant.
+            if self.native_awaiting and time.monotonic()>=self.native_awaiting['until']:
+                self.native_awaiting=None
+                if self.state=='approval_sent':
+                    self.set_state('working');self.receipt='回执未确认 · 请在 Mac 查看'
             if self.state == 'completed' and self.completed_until and time.monotonic() >= self.completed_until:
                 self.set_state('idle')
                 if self.receipt == '本轮响应已结束':self.receipt = ''
@@ -550,12 +595,14 @@ class Broker:
                     if self.request:self.request['cancelled']=True
                     for pending in self.hook_pending:pending['cancelled']=True
                     self.hook_results.clear()
+                    self.desktop_deliveries.clear()
                     self.notice=None
                 self.boot=message['boot']; self.last_seen=time.monotonic(); self.transport=transport
                 self.firmware=str(message.get('firmware',''))
                 self.readonly_notices=message.get('readonly_notices') is True
                 self.prehook_review=message.get('prehook_review') is True
                 self.review_protocol=1 if message.get('review_protocol')==1 else 0
+                self.review_jumps=self.review_protocol==1 and message.get('review_jumps') is True
                 value=message.get('battery')
                 self.battery=value if type(value) is int and 0<=value<=100 else None
                 self.audio={key:message[key] for key in ('audio_state','audio_error','audio_samples','audio_played','sound_enabled','sound_volume','audio_start_delay_ms','audio_max_feed_gap_ms')

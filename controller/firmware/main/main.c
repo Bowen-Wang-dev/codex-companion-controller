@@ -66,11 +66,12 @@ static void send_json(cJSON *o) {
 }
 static void hello(void) {
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","hello");
- cJSON_AddStringToObject(o,"firmware","0.2.4"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddStringToObject(o,"firmware","0.2.5"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
  cJSON_AddBoolToObject(o,"readonly_notices",true);
  cJSON_AddBoolToObject(o,"prehook_review",true);
  cJSON_AddBoolToObject(o,"user_input_notices",true);
  cJSON_AddNumberToObject(o,"review_protocol",1);
+ cJSON_AddBoolToObject(o,"review_jumps",true);
  cJSON_AddNumberToObject(o,"battery",battery_percent());
  sound_health_t audio=sound_health();
  cJSON_AddStringToObject(o,"audio_state",audio.state==SOUND_READY?"ready":audio.state==SOUND_ERROR?"error":"starting");
@@ -94,7 +95,7 @@ static void action(action_t a) {
   cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","reset");
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.reset_id); send_json(o); return;
  }
- if(a==ACTION_MUTE) { sound_cancel_permission(); return; }
+ if(a==ACTION_MUTE || a==ACTION_MAC) { sound_cancel_permission(); return; }
  if(a==ACTION_REVIEW) {
   cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","review_page");
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
@@ -289,11 +290,16 @@ static void render(void) {
   lv_obj_t *face=lv_image_create(r); lv_image_set_src(face,pet_asset("permission"));
   lv_image_set_scale(face,128); lv_obj_set_pos(face,144,20);
 #endif
-  if(s.stage==1) {
+  if(s.handling_on_mac) {
+   label(r,16,106,210,"请在 Mac 处理此请求",0xffffff,16);
+   label(r,16,150,210,"在 App 的审批窗口\n查看详情并允许或拒绝。\n设备提醒已静音。",0x92a6b9,14);
+   label(r,16,226,210,"尚未提交允许或拒绝",0xffbf5c,14);
+   label(r,16,277,210,"短按确认：返回设备审阅\n长按上/下：详情首/末页",0x92a6b9,12);
+  } else if(s.stage==1) {
    label(r,16,106,210,s.selected==0?(s.mac_confirm?"在 Mac 确认本次权限？":"确认批准本次请求？"):"确认拒绝本次请求？",0xffffff,14);
    label(r,16,150,210,"释放按键后，\n长按确认 1 秒提交。",0xffbf5c,14);
    label(r,16,212,210,s.command,0xffffff,12);
-   label(r,16,277,210,s.review_protocol==1?"上键取消 · 下键静音\n长按上键：从头查看":"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
+   label(r,16,277,210,s.review_protocol==1?"长按上/下：取消并回首/末页\n长按确认：提交当前选择":"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
   } else if(s.review_protocol==1) {
    bool ready=s.review_loaded==s.review_page;
    if(!controller_review_final(&s)) {
@@ -302,13 +308,13 @@ static void render(void) {
     label(r,16,94,210,b,0x8bf0cd,14);
     lv_obj_t *body=label(r,16,120,210,ready?s.review_text:"正在读取本页…",0xffffff,16);
     lv_obj_set_style_text_line_space(body,2,0);lv_obj_set_height(body,160);
-    label(r,16,288,210,"上/下翻阅 · 确认静音",0x92a6b9,12);
+    label(r,16,277,210,"长按上/下：首/末页\n长按确认：转到 Mac 处理",0x92a6b9,12);
    } else {
-    label(r,16,94,210,s.user_input?"请在 Mac 回复此问题":"详情已到最后一页",0x8bf0cd,16);
+    label(r,16,94,210,s.user_input?"请在 Mac 回复此问题":"请选择本次操作",0x8bf0cd,16);
     label(r,16,131,210,s.scope,0x92a6b9,14);
-    label(r,16,190,210,"建议先在 Mac 查看\n长按上键：从头查看",0xffbf5c,14);
+    label(r,16,190,210,"建议先在 Mac 查看\n长按确认：转到 Mac 处理",0xffbf5c,14);
     label(r,16,247,210,s.stage==2?"已发送，等待回执":s.user_input?"按确认：标记已读":s.selected==0?"> 允许 · 按确认继续":s.selected==1?"> 拒绝 · 按确认继续":s.can_allow?"上键允许 · 下键拒绝":"请在 Mac 审阅 · 下键拒绝",0xffffff,14);
-    label(r,16,291,210,s.user_input?"已读不会代替你的回复":"无默认选择 · 二次确认提交",0x92a6b9,12);
+    label(r,16,291,210,s.user_input?"已读不会代替你的回复":"长按上键：返回详情开头",0x92a6b9,12);
    }
   } else {
    lv_obj_t *command=label(r,16,94,210,s.command,0xffffff,12); lv_obj_set_height(command,36);
@@ -326,7 +332,7 @@ static void render(void) {
   label(r,34,60,180,"宠物图片未导入",0x92a6b9,20);
 #endif
   const char *state=!s.online?"连接已断开":!strcmp(s.state,"working")?"正在思考 / 工作":!strcmp(s.state,"approval_sent")?"批准待回执":!strcmp(s.state,"denied")?"权限已拒绝":!strcmp(s.state,"failed")?"任务失败":!strcmp(s.state,"completed")?"本轮已结束":!strcmp(s.state,"exhausted")?"额度已耗尽":"待机 · 等待事件";
-  label(r,16,151,210,state,0xffffff,20);
+  label(r,16,151,210,!strcmp(s.face,"delight")?s.receipt:state,0xffffff,20);
   quota(r,0,183); quota(r,1,221);
   char countdown[64]; reset_countdown(countdown,sizeof(countdown),0);
   label(r,16,253,140,countdown,0x92a6b9,12);

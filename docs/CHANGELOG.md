@@ -1,5 +1,21 @@
 # Changes / 更新记录
 
+## 0.2.5 · 2026-10-25
+
+### 中文
+
+- 长请求详情支持长按上／下直接跳到首／末页；二次确认可长按方向键返回详情；长按确认提交只作用于二次确认页。
+- 真实 App 网络权限已通过设备允许实测；设备选择与 relay 回执匹配，官方工具确认本轮授权；设备 😆 回执经用户确认显示正常。
+- 新增交互／回执固件更新入口，保留 Wi-Fi 配对；App relay 更新后需按脚本重新启动 App 并打开原聊天。
+- 主机回归检查增至 135 项 Python 测试，并通过固件构建与实际字库预览。
+
+### English
+
+- Hold Up/Down to jump to the first/final page of a long request. Direction holds return from second confirmation; a Confirm hold submits only on that page.
+- A real App network permission was allowed on-device; the device choice matched the relay receipt and the official tool confirmed the turn-scoped grant. The user confirmed the 😆 receipt displayed correctly.
+- Added an interaction/receipt firmware updater that preserves Wi-Fi pairing. Relaunch the App and reopen the original chat after the relay update.
+- Host regression coverage increased to 135 Python tests; firmware build and actual-font previews passed.
+
 ## 0.2.4 · 2026-10-24
 
 ### 中文

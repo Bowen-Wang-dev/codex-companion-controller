@@ -1,6 +1,10 @@
-# Controller setup / 控制器配置
+# Codex Companion Controller · V0.2.5 开发候选
 
-See the [bilingual project README](../README.md) for current capability limits. Firmware 0.2.4, Bridge 0.2.4-app-relay-preview-human1. This directory contains source, not a prebuilt firmware release.
+0.2.5 增加详情首/末页快捷跳转、二次确认返回、长按确认转到 Mac 处理，以及 App 接入层实际提交审批后的 3 秒 😆 回执。新固件已刷入并通过 Wi-Fi 握手，原 App 的网络权限申请已由设备批准并收到提交回执；😆 屏幕显示及其他按键交互仍待用户确认。更新入口为 `更新交互与回执固件.command`；保留 Wi-Fi 配对。此次同时更新 App relay，脚本在刷机后提示手动退出 App，再重新启动原 App 和 Bridge；随后从侧栏打开原聊天。按键表和回执含义见 `docs/交互与回执更新.md`。
+
+V0.2.5 adds first/last-page jumps, a return path from confirmation, hold-OK handoff to Mac, and a three-second 😆 after the relay submits a hardware approval. Host checks/build pass. The firmware is flashed and read-back verified; Wi-Fi and the original desktop App relay reconnected. A real App network request passed physical Allow with a matching decision/delivery receipt and official tool grant. The user confirmed the 😆 appeared correctly. Run `更新交互与回执固件.command`; pairing is retained. The script asks you to quit and relaunch the App after flashing so its relay reloads, then reopen the original chat from the sidebar. See `docs/交互与回执更新.md`.
+
+See the [bilingual project README](../README.md) for current capability limits. Firmware 0.2.5, Bridge 0.2.5-review-jumps-receipts. This directory contains source, not a prebuilt firmware release.
 
 当前功能边界见[中英双语主页](../README.md)。这里是源码，不含可直接刷入的完整视觉固件。
 
@@ -45,6 +49,7 @@ Run scripts from a normal macOS Terminal. Source releases omit firmware binaries
 | `启动桌面App实体审批.command` | Launch the checked App build with native approval relay / 启动版本限定 App 实体审批 |
 | `仅启动桌面App桥接.command` | Reconnect Bridge to the already-open adapted App; no flash / 保持 App 打开，仅重启审批 Bridge |
 | `更新长请求审批固件.command` | Back up, update 0.2.4, retain pairing, reconnect existing App / 更新分页固件并接回现有 App |
+| `更新交互与回执固件.command` | Back up, update 0.2.5, retain pairing, reload App relay / 更新按键与回执固件并重载 App relay |
 | `检查桌面审批接口.command` | Read-only public control-socket probe; empty loaded-thread list is not App attachment / 只读接口检查 |
 | `刷入并启动.command` | Back up, validate, update the factory app, start Bridge / 备份、校验、刷应用并启动 |
 | `更新固件保留配网.command` | Update firmware and preserve Wi-Fi pairing / 更新固件、保留配网 |

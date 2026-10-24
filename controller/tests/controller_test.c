@@ -66,8 +66,9 @@ int main(void) {
  tap(&s,0,1000); tap(&s,1,1200); assert(s.selected==-1 && s.stage==0);
  controller_press(&s,2,1400); assert(controller_release(&s,2,1500)==ACTION_MUTE);
  assert(s.muted && s.stage==0);
- controller_press(&s,2,1600); assert(controller_tick(&s,2600)==ACTION_MUTE);
+ controller_press(&s,2,1600); assert(controller_tick(&s,2600)==ACTION_MAC);
  assert(controller_release(&s,2,2700)==ACTION_NONE && s.stage==0);
+ assert(s.handling_on_mac);tap(&s,2,2800);assert(!s.handling_on_mac && s.request_visible);
  // Volume is an explicit editor: 10% steps, inclusive bounds, no wrapping.
  controller_init(&s); assert(s.volume==20); s.page=3; s.option=3;
  tap(&s,2,1000); assert(s.volume_edit && s.volume==20);
@@ -124,5 +125,35 @@ int main(void) {
  assert(controller_tick(&s,5899)==ACTION_NONE);assert(controller_tick(&s,5900)==ACTION_ALLOW);
  assert(controller_release(&s,2,6000)==ACTION_NONE);
  controller_request(&s,"replacement");assert(s.review_page==0 && s.review_protocol==0 && s.selected==-1);
+ // A hundred-page request has constant-time endpoint navigation, including
+ // exiting the second confirmation at an unchanged final page.
+ controller_init(&s);s.online=true;s.last_rx=1000;
+ controller_request(&s,"hundred-pages");s.expires=99999;s.can_allow=true;
+ controller_review_snapshot(&s,0,140,"first");
+ controller_press(&s,1,1000);assert(controller_tick(&s,1650)==ACTION_REVIEW);
+ assert(s.review_page==140 && s.stage==0 && s.selected==-1);
+ assert(controller_release(&s,1,1700)==ACTION_NONE);
+ tap(&s,0,1800);tap(&s,2,2000);assert(s.stage==0 && s.selected==-1); // Still loading.
+ controller_review_snapshot(&s,140,140,"");
+ tap(&s,0,2200);tap(&s,2,2400);assert(s.stage==1);
+ controller_press(&s,1,2600);assert(controller_tick(&s,3250)==ACTION_NONE);
+ assert(s.stage==0 && s.selected==-1 && s.review_page==140);
+ controller_release(&s,1,3300);assert(s.selected==-1);
+ tap(&s,1,3400);tap(&s,2,3600);assert(s.stage==1 && s.selected==1);
+ controller_press(&s,0,3800);assert(controller_tick(&s,4450)==ACTION_REVIEW);
+ assert(s.review_page==0 && s.stage==0 && s.selected==-1);
+ controller_release(&s,0,4500);
+ // Holding OK during review is a Mac handoff, not an approval or a reply.
+ s.last_rx=4600;controller_press(&s,2,4600);assert(controller_tick(&s,5250)==ACTION_MAC);
+ assert(s.handling_on_mac && s.muted && s.stage==0 && s.selected==-1);
+ controller_release(&s,2,5300);tap(&s,1,5400);assert(s.review_page==0);
+ tap(&s,2,5600);assert(!s.handling_on_mac && s.request_visible && s.stage==0);
+ controller_review_snapshot(&s,0,140,"first");
+ controller_press(&s,1,5800);assert(controller_tick(&s,6450)==ACTION_REVIEW);controller_release(&s,1,6500);
+ controller_review_snapshot(&s,140,140,"");s.last_rx=6600;
+ tap(&s,0,6600);tap(&s,2,6800);assert(s.stage==1);
+ controller_press(&s,2,7000);assert(controller_tick(&s,7650)==ACTION_NONE && !s.handling_on_mac);
+ assert(controller_tick(&s,8000)==ACTION_ALLOW && s.stage==2);
+ assert(controller_release(&s,2,8100)==ACTION_NONE);
  puts("controller: navigation/hold/permission/expiry/disconnect/input-notice/paged-review assertions passed");
 }

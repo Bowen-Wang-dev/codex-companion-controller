@@ -4,7 +4,7 @@
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.4** · Bridge **0.2.4-app-relay-preview-human1** · Mac demo **0.4.0**
+> Firmware **0.2.5** · Bridge **0.2.5-review-jumps-receipts** · Mac demo **0.4.0**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
@@ -35,7 +35,7 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
 | 第三方 OpenAI／GPT／Codex 兼容 API | **后续计划，当前 Bridge 未实现提供商适配，也未验证具体服务商** |
 
-实机组合为 App **26.1016.62342**、固件 0.2.4 和加密 Wi-Fi Bridge。真实目录申请经设备批准后由 Codex 授予，经设备拒绝后未授予；记录已匹配硬件选择与官方工具结果。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
+实机组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
 
 App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
 
@@ -51,7 +51,7 @@ App 启动适配使用已核对版本的内部开关，并非稳定公开 API；
 | 拒绝／失败 | 😭 |
 | 本轮完成 | 🥳 |
 
-拒绝直接显示 😭，没有中间表情。普通浏览页短按、长按方向键都换页；设置和事件页短按选择、长按换页。长请求详情页上下键只翻阅，全部翻至末尾后才选择允许／拒绝；长按上键回到开头并清除选择。审批不预选：上允许／下拒绝，短按确认，松开后再次长按约 1 秒提交。电源键不作为第四个应用键；固件不依赖同时按上下键静音。
+拒绝直接显示 😭，没有中间表情。普通浏览页短按、长按方向键都换页；设置和事件页短按选择、长按换页。长请求详情页短按上下翻页，长按上键跳到首页、长按下键跳到末页；只有末页的短按上下键才选择允许／拒绝。短按确认进入二次确认，长按上下可返回首／末页；审批不预选，长按确认约 1 秒提交。电源键不作为第四个应用键；固件不依赖同时按上下键静音。
 
 ### 项目结构
 
@@ -132,7 +132,7 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | CLI sharing an App Server with the Bridge | Protocol integration and host tests implemented; full hardware acceptance remains separate |
 | Third-party OpenAI/GPT/Codex-compatible APIs | **Planned. No provider adapter or specific third-party service has been validated** |
 
-The verified combination is App **26.1016.62342**, firmware 0.2.4 and the encrypted Wi-Fi Bridge. Real directory requests were granted after physical Allow and remained ungranted after physical Deny. Bound device choices were matched against official tool results. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
+The verified combination is App **26.1016.62342**, firmware 0.2.5 and the encrypted Wi-Fi Bridge. Real directory requests passed physical Allow/Deny. A network permission request in the original App chat was also allowed on-device; the physical choice matched the Bridge delivery receipt and the official tool confirmed the turn-scoped grant. The user confirmed the 😆 feedback displayed correctly. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
 
 The App launch adapter uses internal switches present in the checked build, not stable public settings. Version changes reject the old adapter. Native approvals use the official App Server protocol while preserving the App's account and original chat. Missing file diffs and unsupported extra-grant semantics still require Mac review. These directory tests do not establish every client or permission type.
 
@@ -148,7 +148,7 @@ The App launch adapter uses internal switches present in the checked build, not 
 | Denied / failed | 😭 |
 | Turn completed | 🥳 |
 
-Denial shows 😭 immediately without an intermediate face. On browsing pages, short and long direction presses change pages. On settings/history pages, short presses select content and long presses change pages. During request review, Up/Down browse details; choices appear only after the final detail page. Holding Up returns to the beginning and clears the choice. No option is preselected: Up selects Allow, Down selects Deny, short Confirm opens confirmation, then a fresh one-second Confirm hold submits. The power button is not a fourth application key; firmware does not depend on an Up+Down mute chord.
+Denial shows 😭 immediately without an intermediate face. On browsing pages, short and long direction presses change pages. On settings/history pages, short presses select content and long presses change pages. During request review, short Up/Down browse details; hold Up/Down to jump to the first/final page. Only the final page uses short Up/Down to choose Allow/Deny. Short Confirm opens a second confirmation; hold Up/Down there to return to the first/final page. No option is preselected; a fresh one-second Confirm hold submits. The power button is not a fourth application key; firmware does not depend on an Up+Down mute chord.
 
 ### Repository layout
 
