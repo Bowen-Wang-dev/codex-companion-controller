@@ -161,5 +161,33 @@ int main(void) {
  tap(&s,2,1000);tap(&s,2,1200);assert(s.reset_stage==0);
  controller_press(&s,2,1400);assert(controller_tick(&s,2400)==ACTION_NONE);controller_release(&s,2,2500);
  assert(s.reset_stage==0);s.page=0;tap(&s,0,2600);assert(s.page==5);
- puts("controller: navigation/hold/permission/expiry/disconnect/input-notice/paged-review assertions passed");
+ // Local token reset needs a separate confirmation screen, a fresh hold and a live
+ // meter version. It cannot invoke account-credit reset or repeat on release.
+ controller_init(&s);strcpy(s.billing,"token");s.page=1;s.online=true;s.last_rx=1000;strcpy(s.meter_id,"meter-v1");
+ // Holding OK on the overview must never submit a reset.
+ controller_press(&s,2,1000);assert(controller_tick(&s,2000)==ACTION_NONE);
+ assert(s.meter_stage==0);assert(controller_release(&s,2,2100)==ACTION_NONE);
+ s.page=1;
+ // Repeated short presses only show/retain the confirmation; no destructive action.
+ controller_press(&s,2,2200);assert(controller_release(&s,2,2300)==ACTION_NONE && s.meter_stage==1);
+ controller_press(&s,2,2400);assert(controller_release(&s,2,2500)==ACTION_NONE && s.meter_stage==1);
+ controller_press(&s,2,2600);assert(controller_release(&s,2,3599)==ACTION_NONE && s.meter_stage==1);
+ tap(&s,0,3700);assert(s.meter_stage==0 && s.page==1);
+ controller_init(&s);strcpy(s.billing,"token");s.page=1;s.online=true;s.last_rx=1000;strcpy(s.meter_id,"meter-v1");
+ tap(&s,2,1000);assert(s.meter_stage==1);
+ controller_press(&s,2,1200);assert(controller_tick(&s,2199)==ACTION_NONE);
+ assert(controller_tick(&s,2200)==ACTION_METER_RESET && s.meter_stage==2);
+ assert(controller_release(&s,2,2300)==ACTION_NONE);
+ assert(controller_tick(&s,12301)==ACTION_NONE && s.meter_stage==0);
+ s.online=true;s.last_rx=13000;tap(&s,2,13000);assert(s.meter_stage==1);
+ tap(&s,0,13200);assert(s.meter_stage==0 && s.page==1);
+ tap(&s,2,13400);controller_press(&s,1,13600);controller_tick(&s,14250);
+ assert(s.page==2 && s.meter_stage==0);controller_release(&s,1,14300);
+ s.page=1;s.request=true;tap(&s,2,14400);assert(s.meter_stage==0);
+ s.request=false;s.online=false;tap(&s,2,14600);assert(s.meter_stage==0);
+ // Token/model/cost changes must redraw, not wait for unrelated UI state.
+ view=controller_view_hash(&s);s.token_total[5]=999;
+ assert(controller_view_hash(&s)!=view);view=controller_view_hash(&s);
+ strcpy(s.token_model,"gpt-6.1-sol");assert(controller_view_hash(&s)!=view);
+ puts("controller: navigation/hold/permission/expiry/disconnect/input-notice/paged-review/meter-reset assertions passed");
 }

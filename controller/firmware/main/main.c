@@ -58,7 +58,7 @@ static void send_json(cJSON *o) {
  if(line) {
   // Single main task owns TX; bounded writes never block button/audio tasks indefinitely.
   const char *kind=text(o,"type");
-  network_send(line,!strcmp(kind,"decision") || !strcmp(kind,"reset") || !strcmp(kind,"review_page"));
+  network_send(line,!strcmp(kind,"decision") || !strcmp(kind,"reset") || !strcmp(kind,"meter_reset") || !strcmp(kind,"review_page"));
   char frame[512]; int len=snprintf(frame,sizeof(frame),"PC1 %s\n",line);
   if(len>0 && len<sizeof(frame)) usb_serial_jtag_write_bytes(frame,len,pdMS_TO_TICKS(10));
   cJSON_free(line);
@@ -67,7 +67,7 @@ static void send_json(cJSON *o) {
 }
 static void hello(void) {
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","hello");
- cJSON_AddStringToObject(o,"firmware","0.2.7"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddStringToObject(o,"firmware","0.2.10"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
  cJSON_AddBoolToObject(o,"readonly_notices",true);
  cJSON_AddBoolToObject(o,"prehook_review",true);
  cJSON_AddBoolToObject(o,"user_input_notices",true);
@@ -83,6 +83,13 @@ static void hello(void) {
  cJSON_AddNumberToObject(o,"audio_max_feed_gap_ms",audio.max_feed_gap_ms);
  cJSON_AddBoolToObject(o,"sound_enabled",s.sound);
  cJSON_AddNumberToObject(o,"sound_volume",s.volume);
+ unsigned drops, failures; int reason, phase;
+ network_diagnostics(&drops,&reason,&failures,&phase);
+ int diagnostics[]={(int)drops,reason,(int)failures,phase};
+ cJSON_AddItemToObject(o,"net",cJSON_CreateIntArray(diagnostics,4));
+ int error,code,duration;network_http_diagnostics(&error,&code,&duration);
+ int http_diagnostics[]={error,code,duration};
+ cJSON_AddItemToObject(o,"net_io",cJSON_CreateIntArray(http_diagnostics,3));
  cJSON_AddNumberToObject(o,"free_heap",esp_get_free_heap_size());
  cJSON_AddNumberToObject(o,"largest_heap",heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)); send_json(o);
 }
@@ -95,6 +102,11 @@ static void action(action_t a) {
  if(a==ACTION_RESET) {
   cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","reset");
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.reset_id); send_json(o); return;
+ }
+ if(a==ACTION_METER_RESET) {
+  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","meter_reset");
+  cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"meter_id",s.meter_id);
+  send_json(o);return;
  }
  if(a==ACTION_MUTE || a==ACTION_MAC) { sound_cancel_permission(); return; }
  if(a==ACTION_REVIEW) {
@@ -146,7 +158,13 @@ static void snapshot(cJSON *o) {
  cJSON *tu=cJSON_GetObjectItem(o,"token_usage"),*tc=cJSON_GetObjectItem(o,"token_cost");
  if(!*s.token_model)snprintf(s.token_model,sizeof(s.token_model),"%.63s",text(tu,"model"));
  s.token_updated=cJSON_IsTrue(cJSON_GetObjectItem(tu,"updated"));
+ s.token_total_updated=cJSON_IsTrue(cJSON_GetObjectItem(tu,"total_updated"));
  s.token_priced=cJSON_IsTrue(cJSON_GetObjectItem(tc,"priced"));
+ const char *meter=text(tu,"meter_id");
+ if(strcmp(meter,s.meter_id))s.meter_stage=0;
+ snprintf(s.meter_id,sizeof(s.meter_id),"%s",meter);
+ snprintf(s.token_cost_status,sizeof(s.token_cost_status),"%s",text(tc,"last_status"));
+ snprintf(s.token_total_status,sizeof(s.token_total_status),"%s",text(tc,"total_status"));
  snprintf(s.token_cost_currency,sizeof(s.token_cost_currency),"%.7s",text(tc,"currency"));
  s.token_cost_last=cJSON_IsNumber(cJSON_GetObjectItem(tc,"last"))?cJSON_GetObjectItem(tc,"last")->valuedouble:-1;
  s.token_cost_total=cJSON_IsNumber(cJSON_GetObjectItem(tc,"total"))?cJSON_GetObjectItem(tc,"total")->valuedouble:-1;
@@ -277,6 +295,18 @@ static void token_count(char *out,size_t size,uint64_t value) {
  if(tier)snprintf(out,size,"%.2f%c",scaled,suffixes[tier]);
  else snprintf(out,size,"%" PRIu64,value);
 }
+static const char *token_cost_hint(bool total) {
+ const char *status=total?s.token_total_status:s.token_cost_status;
+ if(!strcmp(status,"waiting_usage"))return "费率已配置 · 等待用量";
+ if(!strcmp(status,"model_unknown"))return "模型未识别 · 费用待确认";
+ if(!strcmp(status,"cache_write_rate_missing"))return "缓存写入费率未配置";
+ if(!strcmp(status,"model_rate_missing"))return "此模型费率未配置";
+ return s.token_priced?"费率已配置 · 等待用量":"请在 Mac 检查费率";
+}
+static void token_cost_text(char *out,size_t size,const char *prefix,double value) {
+ if(!strcmp(s.token_cost_currency,"USD"))snprintf(out,size,"%s$%.4f",prefix,value);
+ else snprintf(out,size,"%s%s %.4f",prefix,s.token_cost_currency,value);
+}
 #if HAVE_PETS
 static const char *pet_state(void) {
  if(s.request_visible)return "permission";
@@ -366,8 +396,8 @@ static void render(void) {
    } else label(r,16,181,210,"等待 Token 用量",0x92a6b9,13);
    snprintf(b,sizeof(b),"模型 · %.35s%s",*s.token_model?s.token_model:"等待同步",!strcmp(s.model_source,"manual")?" · 手动":"");
    label(r,16,225,210,b,0x92a6b9,10);
-   if(s.token_priced&&s.token_cost_last>=0)snprintf(b,sizeof(b),"约 $%.4f",s.token_cost_last);
-   else snprintf(b,sizeof(b),"费用关闭 · 可在 Mac 配置费率");
+   if(s.token_cost_last>=0)token_cost_text(b,sizeof(b),"约 ",s.token_cost_last);
+   else snprintf(b,sizeof(b),"%s",token_cost_hint(false));
    label(r,16,245,210,b,0x92a6b9,12);
   } else {
    quota(r,0,183); quota(r,1,221);
@@ -379,14 +409,21 @@ static void render(void) {
   if(strcmp(s.billing,"token") && (s.primary==0 || s.secondary==0 || !strcmp(s.state,"exhausted"))) label(r,16,277,210,"上键：前往重置 · 或等待",0xffbf5c,12);
   else label(r,16,277,210,s.request?"长按确认：返回权限请求":"确认：摸摸宠物",0x92a6b9,12);
  } else if(s.page==1 && !strcmp(s.billing,"token")) {
-  label(r,16,42,210,"会话 Token",0xffffff,18);
-  if(!s.token_updated) label(r,16,78,210,"等待 Codex 用量事件",0xffbf5c,13);
+  label(r,16,42,210,"累计 Token · 自清零",0xffffff,18);
+  if(s.meter_stage) {
+   label(r,16,84,210,s.meter_stage==2?"已发送 · 等待回执":"确认清零 Token？",0xffbf5c,16);
+   label(r,16,126,210,"仅清除控制器计数与估价\n保留 Codex 聊天和账单",0xffffff,13);
+   label(r,16,212,210,s.meter_stage==2?"请等待 Bridge 确认":"松开后长按确认 1 秒\n方向键取消",0x92a6b9,13);
+  } else {
+  if(!s.token_total_updated) label(r,16,78,210,"等待 Codex 用量事件",0xffbf5c,13);
   else {
-   const char *names[]={"输入","缓存入","缓存写","输出","推理","总计"};
+   const char *names[]={"输入含缓存","缓存读取","缓存写入","输出含推理","其中推理","总计"};
    for(int k=0;k<6;k++) { char count[32];token_count(count,sizeof(count),s.token_total[k]);snprintf(b,sizeof(b),"%s   %s",names[k],count); label(r,16,77+k*27,210,b,0xffffff,13); }
   }
-  if(s.token_priced && s.token_cost_total>=0) { snprintf(b,sizeof(b),"会话估价  $%.4f",s.token_cost_total);label(r,16,250,210,b,0x8bf0cd,12); }
-  else label(r,16,250,210,"费用未配置 · Mac 可设费率",0x92a6b9,11);
+  if(s.token_cost_total>=0) { token_cost_text(b,sizeof(b),"累计估价  ",s.token_cost_total);label(r,16,250,210,b,0x8bf0cd,12); }
+  else label(r,16,250,210,token_cost_hint(true),0x92a6b9,11);
+  label(r,16,277,210,s.request?"请先处理权限请求":"确认：打开清零确认",0x92a6b9,12);
+  }
  } else if(s.page==1) {
   label(r,16,45,210,"额度窗口",0xffffff,20); quota(r,0,90); quota(r,1,180);
   reset_countdown(b,sizeof(b),0); label(r,16,128,210,b,0x92a6b9,12);
@@ -397,11 +434,12 @@ static void render(void) {
   label(r,16,42,210,"最近一轮 Token",0xffffff,18);
   if(!s.token_updated) label(r,16,78,210,"等待 Codex 用量事件",0xffbf5c,13);
   else {
-   const char *names[]={"输入","缓存入","缓存写","输出","推理","总计"};
+   const char *names[]={"输入含缓存","缓存读取","缓存写入","输出含推理","其中推理","总计"};
    for(int k=0;k<6;k++) { char count[32];token_count(count,sizeof(count),s.token_last[k]);snprintf(b,sizeof(b),"%s   %s",names[k],count); label(r,16,77+k*27,210,b,0xffffff,13); }
   }
-  if(s.token_priced && s.token_cost_last>=0) { snprintf(b,sizeof(b),"本轮估价  $%.4f",s.token_cost_last);label(r,16,250,210,b,0x8bf0cd,12); }
-  else label(r,16,250,210,"费用未配置 · Mac 可设费率",0x92a6b9,11);
+  if(s.token_cost_last>=0) { token_cost_text(b,sizeof(b),"本轮估价  ",s.token_cost_last);label(r,16,250,210,b,0x8bf0cd,12); }
+  else label(r,16,250,210,token_cost_hint(false),0x92a6b9,11);
+  label(r,16,277,210,"本机请求估价 · 非后台账单",0x92a6b9,12);
  } else if(s.page==2) {
   label(r,16,45,210,"额外额度重置",0xffffff,20);
   if(s.resets>=0)snprintf(b,sizeof(b),"%d 次可用",s.resets); else snprintf(b,sizeof(b),"等待账户同步");

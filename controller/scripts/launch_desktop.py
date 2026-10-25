@@ -54,7 +54,11 @@ def stop_bridge(process):
 
 def main():
     print('桌面 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。',flush=True)
-    print('此启动适配使用已安装版本的内部开关；尚需真实 App 联调验收。',flush=True)
+    print('Controller 0.2.10 · 含压缩请求计量与无线修复 · 原 App 聊天实体审批。',flush=True)
+    print('程序目录：'+str(ROOT),flush=True)
+    from usage_meter import load_rates
+    rates=load_rates(ROOT/'private'/'token_rates.json')
+    print('已配置费率模型：'+(', '.join(sorted(rates['models'])) or '无'),flush=True)
     version=verify_build()
     running=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],capture_output=True)
     if running.returncode==0:

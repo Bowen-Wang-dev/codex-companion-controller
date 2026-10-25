@@ -13,7 +13,7 @@ import time
 import uuid
 from account import AccountClient
 from provider_config import active_provider
-from usage_meter import normalize_notification, load_rates, estimate
+from usage_meter import normalize_notification, load_rates, UsageLedger
 from ipc_path import SOCKET, acquire_endpoint
 from wireless import start_https
 from hook_policy import display as hook_display, permission_tool, permission_summary
@@ -48,11 +48,13 @@ def desktop_reply(broker,event,connection,stream,interval=20):
 
 
 class Broker:
-    def __init__(self):
+    def __init__(self, meter_path=None):
         self.lock = threading.RLock()
         self.epoch = str(uuid.uuid4())
         self.boot = ''
         self.last_seen = 0
+        self.network_health = {}
+        self.reconnect_count = 0
         self.seq = 0
         self.usage = {}
         self.usage_at = 0
@@ -68,14 +70,15 @@ class Broker:
         self.transport = 'usb'
         self.usage_status = '正在读取账户'
         self.provider_info = {'id': 'chatgpt', 'name': 'ChatGPT', 'model': '', 'billing': 'subscription'}
-        self.token_usage = {'last': None, 'total': None, 'context_window': None, 'updated_at': 0, 'turn': '', 'model': '', 'thread': ''}
-        self.token_thread = ''
+        self.meter = UsageLedger(meter_path)
+        self.session_turns = {}
         self.active_model = ''
         self.session_models = {}
         self.manual_model = ''
         self.model_override_mtime = None
         self.token_rates = {'currency': '', 'models': {}}
         self.token_rates_mtime = None
+        self.response_reader_issue = ''
         self.active_session = None
         self.request = None
         self.receipt = ''
@@ -129,24 +132,28 @@ class Broker:
                 model=event.get('model')
                 if isinstance(model,str) and model and len(model)<=96:
                     changed = self.session_models.get(thread) != model
-                    self.active_session=thread
-                    self.active_model=model
+                    if not self.active_session or thread==self.active_session:
+                        self.active_session=thread
+                        self.active_model=model
                     self.session_models[thread]=model
-                    if changed:
+                    if changed and thread==self.active_session:
                         self.receipt='模型已切换 · '+model
                         self.history.insert(0,self.receipt)
                         self.history=self.history[:20]
             elif kind=='token_usage':
                 value=normalize_notification({'threadId':thread,'turnId':event.get('turn'),'tokenUsage':event.get('usage')})
                 if value:
-                    self.token_thread=thread
                     model=str(event.get('model') or '')[:96]
+                    model=model or self.session_models.get(thread,'')
                     if model:
-                        self.active_model=model
-                        self.session_models[thread]=model
-                    self.token_usage={'last':value['last'],'total':value['total'],
-                        'context_window':value['context_window'],'updated_at':time.monotonic(),'turn':value['turn'],
-                        'model':model,'thread':thread}
+                        # A replayed usage event describes its old response's
+                        # model; it must not undo a newer model-selection event.
+                        if not self.session_models.get(thread):
+                            self.session_models[thread]=model
+                            if thread==self.active_session:self.active_model=model
+                    if not self.active_session:self.active_session=thread;self.active_model=model
+                    if self.meter.observe(value,model,event.get('baseline_only') is True):
+                        self.session_turns[thread]=value['turn']
             elif kind=='approval/submitted':
                 # This receipt is emitted only after the relay wins arbitration
                 # and flushes the exact reply to the App's real backend. It is
@@ -165,6 +172,10 @@ class Broker:
             elif kind=='turn/started':
                 previous=self.active_session
                 self.active_session=thread
+                turn=event.get('turn')
+                if isinstance(turn,str) and turn:
+                    self.session_turns[thread]=turn
+                    self.meter.begin_turn(thread,turn)
                 if event.get('model'):
                     self.active_model=str(event['model'])[:96]
                     self.session_models[thread]=self.active_model
@@ -249,6 +260,42 @@ class Broker:
             self.completed_until = 0
         self.state = state
 
+    def metering_snapshot(self):
+        """Resolve display and prices in one place for HTTP, IPC and diagnostics."""
+        override_path=ROOT/'private'/'model_override.json'
+        try:override_mtime=override_path.stat().st_mtime_ns
+        except OSError:override_mtime=None
+        if override_mtime!=self.model_override_mtime:
+            try:
+                override=json.loads(override_path.read_text()) if override_mtime is not None else {}
+                value=override.get('model_id','') if isinstance(override,dict) else ''
+                self.manual_model=value.strip()[:96] if isinstance(value,str) else ''
+            except (OSError,ValueError,TypeError):self.manual_model=''
+            self.model_override_mtime=override_mtime
+        rate_path=ROOT/'private'/'token_rates.json'
+        try:rate_mtime=(rate_path.stat().st_mtime_ns,rate_path.stat().st_size)
+        except OSError:rate_mtime=None
+        if rate_mtime!=self.token_rates_mtime:
+            self.token_rates=load_rates(rate_path);self.token_rates_mtime=rate_mtime
+        thread=self.active_session or self.meter.active_thread
+        actual=self.session_models.get(thread,'') or (self.active_model if thread==self.active_session else '')
+        stored=self.meter.threads.get(thread,{}).get('model','')
+        model=actual or stored or self.manual_model
+        source='app_server' if actual or stored else 'manual' if self.manual_model else 'unknown'
+        view=self.meter.view(thread,self.session_turns.get(thread,''),model,self.token_rates)
+        view['model_source']=source
+        return view
+
+    def clear_meter(self, message, hardware=False):
+        with self.lock:
+            if hardware and (not self.online() or message.get('boot')!=self.boot or message.get('epoch')!=self.epoch):
+                return {'cleared':False,'reason':'connection_changed'}
+            if not self.meter.clear(message.get('meter_id')):
+                return {'cleared':False,'reason':'stale_meter'}
+            self.receipt='Token 计数已清零'
+            self.history.insert(0,self.receipt);self.history=self.history[:20]
+            return {'cleared':True,'meter_id':self.meter.reset_id}
+
     def note_hook(self, event):
         if not self.hook_count:
             print('Codex 会话事件已接入：'+str(event.get('hook_event_name','事件')),flush=True)
@@ -264,8 +311,15 @@ class Broker:
 
     def status(self):
         with self.lock:
+            metering=self.metering_snapshot()
+            metering['usage']['reader_issue'] = self.response_reader_issue
             return {'online':self.online(),'transport':self.transport,'firmware':self.firmware,'battery':self.battery,
-                    'bridge_revision':'0.2.6-provider-aware',
+                    'bridge_revision':'0.2.10-response-ledger',
+                    'metering':metering,
+                    'project_root':str(ROOT),
+                    'network':dict(self.network_health),
+                    'reconnect_count':self.reconnect_count,
+                    'device_age':round(time.monotonic()-self.last_seen,2) if self.boot else None,
                     'review_protocol':self.review_protocol,
                     'review_format':'中文说明',
                     'last_device_decision':self.last_device_decision,
@@ -342,6 +396,7 @@ class Broker:
                     return {}
             if name in ('UserPromptSubmit', 'PreToolUse'):
                 self.set_state('working')
+                if session!=self.active_session:self.active_model=self.session_models.get(session,'')
                 self.active_session = session
             elif session == self.active_session and name == 'Stop' and not self.native_session and not self.desktop_session(session):
                 self.set_state('completed')
@@ -553,19 +608,10 @@ class Broker:
             first = next((w for w in limits if w['role'] == 'primary'), {})
             second = next((w for w in limits if w['role'] == 'secondary'), {})
             state = 'exhausted' if usage.get('ordinaryUsageAllowed') is False else self.state
-            override_path=ROOT/'private'/'model_override.json'
-            try:override_mtime=override_path.stat().st_mtime_ns
-            except OSError:override_mtime=None
-            if override_mtime!=self.model_override_mtime:
-                try:
-                    override=json.loads(override_path.read_text()) if override_mtime is not None else {}
-                    value=override.get('model_id','') if isinstance(override,dict) else ''
-                    self.manual_model=value[:96] if isinstance(value,str) else ''
-                except (OSError,ValueError,TypeError):self.manual_model=''
-                self.model_override_mtime=override_mtime
+            metering=self.metering_snapshot()
             provider_snapshot=dict(self.provider_info)
-            provider_snapshot['active_model']=self.active_model or self.manual_model
-            provider_snapshot['model_source']='app_server' if self.active_model else 'manual' if self.manual_model else 'unknown'
+            provider_snapshot['active_model']=metering['usage']['model']
+            provider_snapshot['model_source']=metering['model_source']
             data = {'type': 'snapshot', 'boot': self.boot, 'epoch': self.epoch, 'seq': self.seq,
                     'utc': int(time.time()), 'utc_offset': int(datetime.datetime.now().astimezone().utcoffset().total_seconds()), 'state': state,
                     'primary': first.get('remaining'), 'secondary': second.get('remaining'),
@@ -578,26 +624,9 @@ class Broker:
                                   ('CLI 审批已接入' if self.native_connected else 'CLI 审批连接失败' if self.native_error else 'CLI 审批连接中') if self.native_session else
                                    ('已收到事件 · '+str(int(time.monotonic()-self.last_hook))+'秒前') if self.hook_count else '未收到事件，请检查 Hooks')}
             usage_mode='token' if self.provider_info.get('billing')=='token' else 'credits'
-            token_recent=bool(self.token_usage['last'] is not None and time.monotonic()-self.token_usage['updated_at']<86400
-                              and self.token_usage.get('thread')==self.active_session)
-            # App Server usage belongs to the active thread and can differ from
-            # config.toml after model selection or rerouting. Prefer that model.
-            token_model=str(self.active_model or self.token_usage.get('model') or self.manual_model or '')
-            rate_path=ROOT/'private'/'token_rates.json'
-            try:rate_mtime=rate_path.stat().st_mtime_ns
-            except OSError:rate_mtime=None
-            if rate_mtime!=self.token_rates_mtime:
-                self.token_rates=load_rates(rate_path);self.token_rates_mtime=rate_mtime
-            model_rates=self.token_rates['models'].get(token_model) if token_model else None
-            last_estimate=estimate(self.token_usage['last'],model_rates) if token_recent and model_rates else None
-            total_estimate=estimate(self.token_usage['total'],model_rates) if token_recent and model_rates else None
             data.update(usage_mode=usage_mode,
-                token_usage={'last':self.token_usage['last'] if token_recent else None,
-                    'total':self.token_usage['total'] if token_recent else None,
-                    'context_window':self.token_usage['context_window'] if token_recent else None,
-                    'model':token_model,'updated':bool(token_recent)},
-                token_cost={'currency':self.token_rates['currency'] if model_rates else '',
-                    'last':last_estimate,'total':total_estimate,'priced':bool(model_rates)})
+                token_usage=metering['usage'],
+                token_cost={k:v for k,v in metering['cost'].items() if k!='known_models'})
             req = self.request
             if req and not req['cancelled']:
                 # Only excerpts, explicitly non-approvable. No raw Hook payload/secrets.
@@ -663,6 +692,24 @@ class Broker:
     def device_message(self,message,transport):
         with self.lock:
             if message.get('type')=='hello' and isinstance(message.get('boot'),str):
+                gap=time.monotonic()-self.last_seen if self.last_seen else 0
+                reconnect=bool(self.boot) and (not self.online() or self.boot!=message['boot'])
+                if reconnect:self.reconnect_count+=1
+                raw=message.get('net')
+                if isinstance(raw,list) and len(raw)==4 and all(type(n) is int and 0<=n<=0x7fffffff for n in raw):
+                    health=dict(zip(('wifi_disconnects','wifi_reason','http_failures','http_phase'),raw))
+                    details=message.get('net_io')
+                    if (isinstance(details,list) and len(details)==3 and
+                            all(type(v) is int and -1<=v<=0x7fffffff for v in details)):
+                        health.update(zip(('http_error','http_status','http_duration_ms'),details))
+                    if self.network_health and (any(health.get(k)!=self.network_health.get(k) for k in ('wifi_disconnects','http_failures')) or reconnect):
+                        stamp=datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+                        print(f'[{stamp}] 无线诊断: gap={gap:.1f}s reconnect={self.reconnect_count} wifi_drops={raw[0]} reason={raw[1]} http_errors={raw[2]} phase={raw[3]} code={health.get("http_status","—")} error={health.get("http_error","—")} rtt_ms={health.get("http_duration_ms","—")}',flush=True)
+                    self.network_health=health
+                if reconnect:
+                    stamp=datetime.datetime.now().astimezone().isoformat(timespec='seconds')
+                    rebooted=self.boot!=message['boot']
+                    print(f'[{stamp}] 设备恢复同步：间隔 {gap:.1f}s；设备重启={rebooted}',flush=True)
                 if not self.online() or self.boot!=message['boot']:
                     print('设备已握手：'+('Wi-Fi 加密连接' if transport=='wifi' else 'USB 连接')+'；固件 '+str(message.get('firmware','未知'))+'；空闲堆 '+str(message.get('free_heap','—'))+' / 最大连续块 '+str(message.get('largest_heap','—')),flush=True)
                 if self.boot!=message['boot']:
@@ -687,6 +734,7 @@ class Broker:
                 if message.get('boot')==self.boot and message.get('epoch')==self.epoch:
                     self.input_notices=[n for n in self.input_notices if not (n['id']==message.get('id') and n['digest']==message.get('digest'))]
             elif message.get('type')=='reset':self.reset_request(message)
+            elif message.get('type')=='meter_reset':self.clear_meter(message,hardware=True)
 
 
 def save_journal(path, value):
@@ -715,7 +763,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
     import serial
     os.umask(0o077)
     lease = acquire_endpoint()
-    broker = Broker()
+    broker = Broker(ROOT/'private'/'token-ledger.json')
     broker.native_session=thread_id
     broker.desktop_mode=desktop
     stopping = threading.Event()
@@ -737,6 +785,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                     threading.Thread(target=server.shutdown,daemon=True).start()
                     return
                 elif event.get('type')=='status':result=broker.status()
+                elif event.get('type')=='meter_reset':result=broker.clear_meter(event)
                 elif event.get('type')=='desktop_request':
                     result=desktop_reply(broker,event,self.connection,self.wfile)
                 elif event.get('type')=='desktop_event':result=broker.desktop_event(event)
@@ -778,7 +827,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                         broker.account_binding = provider.binding
                         broker.provider_info = {'id': provider.provider_id, 'name': provider.name, 'model': provider.model, 'billing': 'token'}
                         broker.usage_status = '第三方 API 模式 · 按 Token 计费'
-                    print('Custom provider mode recognized; ChatGPT quota polling skipped. Token-cost metering is not configured yet.', flush=True)
+                    print('Custom provider mode: numeric usage and local model rates are handled by the token ledger.', flush=True)
                     stopping.wait(60)
                     continue
                 client = AccountClient()
@@ -799,6 +848,45 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             stopping.wait(60)
 
     threading.Thread(target=account_worker, daemon=True).start()
+    def response_usage_worker():
+        from response_usage import ResponseUsageReader
+        from provider_billing import parse_export, supplements
+        reader = ResponseUsageReader()
+        billing_path=ROOT/'private/provider-usage.tsv'
+        billing_signature=None;billing=[];billing_revision=-1;billing_issue=''
+        while not stopping.is_set():
+            # File parsing and disk reads run outside the HTTP/approval lock.
+            with broker.lock:
+                threads = set(broker.meter.threads)
+                for relay in broker.desktop_relays.values():
+                    threads.update(relay['sessions'])
+                reset_id = broker.meter.reset_id
+            records = reader.read(threads)
+            try:
+                info=billing_path.stat();signature=(info.st_mtime_ns,info.st_size)
+                if signature!=billing_signature:
+                    if info.st_size>16*1024*1024:raise ValueError('Billing export too large')
+                    billing=parse_export(billing_path.read_text())
+                    billing_signature=signature;billing_revision=-1;billing_issue=''
+            except FileNotFoundError:
+                billing=[];billing_signature=None
+            except (OSError,ValueError,UnicodeError):billing_issue='provider_export_invalid'
+            complete=not reader.missing and all(v['offset']>=v['path'].stat().st_size for v in reader.files.values())
+            revision=len(reader.records)
+            additions=None
+            if billing and complete and revision!=billing_revision and not billing_issue:
+                additions=supplements(billing,list(reader.records.values()))
+                billing_revision=revision
+            with broker.lock:
+                if reset_id != broker.meter.reset_id:
+                    reader = ResponseUsageReader()  # Re-read under the new reset boundary.
+                    billing_revision=-1;additions=None
+                elif records:
+                    broker.meter.observe_responses(records)
+                if additions is not None:broker.meter.reconcile_provider(additions)
+                broker.response_reader_issue = reader.issue or billing_issue
+            stopping.wait(1)
+    threading.Thread(target=response_usage_worker, daemon=True).start()
     https=start_https(broker)
     print('桌面 App 实体审批模式：等待启动适配接入实际 App 会话。' if desktop else 'CLI 实体审批模式：原生请求由设备或 CLI 处理。' if native_socket else
           '权限接入 v3：Hook 支持设备审批；原生网络 / 目录请求可在调用前拒绝，批准仍在 Mac。',flush=True)

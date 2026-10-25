@@ -14,11 +14,11 @@ from service import Broker,desktop_reply
 
 def params():
     return {'threadId':'thread','turnId':'turn','itemId':'item','environmentId':None,
-        'startedAtMs':int(time.time()*1000),'cwd':'/Users/bowen/很长的项目名称',
+        'startedAtMs':int(time.time()*1000),'cwd':'/Users/test/很长的项目名称',
         'reason':'只申请测试权限，不会创建或修改文件。'*8,
         'permissions':{'network':{'enabled':True},'fileSystem':{'read':None,
-            'write':['/Users/bowen/Documents/'+'long-folder-name/'*14+'folder',
-                     '/Users/bowen/另一个测试目录']}}}
+            'write':['/Users/test/Documents/'+'long-folder-name/'*14+'folder',
+                     '/Users/test/另一个测试目录']}}}
 
 
 class LayoutTests(unittest.TestCase):

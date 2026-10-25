@@ -4,9 +4,11 @@
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.6 candidate (not yet flashed)** · Bridge **0.2.6-provider-aware** · Mac demo **0.4.0**
+> Firmware **0.2.10 candidate** · Bridge **0.2.10-response-ledger** · Mac demo **0.4.0**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
+
+> 0.2.10：修复压缩请求漏计、加入后台导出对账和无线传输修复。See the bilingual [repair record](controller/docs/Token与无线修复0.2.10.md). Hardware update/endurance acceptance is reported there.
 
 ## 简体中文
 
@@ -28,14 +30,14 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | 任务状态、事件记录与三秒回待机 | 已实现；Hook 的 Stop 表示本轮结束，不保证整个项目成功 |
 | BB 机提醒、音量 0–100%、10% 步进 | 已实现；三声约 1200 Hz，每声 180 ms，间隔 120 ms |
 | App 内置目录权限申请 | **已实机验证设备直接批准与拒绝**，保留 App 界面和原聊天 |
-| App 网络权限与命令审批 | 已实现原生协议及主机测试；这些类型未因目录测试而自动视为实机验收 |
+| App 网络权限与命令审批 | 网络权限已实测设备允许；命令审批通过协议及主机测试，实机覆盖需单独验收 |
 | 长请求与中文说明 | 完整分页显示实际路径、原因、工作目录、权限和有效期；无需模型精简 |
 | 普通 PermissionRequest Hook 审批 | 新固件支持完整输入分页；只处理实际收到的官方 Hook |
 | 等待用户操作／回复 | 设备提醒、翻阅、确认已读；已读不代替 Mac 上的回答 |
 | CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
 | 第三方 OpenAI／GPT／Codex 兼容 API | 已识别活动 provider/model；从 Codex App Server 接收当前线程 Token 用量；费用仅按用户本地配置的模型费率估算 |
 
-实机组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
+历史审批验收组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。当前 Bridge 为 0.2.10，设备最后确认版本为 0.2.9；新固件 0.2.10 已构建，待更新与耐久验收。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
 
 App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
 
@@ -95,13 +97,17 @@ bash controller/scripts/build.sh
 
 桌面 App 实体审批：先停止旧 Bridge 并退出 App，再运行 `controller/启动桌面App实体审批.command`，打开原聊天。之后若仅更新 Bridge，只在 Bridge 终端 Control+C，再运行 `controller/仅启动桌面App桥接.command`；保持 App 打开，无需刷机。普通 `仅启动桥接.command` 是通知／同步模式，不等于 App 实体审批入口。具体版本限制与入口见 [controller/README.md](controller/README.md)。
 
+### 更新与计量诊断
+
+已有设备升级运行 `controller/更新Token计量与清零固件.command`，保留原 App 和聊天；脚本自动只停止本项目 Bridge，备份、更新、验证后重新连接。日常启动无需刷机。`检查Token计量.command` 提供诊断，`核对Token用量.command` 提供只读对账，`清零Token计数.command` 只清本机计数且要求确认。设备清零须先进入二次确认，再重新长按确认一秒。
+
 ### 数据、素材与后续 API 兼容
 
 - 账户凭据只留在 Mac；设备只有 Wi-Fi 配置、Bridge 配对密钥和证书。请求绑定 ID、摘要、启动标识和有效期。
 - 刷写要求双读校验完整 8 MB 备份，检查实际设备及分区，只更新受支持的 factory 应用；不执行整片擦除，不覆盖 bootloader、分区表或已有 NVS。
 - `private/`、设备备份、账户文件、Wi-Fi 密码、配对证书、Apple 图像和含图像固件均不纳入 Git。
 - Apple Emoji 设计属于相应权利人。项目未取得将其随固件公开分发的许可；在线图片、裁剪及本机渲染都不自动产生分发权。Mac Demo 使用系统 Emoji，不附带 Apple 字体或图像。
-- 自定义 provider 模式跳过 ChatGPT 专用额度查询，设备显示会话累计与本轮 Token；Mac 的「配置Token费率.command」可按模型 ID 设置每百万 Token 价格，费用默认关闭，费率保存在私有 `private/token_rates.json` 且不进入 GitHub。当前用量依赖 Codex App Server 的 Token 更新通知；未收到通知时不估算，也不以工作时长代替。
+- 自定义 provider 模式跳过 ChatGPT 专用额度查询，设备显示会话累计与本轮 Token；Mac 的「配置Token费率.command」可按模型 ID 设置每百万 Token 价格，未配置对应模型费率时不估价；费率支持热更新，保存在私有 `private/token_rates.json` 且不进入 GitHub。当前计量核对 App Server 用量与本机完成记录，包括压缩调用；可选私有服务商 CSV/TSV 对账，不等同账户总账，不以工作时长代替。
 
 项目原始代码尚未指定开源许可证；第三方组件保留各自许可，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。当前验证状态见 [docs/STATUS.md](docs/STATUS.md)。
 
@@ -125,14 +131,14 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | Task state, history, return to idle after three seconds | Implemented; a Hook Stop means the turn ended, not that the whole project passed |
 | Pager alerts and 0–100% volume in 10% steps | Implemented; three tones around 1200 Hz, 180 ms each with 120 ms gaps |
 | Built-in App directory permission requests | **Physical Allow and Deny verified in the real App**, retaining its UI and original chat |
-| App network and command approvals | Native protocol implementation and host tests; directory tests do not validate every approval type |
+| App network and command approvals | Physical network Allow verified; command protocol has host tests and needs separate hardware acceptance |
 | Long requests and readable Chinese details | Complete paged paths, reason, working directory, permissions and validity; no model summarization |
 | Ordinary PermissionRequest Hook approvals | Complete input pagination on new firmware, for Hooks actually received |
 | User-action / reply requests | Device notification, reading and acknowledgement; acknowledgement does not answer the Mac question |
 | CLI sharing an App Server with the Bridge | Protocol integration and host tests implemented; full hardware acceptance remains separate |
-| Third-party OpenAI/GPT/Codex APIs | Active provider/model detected; current-thread token usage is read from App Server notifications; estimates require a locally configured per-model rate |
+| Third-party OpenAI/GPT/Codex APIs | Active provider/model detected; usage reconciles App Server events and local completion records, including compaction; private provider exports are optional; estimates require local per-model rates |
 
-The verified combination is App **26.1016.62342**, firmware 0.2.5 and the encrypted Wi-Fi Bridge. Real directory requests passed physical Allow/Deny. A network permission request in the original App chat was also allowed on-device; the physical choice matched the Bridge delivery receipt and the official tool confirmed the turn-scoped grant. The user confirmed the 😆 feedback displayed correctly. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
+Historical approval acceptance used App **26.1016.62342**, firmware 0.2.5 and the encrypted Wi-Fi Bridge. The current Bridge is 0.2.10; device firmware was last confirmed as 0.2.9. Built firmware 0.2.10 awaits physical update and endurance acceptance. Real directory requests passed physical Allow/Deny. A network permission request in the original App chat was also allowed on-device; the physical choice matched the Bridge delivery receipt and the official tool confirmed the turn-scoped grant. The user confirmed the 😆 feedback displayed correctly. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
 
 The App launch adapter uses internal switches present in the checked build, not stable public settings. Version changes reject the old adapter. Native approvals use the official App Server protocol while preserving the App's account and original chat. Missing file diffs and unsupported extra-grant semantics still require Mac review. These directory tests do not establish every client or permission type.
 
@@ -192,12 +198,17 @@ For first setup, sign into official Codex, build firmware and use the backup/app
 
 For desktop App physical approvals, stop the old Bridge and quit the App, then run `controller/启动桌面App实体审批.command` and reopen the original chat. For Bridge-only updates, stop just the Bridge with Control+C and run `controller/仅启动桌面App桥接.command`, keeping the App open; no flashing is needed. The ordinary `仅启动桥接.command` starts notification/sync mode, not the desktop approval adapter. See [controller/README.md](controller/README.md) for translated launchers and version limits.
 
+### Updating and metering diagnostics
+
+For an existing device, run `controller/更新Token计量与清零固件.command` with the original App/chat open. It stops only this project's Bridge, backs up, updates, verifies and reconnects. Daily startup does not flash firmware. The metering diagnostic and audit launchers are read-only; the reset launcher clears only local counters after confirmation. On-device reset requires a separate confirmation screen followed by a fresh one-second hold.
+
 ### Data, artwork and API compatibility
 
 - Codex credentials stay on the Mac. The device stores Wi-Fi configuration, a Bridge pairing key, and certificate. Requests bind their ID, digest, boot identity, and expiry.
 - Flashing requires two matching full 8 MB reads, live device/partition checks, and a supported factory application layout. The updater does not erase the entire flash or overwrite the bootloader, partition table, or existing NVS.
 - Runtime state, flash backups, account files, Wi-Fi passwords, pairing certificates, Apple artwork, and firmware containing artwork are excluded from Git.
 - Apple Emoji designs belong to their rights holders. No public firmware redistribution license has been established. Downloading, cropping, or locally rendering an image does not grant distribution rights. The Mac demo uses the system emoji font without bundling it.
+- Custom-provider metering reconciles App Server usage with local completed responses, including compaction. Optional private billing exports help reconcile missing completions; local estimates are not account-wide invoices. Configure model-specific rates with `配置Token费率.command`; missing rates never produce a fabricated cost.
 - Future compatibility targets third-party OpenAI/GPT/Codex APIs. Validate Responses streaming, tools, and conversation continuation, and keep provider balances separate from ChatGPT limits/reset credits. Changing inference providers does not automatically expose desktop App approvals. See [API compatibility roadmap](docs/API_COMPATIBILITY.md).
 
 No open-source license has been selected for original project code. Third-party components retain their own terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [docs/STATUS.md](docs/STATUS.md) for validation evidence and remaining work.

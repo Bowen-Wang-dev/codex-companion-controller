@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
+from meter_client import request, summary
 
 ROOT = Path(__file__).resolve().parents[1]
 RATE_FILE = ROOT / 'private' / 'token_rates.json'
@@ -16,8 +17,8 @@ class RateEditor:
     def __init__(self, root):
         self.root = root
         root.title('Codex Companion · Token 费率')
-        root.geometry('760x490')
-        root.minsize(690, 430)
+        root.geometry('800x650')
+        root.minsize(760, 600)
         self.currency = tk.StringVar(value='USD')
         self.model = tk.StringVar()
         self.model_override = tk.StringVar()
@@ -55,6 +56,8 @@ class RateEditor:
         buttons=ttk.Frame(right);buttons.grid(row=11,column=0,columnspan=2,sticky='w')
         ttk.Button(buttons, text='保存费率', command=self._save).pack(side='left')
         ttk.Button(buttons, text='保存模型校准', command=self._save_override).pack(side='left',padx=8)
+        ttk.Button(buttons, text='检查当前计量', command=self._diagnose).pack(side='left')
+        ttk.Button(right,text='清零控制器计数',command=self._clear).grid(row=13,column=0,columnspan=2,sticky='w',pady=8)
         ttk.Label(right, textvariable=self.status, wraplength=440, foreground='#555').grid(row=12, column=0, columnspan=2, sticky='w', pady=(10, 0))
         right.columnconfigure(1, weight=1)
 
@@ -69,6 +72,20 @@ class RateEditor:
             override=json.loads((ROOT/'private'/'model_override.json').read_text())
             if isinstance(override,dict):self.model_override.set(str(override.get('model_id','')))
         except (OSError,ValueError,TypeError):pass
+
+    def _diagnose(self):
+        try:messagebox.showinfo('当前 Token 计量',summary(request({'type':'status'})))
+        except (OSError,ValueError) as error:messagebox.showerror('Bridge 未连接',str(error))
+
+    def _clear(self):
+        try:
+            status=request({'type':'status'});meter=status.get('metering')
+            if not meter:raise ValueError('运行中的 Bridge 尚未更新。')
+            if not messagebox.askyesno('清零控制器计数','仅清零控制器累计 Token 与估价。聊天和账单不变。继续吗？'):return
+            result=request({'type':'meter_reset','meter_id':meter['usage']['meter_id']})
+            if not result.get('cleared'):raise ValueError('状态已变化或保存失败，请重新检查。')
+            self.status.set('计数已清零，设备下次同步时更新。')
+        except (OSError,ValueError) as error:messagebox.showerror('未能清零',str(error))
 
     def _save_override(self):
         model=self.model_override.get().strip()

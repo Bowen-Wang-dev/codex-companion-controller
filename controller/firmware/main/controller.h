@@ -19,12 +19,15 @@ typedef struct {
  char face[20];
  char billing[12], token_model[64], model_source[16], token_cost_currency[8];
  uint64_t token_last[6], token_total[6];
- bool token_updated, token_priced;
+ bool token_updated, token_total_updated, token_priced;
+ int meter_stage;
+ int64_t meter_sent_at;
+ char meter_id[40], token_cost_status[40], token_total_status[40];
  double token_cost_last, token_cost_total;
  char hook_status[128];
 } controller_t;
 typedef enum { ACTION_NONE, ACTION_DENY, ACTION_ALLOW, ACTION_MUTE, ACTION_RESET, ACTION_PAIR,
- ACTION_TEST_AUDIO, ACTION_PREVIEW_AUDIO, ACTION_TOUCH, ACTION_DISMISS, ACTION_REVIEW, ACTION_MAC } action_t;
+ ACTION_TEST_AUDIO, ACTION_PREVIEW_AUDIO, ACTION_TOUCH, ACTION_DISMISS, ACTION_REVIEW, ACTION_MAC, ACTION_METER_RESET } action_t;
 void controller_init(controller_t *s);
 void controller_press(controller_t *s, int key, int64_t now);
 action_t controller_tick(controller_t *s, int64_t now);

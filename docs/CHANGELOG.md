@@ -1,5 +1,26 @@
 # Changes / 更新记录
 
+## 0.2.10 candidate · 2026-10-26
+
+- 补计压缩响应，按线程／轮次核对、持久化去重；可选私有后台导出补足缺失完成记录，不自动修改费率。
+- 重构 HTTP 生命周期、限制接收及重试、修复 TLS socket 参数并增加断线诊断；关闭 modem sleep 的低延迟模式增加耗电。
+- 保留 `$` 显示，输入／输出标明包含关系；本机清零需二次确认及重新长按。新增只读对账入口。
+- 新固件已构建，更新与耐久验收待实机确认；实际账单、凭据、Apple 图片和含图固件不发布。
+
+- Reconcile completed response records including compaction; optional private provider exports identify completed charges missing locally without double counting. Existing rates, reset boundaries and replay baselines retained.
+- HTTP lifecycle refactor, bounded response callback, latency mode and richer failure diagnostics; live TLS socket configured and persistent polling tests added.
+- Accurate inclusive token labels, USD $ display, confirm-then-hold local reset, firmware/app metadata and reproducible read-only audit.
+- See [bilingual findings and limitations](../controller/docs/Token与无线修复0.2.10.md). No credentials, billing rows or artwork binaries published.
+
+## 0.2.9 candidate · 2026-10-25
+
+- 修复恢复聊天的模型字段；按累计差值去重、按整轮及模型分组计数与估价。
+- 新增持久化本机计数清零，支持设备确认和 Mac 入口，不修改服务商账单或聊天。
+- 费用提示区分等待用量、未知模型和缺少费率，支持重连数值摘要恢复。
+- Added model-bound accounting, replay deduplication, reset persistence and precise rate diagnostics.
+- 178 Python checks, controller/tone/audio checks, firmware build/image validation, five actual-font previews and real numeric-event replay passed. Firmware 0.2.9 is not yet flashed.
+
+
 ## 0.2.5 · 2026-10-25
 
 ### 中文

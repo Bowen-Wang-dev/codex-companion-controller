@@ -98,7 +98,8 @@ def valid_response(message,result):
 class Relay:
     def __init__(self,child,app_in,app_out):
         self.child=child;self.app_in=app_in;self.app_out=app_out
-        self.id=str(uuid.uuid4());self.sessions=set();self.client_calls={};self.models={}
+        self.id=str(uuid.uuid4());self.sessions=set();self.client_calls={};self.models={};self.latest_usage={}
+        self.restoring=set()
         self.stopping=threading.Event();self.events=queue.Queue(maxsize=128)
         self.arbiter=Arbitration(self.write_child)
 
@@ -107,7 +108,10 @@ class Relay:
 
     def event(self,value):
         try:self.events.put_nowait(value)
-        except queue.Full:pass
+        except queue.Full:
+            # Numeric usage is replayed below; lifecycle drops must not block
+            # the transparent App protocol or its approval arbitration.
+            pass
 
     def ipc(self,value,timeout=1):
         with socket.socket(socket.AF_UNIX) as connection:
@@ -117,12 +121,24 @@ class Relay:
                 return json.loads(stream.readline(65537))
 
     def event_worker(self):
+        last_replay=0
         while not self.stopping.is_set():
             try:event=self.events.get(timeout=2)
             except queue.Empty:event={'kind':'heartbeat'}
             try:
                 with self.arbiter.lock:sessions=sorted(self.sessions)
                 self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,'approval_receipts':1,**event})
+                if time.monotonic()-last_replay>=5:
+                    # A Bridge restart loses in-memory model/usage metadata.
+                    # Replay numeric summaries only; the ledger deduplicates
+                    # cumulative totals. Never replay approvals or text.
+                    with self.arbiter.lock:
+                        replay=[{'kind':'model_update','thread':t,'model':m} for t,m in self.models.items()]
+                        replay+=[dict(v,baseline_only=True) for v in self.latest_usage.values()]
+                    for summary in replay:
+                        self.ipc({'type':'desktop_event','relay':self.id,'sessions':sessions,
+                                  'approval_receipts':1,**summary})
+                    last_replay=time.monotonic()
             except (OSError,ValueError):pass
 
     def review(self,pending):
@@ -163,6 +179,8 @@ class Relay:
                     if isinstance(message,dict) and 'id' in message and message.get('method') in ('thread/start','thread/resume','thread/fork','turn/start'):
                         params=message.get('params') or {}
                         call={'method':message['method'],'thread':params.get('threadId'),'model':params.get('model')}
+                        if message['method']=='thread/resume' and isinstance(params.get('threadId'),str):
+                            self.restoring.add(params['threadId'])
                         if len(self.client_calls)<256:self.client_calls[self.arbiter.key(message['id'])]=call
                     self.arbiter.from_app(line,message)
         except (OSError,ValueError):pass
@@ -189,10 +207,13 @@ class Relay:
                     if isinstance(thread_id,str):
                         self.sessions.add(thread_id)
                         turn=result.get('turn') or {}
-                        model=turn.get('model') or origin.get('model') or thread.get('model')
+                        # Official ThreadStart/ResumeResponse returns model at
+                        # result.model, alongside thread, not inside thread.
+                        model=result.get('model') or turn.get('model') or origin.get('model') or thread.get('model')
                         if isinstance(model,str) and model:self.models[thread_id]=model
                         if isinstance(model,str) and model:
                             self.event({'kind':'model_update','thread':thread_id,'model':model})
+                        if origin.get('method')=='thread/resume':self.restoring.add(thread_id)
                     self.event({'kind':'attached'})
             # Desktop UI model selection is reported by the app-server as
             # thread/settings/updated with threadSettings.model.
@@ -230,9 +251,17 @@ class Relay:
             if method=='serverRequest/resolved':self.arbiter.resolve(params.get('requestId'))
             elif method=='thread/tokenUsage/updated':
                 thread_id=params.get('threadId');usage=params.get('tokenUsage')
-                if isinstance(thread_id,str) and isinstance(usage,dict) and thread_id in self.sessions:
-                    self.event({'kind':'token_usage','thread':thread_id,'turn':params.get('turnId'),
-                        'usage':usage,'model':self.models.get(thread_id,'')})
+                if isinstance(thread_id,str) and isinstance(usage,dict):
+                    # A restored chat may emit usage before its resume reply.
+                    # Do not discard that first real update due to event order.
+                    self.sessions.add(thread_id)
+                    summary={'kind':'token_usage','thread':thread_id,'turn':params.get('turnId'),
+                        'usage':usage,'model':self.models.get(thread_id,''),
+                        'baseline_only':thread_id in self.restoring}
+                    self.restoring.discard(thread_id)
+                    if len(self.latest_usage)<256 or thread_id in self.latest_usage:
+                        self.latest_usage[thread_id]=summary
+                    self.event(summary)
             elif method=='model/rerouted':
                 thread_id=params.get('threadId');model=params.get('toModel')
                 if isinstance(thread_id,str) and isinstance(model,str) and thread_id in self.sessions:
@@ -240,6 +269,7 @@ class Relay:
                     self.event({'kind':'model_update','thread':thread_id,'model':model})
             elif method in ('turn/started','turn/completed'):
                 thread_id=params.get('threadId')
+                if method=='turn/started':self.restoring.discard(thread_id)
                 if isinstance(thread_id,str):self.sessions.add(thread_id)
                 turn=params.get('turn') or {}
                 model=turn.get('model')

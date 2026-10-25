@@ -6,7 +6,8 @@
 uint32_t controller_view_hash(const controller_t *s) {
  uint32_t h=2166136261u;
  const char *strings[]={s->id,s->state,s->command,s->project,s->scope,s->receipt,s->face,
-  s->reset_id,s->reset_status,s->usage_status,s->hook_status,s->transport,s->review_text};
+  s->reset_id,s->reset_status,s->usage_status,s->hook_status,s->transport,s->review_text,
+  s->billing,s->token_model,s->model_source,s->meter_id,s->token_cost_currency,s->token_cost_status,s->token_total_status};
  for(unsigned i=0;i<sizeof(strings)/sizeof(strings[0]);i++) {
   for(const unsigned char *p=(const unsigned char *)strings[i];*p;p++)h=(h^*p)*16777619u;
   h=(h^0xffu)*16777619u;
@@ -16,8 +17,18 @@ uint32_t controller_view_hash(const controller_t *s) {
  const int values[]={s->page,s->option,s->stage,s->selected,s->online,s->request_visible,
   s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->handling_on_mac,s->sound,s->muted,s->volume,s->volume_edit,
   s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count,
-  s->review_protocol,s->review_page,s->review_loaded,s->review_total};
+  s->review_protocol,s->review_page,s->review_loaded,s->review_total,s->meter_stage,s->token_updated,s->token_total_updated,s->token_priced};
  for(unsigned i=0;i<sizeof(values)/sizeof(values[0]);i++)h=(h^(uint32_t)values[i])*16777619u;
+ for(int k=0;k<6;k++) {
+  h=(h^(uint32_t)s->token_last[k])*16777619u;
+  h=(h^(uint32_t)(s->token_last[k]>>32))*16777619u;
+  h=(h^(uint32_t)s->token_total[k])*16777619u;
+  h=(h^(uint32_t)(s->token_total[k]>>32))*16777619u;
+ }
+ const unsigned char *cost=(const unsigned char *)&s->token_cost_last;
+ for(unsigned k=0;k<sizeof(s->token_cost_last);k++)h=(h^cost[k])*16777619u;
+ cost=(const unsigned char *)&s->token_cost_total;
+ for(unsigned k=0;k<sizeof(s->token_cost_total);k++)h=(h^cost[k])*16777619u;
  return h;
 }
 
@@ -26,7 +37,7 @@ void controller_init(controller_t *s) {
  s->primary=s->secondary=s->resets=-1; s->sound=true; s->volume=20; s->interval=30; s->can_deny=true;
  strcpy(s->state,"idle");
 }
-void controller_cancel_input(controller_t *s) { s->consumed=true; s->stage=0; s->selected=-1; s->reset_stage=0; s->volume_edit=false; }
+void controller_cancel_input(controller_t *s) { s->consumed=true; s->stage=0; s->selected=-1; s->reset_stage=0; s->meter_stage=0; s->volume_edit=false; }
 void controller_request(controller_t *s, const char *id) {
  if(strcmp(s->id,id)) {
   controller_cancel_input(s); snprintf(s->id,sizeof(s->id),"%s",id);
@@ -73,13 +84,16 @@ void controller_press(controller_t *s,int key,int64_t now) {
 static void turn(controller_t *s,int direction) {
  if(s->page==0 && strcmp(s->billing,"token") && (s->primary==0 || s->secondary==0 || !strcmp(s->state,"exhausted")) && direction<0) s->page=2;
  else s->page=(s->page+direction+6)%6;
- s->option=0; s->selected=-1; s->stage=0; s->reset_stage=0; s->request_visible=false; s->volume_edit=false;
+ s->option=0; s->selected=-1; s->stage=0; s->reset_stage=0; s->meter_stage=0; s->request_visible=false; s->volume_edit=false;
 }
 action_t controller_tick(controller_t *s,int64_t now) {
  if(s->online && now-s->last_rx>5000) { s->online=false; controller_cancel_input(s); }
  if(s->request && now>=s->expires) { controller_request(s,""); }
+ if(s->meter_stage==2 && now-s->meter_sent_at>10000) {
+  s->meter_stage=0;snprintf(s->receipt,sizeof(s->receipt),"计数回执未确认");
+ }
  if(s->key<0 || s->consumed) return ACTION_NONE;
- int threshold=(s->key==2 && (s->stage==1 || s->reset_stage==2))?1000:650;
+ int threshold=(s->key==2 && (s->stage==1 || s->reset_stage==2 || s->meter_stage==1))?1000:650;
  if(now-s->pressed_at<threshold) return ACTION_NONE;
  s->consumed=true;
  if(s->key!=2) {
@@ -94,6 +108,10 @@ action_t controller_tick(controller_t *s,int64_t now) {
  if(s->key==2 && s->page==2 && strcmp(s->billing,"token") && s->reset_stage==2 && s->online && s->resets>0 && *s->reset_id) {
   s->reset_stage=3; return ACTION_RESET;
  }
+ if(!s->request_visible && !s->request && s->page==1 && !strcmp(s->billing,"token") && s->meter_stage==1 && s->online && *s->meter_id) {
+  s->meter_stage=2;s->meter_sent_at=now;return ACTION_METER_RESET;
+ }
+ if(s->meter_stage==2)return ACTION_NONE;
  // Long OK on a browsing page returns to the pending request, or home.
  if(!s->request_visible) { s->page=0; s->request_visible=s->request; s->volume_edit=false; }
  else if(s->stage==0) { s->selected=-1;s->handling_on_mac=true;s->muted=true;return ACTION_MAC; }
@@ -117,6 +135,7 @@ action_t controller_release(controller_t *s,int key,int64_t now) {
     if(key==0) { s->stage=0; s->selected=-1; }
     else { s->muted=true; return ACTION_MUTE; }
    }
+  } else if(s->meter_stage) { s->meter_stage=0;
   } else if(s->reset_stage) { s->reset_stage=0;
   } else if(s->page==3 && s->volume_edit) {
    int previous=s->volume; s->volume=sound_volume_step(s->volume,key==0?1:-1);
@@ -130,6 +149,8 @@ action_t controller_release(controller_t *s,int key,int64_t now) {
   if(s->user_input) { s->request_visible=false; s->page=0; return ACTION_DISMISS; }
   if((s->selected==1 && s->can_deny) || (s->selected==0 && s->can_allow)) s->stage=1;
   else if(!s->can_allow && !s->can_deny) { s->muted=true; return ACTION_MUTE; }
+ } else if(!s->request_visible && !s->request && s->page==1 && !strcmp(s->billing,"token")) {
+  if(s->online && *s->meter_id && s->meter_stage==0)s->meter_stage=1;
  } else if(!s->request_visible && s->page==3) {
   if(s->option==0) { s->sound=!s->sound; if(s->sound)return ACTION_PREVIEW_AUDIO; }
   else if(s->option==1)return ACTION_TEST_AUDIO;

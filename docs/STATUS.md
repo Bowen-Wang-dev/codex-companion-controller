@@ -1,5 +1,22 @@
 # Validation status / 验证状态
 
+## 0.2.10 candidate / 候选 · 2026-10-26
+
+本地完成记录与私有后台导出对账，确认压缩响应漏计和后台已计费但本机缺少完成记录两类情况。公开源码不含实际账单数据。Bridge 0.2.10 已接回原 App；设备最后确认版本为 0.2.9，新固件 0.2.10 已构建，仍待实机更新与耐久验收。197 项 Python 检查、控制器／音频检查、构建与镜像校验通过。
+
+Local records and private billing exports identified omitted compaction responses and billed requests without local completion records. No actual billing rows are published. Bridge 0.2.10 reattached to the existing App; device firmware was last confirmed as 0.2.9. The 0.2.10 build passed host checks and image validation; physical update/endurance acceptance remains pending. [修复记录 / Repair record](../controller/docs/Token与无线修复0.2.10.md).
+
+以下为历史版本验证记录，不代表最新候选版的实机验收。 / The records below describe their named historical versions.
+
+发布源码另行通过 197 项 Python 检查、控制器／音序及八组音频检查、Mac Demo 30 项状态机检查。公开账单测试为合成数据；没有刷写设备或重启 Bridge。 / The publication tree separately passed 197 Python checks, controller/tone and eight audio checks, and 30 Mac demo state-machine checks. Billing fixtures are synthetic; publication did not flash the device or restart the Bridge.
+
+## 0.2.9 candidate / 候选
+
+2026-10-25：运行中的设备/Bridge 为 0.2.8；远端 main 已独立核对为 eeff298。本地 0.2.9 通过 178 项 Python 检查、控制器／音序／八组音频检查、ESP-IDF 构建与镜像校验、五种实际字体预览和 93 个真实数值事件离线回放。新固件未刷入，新增代码未发布，实体清零及恢复聊天显示仍待验收。[计量与清零说明](../controller/docs/Token计量与清零.md)。
+
+Firmware 0.2.9 and Bridge 0.2.9-token-ledger are locally built candidates; physical update/reset acceptance remains pending. Existing records below apply to their named versions.
+
+
 2026-10-25 · Australia/Sydney
 
 ## 中文

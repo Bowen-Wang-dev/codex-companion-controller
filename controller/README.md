@@ -1,4 +1,16 @@
-# Codex Companion Controller · V0.2.6 开发候选
+# Codex Companion Controller · 0.2.10
+
+2026-10-26：补计上下文压缩响应，加入后台导出对账，修复无线 HTTP 生命周期；保留 $ 显示、二次确认后长按清零和原聊天实体审批。详细核对与限制见 [0.2.10 修复记录](docs/Token与无线修复0.2.10.md)。新固件已构建，实机更新与稳定性验收以该记录为准。
+
+日常入口为「启动桌面App实体审批.command」。更新用「更新Token计量与清零固件.command」，本次保持 App 打开、只停止旧 Bridge，更新后直接接回。诊断「检查Token计量.command」；按时间核对「核对Token用量.command」。
+
+Compaction-response accounting, optional private provider-export reconciliation and HTTP transport fixes. Dollar display and explicitly confirmed resets are retained. See the bilingual repair record for validation status and billing limitations.
+
+Daily startup: `启动桌面App实体审批.command`. Update an existing installation with `更新Token计量与清零固件.command`; keep the App open. Diagnostics: `检查Token计量.command`; reconciliation: `核对Token用量.command`.
+
+## Previous development notes / 历史开发记录
+
+以下段落描述对应旧版，不代表 0.2.10 当前验收状态。 / The following paragraphs apply to their historical versions, not current 0.2.10 acceptance.
 
 V0.2.6 adds custom-provider token pages and a local per-model rate editor. The firmware builds successfully, but this version has not been flashed or hardware-tested. With the device connected by USB, `更新Token用量固件.command` makes a verified full-flash backup and updates only the factory application partition. Start the local rate editor with `配置Token费率.command`; rates are private local data and are not part of this source tree. Usage comes from the active Codex App Server thread and may be unavailable for models/gateways that do not emit usage notifications.
 
@@ -50,6 +62,11 @@ Run scripts from a normal macOS Terminal. Source releases omit firmware binaries
 |---|---|
 | `启动桌面App实体审批.command` | Launch the checked App build with native approval relay / 启动版本限定 App 实体审批 |
 | `仅启动桌面App桥接.command` | Reconnect Bridge to the already-open adapted App; no flash / 保持 App 打开，仅重启审批 Bridge |
+| `更新Token计量与清零固件.command` | Current 0.2.10 candidate updater; verified backups and pairing retained / 当前候选版更新入口 |
+| `配置Token费率.command` | Private per-model USD rates / 本机模型费率 |
+| `检查Token计量.command` | Read-only metering diagnostics / 只读计量诊断 |
+| `核对Token用量.command` | Read-only local/provider export reconciliation / 只读对账 |
+| `清零Token计数.command` | Confirmed local counter reset / 确认后清零本机计数 |
 | `更新长请求审批固件.command` | Back up, update 0.2.4, retain pairing, reconnect existing App / 更新分页固件并接回现有 App |
 | `更新交互与回执固件.command` | Back up, update 0.2.5, retain pairing, reload App relay / 更新按键与回执固件并重载 App relay |
 | `检查桌面审批接口.command` | Read-only public control-socket probe; empty loaded-thread list is not App attachment / 只读接口检查 |
