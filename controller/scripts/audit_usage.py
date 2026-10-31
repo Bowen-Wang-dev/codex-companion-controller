@@ -54,7 +54,11 @@ def main():
         turn=turns.setdefault(key,{'first':record['at'],'last':record['at'],'usage':zero(),'responses':0})
         turn['last']=max(turn['last'],record['at']);turn['first']=min(turn['first'],record['at'])
         turn['usage']=plus(turn['usage'],record['usage']);turn['responses']+=1
-    cost,reason=UsageLedger.cost(groups,book,'')
+    request_groups={}
+    for record in records:
+        if start<=record['at']<end:
+            request_groups.setdefault(record['model'],{})[record['id']]=record['usage']
+    cost,reason=UsageLedger.cost(groups,book,'',{m:list(rows.values()) for m,rows in request_groups.items()})
     if not groups:cost,reason=0.0,''
     def local(at):return datetime.datetime.fromtimestamp(at).astimezone().isoformat(timespec='seconds')
     result={'since':local(start),'until':local(end),'source':'local_completed_response_records',

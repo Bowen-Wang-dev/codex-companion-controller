@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/scripts/env.sh"
+source "$(dirname "$0")/../scripts/env.sh"
 trap 'echo "流程已结束；按回车关闭窗口。"; read -r' EXIT
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
 echo '请先在旧 Bridge 终端按 Control+C。此入口会继续你选择的原 Codex 会话。'

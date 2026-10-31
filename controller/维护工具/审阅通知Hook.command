@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/scripts/env.sh"
+source "$(dirname "$0")/../scripts/env.sh"
 if [[ -z "${COMPANION_CODEX:-}" ]]; then echo '没有找到 Codex CLI。'; read -r; exit 1; fi
 echo '这里只打开 Codex 配置界面，不发送模型任务。'
 echo '打开后输入 /hooks，审阅并信任来源 ~/.codex/hooks.json 的 Passport Hook。'

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-CONTROLLER_SCRIPT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+CONTROLLER_SCRIPT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$CONTROLLER_SCRIPT_ROOT/scripts/env.sh"
 trap 'echo; echo "脚本已停止；可查看上方结果。按回车关闭。"; read -r' EXIT
 python "$CONTROLLER_ROOT/scripts/preflight.py"

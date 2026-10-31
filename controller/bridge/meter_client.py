@@ -19,7 +19,7 @@ def request(message):
     return data
 
 
-REASONS={'ready':'费率已匹配', 'waiting_usage':'费率已匹配，等待当前聊天用量',
+REASONS={'request_boundaries_missing':'逐请求记录尚未齐全，无法安全判断长上下文费率', 'ready':'费率已匹配', 'waiting_usage':'费率已匹配，等待当前聊天用量',
     'model_unknown':'用量模型未识别', 'model_rate_missing':'部分用量的模型费率未配置',
     'cache_write_rate_missing':'缓存写入费率未配置'}
 

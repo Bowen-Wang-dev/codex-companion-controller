@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/scripts/env.sh"
+source "$(dirname "$0")/../scripts/env.sh"
 trap 'echo "流程已结束；按回车关闭窗口。"; read -r' EXIT
 python "$CONTROLLER_ROOT/scripts/preflight.py"
 shopt -s nullglob

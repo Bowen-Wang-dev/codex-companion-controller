@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
-source "$(dirname "$0")/scripts/env.sh"
+source "$(dirname "$0")/../scripts/env.sh"
 trap 'echo "流程结束；按回车关闭窗口。"; read -r' EXIT
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
-echo '0.2.10：补计上下文压缩请求、费用核对、无线 HTTP 生命周期修复。'
+echo '0.2.11：补计上下文压缩请求、费用核对、无线 HTTP 生命周期修复。'
 echo '程序目录：'"$CONTROLLER_ROOT"
 echo '先运行主机测试；不会调用模型，也不会消耗重置次数。'
 "$CONTROLLER_ROOT/private/bridge-venv/bin/python" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
@@ -11,7 +11,7 @@ echo '先运行主机测试；不会调用模型，也不会消耗重置次数�
 import hashlib,json,sys
 from pathlib import Path
 root=Path(sys.argv[1]);manifest=json.loads((root/'dist/manifest.json').read_text())
-assert manifest['version']=='0.2.10','请先构建 0.2.10 固件'
+assert manifest['version']=='0.2.11','请先构建 0.2.11 固件'
 assert manifest['sha256']==hashlib.sha256((root/'dist/PassportController.bin').read_bytes()).hexdigest(),'固件校验失败'
 sys.path.insert(0,str(root/'scripts'))
 from launch_desktop import verify_build

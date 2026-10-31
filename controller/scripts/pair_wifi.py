@@ -188,11 +188,15 @@ def main():
         default_ip = subprocess.check_output(['/usr/sbin/ipconfig', 'getifaddr', 'en0'], text=True, stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
         default_ip = ''
+    if not default_ip:
+        from connection_diagnostics import local_ipv4
+        candidates = local_ipv4()
+        default_ip = candidates[0] if len(candidates) == 1 else ''
     ip = input(f'Mac 局域网 IPv4 地址 [{default_ip}]：').strip() or default_ip
     try:
         address = ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError:
-        raise PairingError('Mac 地址需要是局域网 IPv4 地址，例如 192.0.2.10。') from None
+        raise PairingError('Mac 地址需要是局域网 IPv4 地址，例如 192.168.1.110。') from None
     if address.is_loopback or address.is_unspecified or address.is_multicast or address.is_reserved:
         raise PairingError('请填写设备可访问的 Mac 局域网地址。')
     ip = str(address)

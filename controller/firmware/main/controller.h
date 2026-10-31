@@ -24,6 +24,8 @@ typedef struct {
  int64_t meter_sent_at;
  char meter_id[40], token_cost_status[40], token_total_status[40];
  double token_cost_last, token_cost_total;
+ double token_cost_last_parts[5], token_cost_total_parts[5];
+ bool token_cost_last_parts_valid, token_cost_total_parts_valid;
  char hook_status[128];
 } controller_t;
 typedef enum { ACTION_NONE, ACTION_DENY, ACTION_ALLOW, ACTION_MUTE, ACTION_RESET, ACTION_PAIR,

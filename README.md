@@ -4,7 +4,7 @@
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.10 candidate** · Bridge **0.2.10-response-ledger** · Mac demo **0.4.0**
+> Firmware **0.2.11 candidate** · Bridge **0.2.10-response-ledger** · Mac demo **0.4.0**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
@@ -37,7 +37,7 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
 | 第三方 OpenAI／GPT／Codex 兼容 API | 已识别活动 provider/model；从 Codex App Server 接收当前线程 Token 用量；费用仅按用户本地配置的模型费率估算 |
 
-历史审批验收组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。当前 Bridge 为 0.2.10，设备最后确认版本为 0.2.9；新固件 0.2.10 已构建，待更新与耐久验收。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
+历史审批验收组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。当前 Bridge 为 0.2.10，设备最后确认版本为 0.2.9；新固件 0.2.11 已构建，待更新与耐久验收。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
 
 App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
 
@@ -197,6 +197,12 @@ Apple artwork is excluded. Firmware built without imported assets displays a mis
 For first setup, sign into official Codex, build firmware and use the backup/application-only flash workflow. Run `配置无线连接.command` for USB pairing with physical confirmation. Register and review Hooks with `安装通知接入.command`.
 
 For desktop App physical approvals, stop the old Bridge and quit the App, then run `controller/启动桌面App实体审批.command` and reopen the original chat. For Bridge-only updates, stop just the Bridge with Control+C and run `controller/仅启动桌面App桥接.command`, keeping the App open; no flashing is needed. The ordinary `仅启动桥接.command` starts notification/sync mode, not the desktop approval adapter. See [controller/README.md](controller/README.md) for translated launchers and version limits.
+
+### Unified local console / 统一控制台
+
+Use `controller/Codex Companion 控制台.command` for the daily workflow. Its menu starts desktop App physical approval, manages Bridge and Wi-Fi, configures custom/OpenAI prices and multipliers, audits/resets local Token counts, manages Hooks, and opens USB firmware maintenance. Legacy launchers are under `controller/维护工具/`.
+
+日常双击 `controller/Codex Companion 控制台.command`，菜单统一管理实体按键审批、Bridge、配网、费率与倍率、长上下文、Token 核对、清零、Hook 和固件维护；历史入口收在 `controller/维护工具/`。
 
 ### Updating and metering diagnostics
 

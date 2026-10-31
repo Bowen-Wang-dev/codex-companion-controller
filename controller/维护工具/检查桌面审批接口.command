@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-CONTROLLER_SCRIPT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+CONTROLLER_SCRIPT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$CONTROLLER_SCRIPT_ROOT/scripts/env.sh"
 "$CONTROLLER_SCRIPT_ROOT/scripts/setup_bridge.sh"
 set +e

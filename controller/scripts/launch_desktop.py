@@ -19,9 +19,17 @@ sys.path.insert(0,str(ROOT/'bridge'))
 from ipc_path import acquire_endpoint
 
 APP=Path('/Applications/ChatGPT.app')
-BUILD='26.1016.62342'
-MAIN='.vite/build/main-JI9qDiXp.js'
-MAIN_SHA='b8c5d07cc3c30fbf0abe729b05434e7d1ffa19ee6c4daa818ae8f855be66d1e1'
+# Exact, locally inspected builds only. An unknown upgrade must fail closed.
+VERIFIED_BUILDS = {
+    '26.1016.62342': {
+        '.vite/build/main-JI9qDiXp.js': 'b8c5d07cc3c30fbf0abe729b05434e7d1ffa19ee6c4daa818ae8f855be66d1e1',
+    },
+    '26.1027.30824': {
+        '.vite/build/early-bootstrap.js': '5a4fe13a7371e73302b1cf10b54a035d16a77692ddb1c8de3c28c1c7e6fc5071',
+        '.vite/build/early-bootstrap-824-3c24dda6dba622ec.js': 'c387296475ca0729e4be35c4831b512d39316e0f7e24fe4d631ad0d96ec8e13f',
+        '.vite/build/early-bootstrap-916-2f6483d5bfd826f1.js': 'b50821d3723b10548c3321b9615140b8599033299c2890203c44b86ea7184e16',
+    },
+}
 
 
 def read_asar(stream,header,data_offset,path):
@@ -32,17 +40,28 @@ def read_asar(stream,header,data_offset,path):
 
 
 def verify_build(app=APP):
-    with (app/'Contents/Resources/app.asar').open('rb') as stream:
-        sizes=struct.unpack('<4I',stream.read(16))
-        if not 0<sizes[3]<16*1024*1024:raise ValueError('App archive header is unsupported')
-        header=json.loads(stream.read(sizes[3]));data_offset=8+sizes[1]
-        package=json.loads(read_asar(stream,header,data_offset,'package.json'))
-        source=read_asar(stream,header,data_offset,MAIN)
-    if package.get('version')!=BUILD or hashlib.sha256(source).hexdigest()!=MAIN_SHA:
-        raise ValueError('桌面 App 已变化；须重新核对启动接口，未启用旧版适配')
-    if b'CODEX_APP_SERVER_FORCE_CLI' not in source or b'CODEX_CLI_PATH' not in source:
-        raise ValueError('桌面 App 没有已核对的本地执行器启动开关')
-    return package['version']
+    try:
+        with (app/'Contents/Resources/app.asar').open('rb') as stream:
+            sizes=struct.unpack('<4I',stream.read(16))
+            if not 0<sizes[3]<16*1024*1024:raise ValueError('App archive header is unsupported')
+            header=json.loads(stream.read(sizes[3]));data_offset=8+sizes[1]
+            package=json.loads(read_asar(stream,header,data_offset,'package.json'))
+            version=package.get('version')
+            expected=VERIFIED_BUILDS.get(version)
+            if not expected:
+                raise ValueError('桌面 App 版本 '+str(version)+' 尚未核对；未启用旧版适配。设备同步仍可单独启动。')
+            sources=[]
+            for path,digest in expected.items():
+                source=read_asar(stream,header,data_offset,path)
+                if hashlib.sha256(source).hexdigest()!=digest:
+                    raise ValueError('桌面 App 启动文件已变化；未启用旧版适配。设备同步仍可单独启动。')
+                sources.append(source)
+        combined=b'\n'.join(sources)
+        if b'CODEX_APP_SERVER_FORCE_CLI' not in combined or b'CODEX_CLI_PATH' not in combined:
+            raise ValueError('桌面 App 没有已核对的本地执行器启动开关')
+        return version
+    except (KeyError,struct.error,UnicodeError) as error:
+        raise ValueError('桌面 App 文件布局无法识别；请保留原 App，先运行恢复 Bridge 连接入口。') from error
 
 
 def stop_bridge(process):
@@ -59,6 +78,8 @@ def main():
     from usage_meter import load_rates
     rates=load_rates(ROOT/'private'/'token_rates.json')
     print('已配置费率模型：'+(', '.join(sorted(rates['models'])) or '无'),flush=True)
+    from connection_diagnostics import inspect, show
+    show(inspect())
     version=verify_build()
     running=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],capture_output=True)
     if running.returncode==0:

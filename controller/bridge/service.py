@@ -896,11 +896,12 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             if not port:
                 stopping.wait(1); continue
             try:
-                with serial.Serial(port, 115200, timeout=.1, write_timeout=1, exclusive=True) as device:
+                from usb_transport import open_usb
+                with open_usb(port, serial) as device:
                     print('USB port opened; waiting for firmware hello...', flush=True)
                     buf = b''
                     sent = 0
-                    while True:
+                    while not stopping.is_set():
                         buf += device.read(512)
                         if len(buf) > 8192:
                             buf = b''
@@ -922,10 +923,14 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             except (serial.SerialException, OSError) as error:
                 print('USB unavailable:', str(error), flush=True)
                 with broker.lock:
-                    broker.last_seen = 0
-                    if broker.request:
-                        broker.request['cancelled'] = True
-                time.sleep(2)
+                    # USB loss must not invalidate a healthy Wi-Fi transport.
+                    if broker.transport == 'usb':
+                        broker.last_seen = 0
+                        if broker.request:broker.request['cancelled'] = True
+                if isinstance(error, PermissionError) or getattr(error, 'errno', None) in (1, 13):
+                    print('USB 串口配置被系统限制。请在普通 Terminal 运行「恢复Bridge连接.command」；不会刷机。', flush=True)
+                    port = ''
+                stopping.wait(2)
     finally:
         stopping.set()
         if native:native.close()
