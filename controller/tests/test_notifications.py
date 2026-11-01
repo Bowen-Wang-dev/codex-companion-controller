@@ -138,18 +138,23 @@ class NotificationTests(unittest.TestCase):
 class HookInstallationTests(unittest.TestCase):
     def test_user_install_removes_stale_project_copy_by_default(self):
         import io,os
-        with tempfile.TemporaryDirectory() as directory:
-            base=Path(directory);project=base/'project';controller=project/'outputs/PassportController'
-            local=project/'.codex/hooks.json';local.parent.mkdir(parents=True)
-            local.write_text(json.dumps({'hooks':{'PreToolUse':[{'hooks':[
-                {'command':installer.COMMAND,'timeout':1},{'command':'keep-other-hook'}]}]}}))
-            with mock.patch.object(installer,'ROOT',controller),mock.patch.object(sys,'argv',['install_hooks.py','--user']),mock.patch.dict(os.environ,{'CODEX_HOME':str(base/'home')}),mock.patch('sys.stdout',new=io.StringIO()):
-                installer.main()
-            data=json.loads(local.read_text())
-            self.assertEqual(data['hooks']['PreToolUse'][0]['hooks'],[{'command':'keep-other-hook'}])
-            installed=json.loads((base/'home/hooks.json').read_text())
-            self.assertEqual(installed['hooks']['PreToolUse'][0]['hooks'][0]['timeout'],115)
-            self.assertEqual(len(list((controller/'private/hook-backups').glob('hooks.backup-*'))),1)
+        for layout in ('controller','outputs/PassportController'):
+            with self.subTest(layout=layout),tempfile.TemporaryDirectory() as directory:
+                base=Path(directory);project=base/'project';controller=project/layout
+                local=project/'.codex/hooks.json';local.parent.mkdir(parents=True)
+                local.write_text(json.dumps({'hooks':{'PreToolUse':[{'hooks':[
+                    {'command':installer.COMMAND,'timeout':1},{'command':'keep-other-hook'}]}]}}))
+                arguments=['install_hooks.py','--user']
+                # The current repository is the default; old external copies
+                # are explicit targets rather than guessed ancestor folders.
+                if layout!='controller':arguments+=['--remove-project-copy',str(project)]
+                with mock.patch.object(installer,'ROOT',controller),mock.patch.object(sys,'argv',arguments),mock.patch.dict(os.environ,{'CODEX_HOME':str(base/'home')}),mock.patch('sys.stdout',new=io.StringIO()):
+                    installer.main()
+                data=json.loads(local.read_text())
+                self.assertEqual(data['hooks']['PreToolUse'][0]['hooks'],[{'command':'keep-other-hook'}])
+                installed=json.loads((base/'home/hooks.json').read_text())
+                self.assertEqual(installed['hooks']['PreToolUse'][0]['hooks'][0]['timeout'],115)
+                self.assertEqual(len(list((controller/'private/hook-backups').glob('hooks.backup-*'))),1)
 
     def test_global_merge_preserves_other_hooks_and_is_idempotent(self):
         data={'description':'mine','hooks':{'PreToolUse':[{'matcher':'Bash','hooks':[{'type':'command','command':'other-hook'}]}]}}

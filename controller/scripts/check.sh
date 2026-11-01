@@ -12,4 +12,8 @@ for CONTROLLER_AUDIO_CASE in pager priority mute request_mute pending_mute zero 
 done
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
 "$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
-python -m esptool --chip esp32c3 image_info "$CONTROLLER_ROOT/dist/PassportController.bin"
+if [[ ! -x "${CONTROLLER_FLASH_PYTHON:-}" ]]; then
+ echo '镜像检查需要 CONTROLLER_FLASH_PYTHON（esptool 4.x）；主机测试已完成，未连接或写入设备。' >&2
+ exit 1
+fi
+"$CONTROLLER_FLASH_PYTHON" -m esptool --chip esp32c3 image_info "$CONTROLLER_ROOT/dist/PassportController.bin"

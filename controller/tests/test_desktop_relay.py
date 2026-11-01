@@ -70,6 +70,41 @@ class ArbitrationTests(unittest.TestCase):
         self.assertTrue(valid_response(value,{'permissions':{'fileSystem':{'write':['/Users/test/project']}},'scope':'turn'}))
 
 
+class RelayCompatibilityTests(unittest.TestCase):
+    def test_unknown_metadata_shapes_are_forwarded_byte_for_byte(self):
+        output=io.BytesIO()
+        child=mock.Mock(stdin=io.BytesIO())
+        relay=stdio_relay.Relay(child,io.BytesIO(),output)
+        messages=[{'method':'future/notification','params':['opaque']},
+                  {'method':'turn/started','params':{'threadId':'t','turn':['opaque']}},
+                  {'id':7,'result':['opaque']},
+                  {'id':8,'result':{'thread':['opaque'],'turn':['opaque']}}]
+        relay.client_calls['7']={'method':'thread/start'}
+        relay.client_calls['8']={'method':'thread/resume','thread':'t'}
+        expected=b''
+        for message in messages:
+            line=json.dumps(message).encode()+b'\n'
+            relay.server_line(line);expected+=line
+        self.assertEqual(output.getvalue(),expected)
+        self.assertFalse(relay.arbiter.pending)
+
+    def test_non_object_approval_params_cannot_create_device_request(self):
+        arbiter=Arbitration(mock.Mock())
+        for params in (None,[],42,'unsupported'):
+            with self.subTest(params=params):
+                message=dict(approval(),params=params)
+                self.assertIsNone(arbiter.offer(message))
+                self.assertFalse(valid_response(message,{'permissions':{},'scope':'turn'}))
+
+    def test_non_stdio_or_incomplete_listen_arguments_reach_official_cli(self):
+        class Executed(Exception):pass
+        for arguments in (['app-server','--listen'],['app-server','--listen=unix:///tmp/test.sock']):
+            with self.subTest(arguments=arguments),mock.patch.object(sys,'argv',['relay','--real',sys.executable,'--',*arguments]),mock.patch.object(stdio_relay.os,'execv',side_effect=Executed) as execute,mock.patch.object(stdio_relay.subprocess,'Popen') as start:
+                with self.assertRaises(Executed):stdio_relay.main()
+                self.assertEqual(execute.call_args.args[1],[str(Path(sys.executable).resolve()),*arguments])
+                start.assert_not_called()
+
+
 class DesktopBrokerTests(unittest.TestCase):
     def setUp(self):
         self.b=Broker();self.b.device_message({'type':'hello','boot':'boot','firmware':'0.2.3',
@@ -108,6 +143,21 @@ class DesktopBrokerTests(unittest.TestCase):
 
     def test_unregistered_stale_or_wrong_relay_is_never_allowed(self):
         event=self.request();event['relay']='not-registered';self.assertEqual(self.b.desktop_request(event),{})
+
+    def test_invalid_timestamp_or_relay_never_creates_an_approval(self):
+        for started in (float('nan'),float('inf'),-1,True,10**1000):
+            with self.subTest(started=str(started)[:30]):
+                event=self.request();event['params']['startedAtMs']=started
+                self.assertEqual(self.b.desktop_request(event),{})
+                self.assertIsNone(self.b.request)
+        event=self.request();event['relay']=[]
+        self.assertEqual(self.b.desktop_request(event),{})
+
+    def test_non_object_device_frames_do_not_interrupt_existing_connection(self):
+        for message in (None,[],42,'invalid'):
+            self.b.device_message(message,'usb')
+        self.assertEqual(self.b.boot,'boot')
+        self.assertTrue(self.b.online())
         self.b.desktop_relays['relay']['at']=time.monotonic()-9
         self.assertEqual(self.b.desktop_request(self.request()),{})
 

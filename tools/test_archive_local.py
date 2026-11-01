@@ -34,7 +34,23 @@ class ArchiveTests(unittest.TestCase):
     def test_invalid_live_json_refuses_archive_success(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); source = root / 'bad.json'; source.write_text('partial')
-            with self.assertRaises(ValueError): a.pack_private(root / 'output.tar.gz', [(source, 'bad.json')])
+            output=root/'output.tar.gz'
+            with self.assertRaises(ValueError): a.pack_private(output, [(source, 'bad.json')])
+            self.assertEqual(output.stat().st_mode & 0o777,0o600)
+
+    def test_existing_archive_is_never_truncated(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'recovery.tar.gz';output.write_bytes(b'previous archive')
+            with self.assertRaises(FileExistsError):a.pack_private(output,[])
+            self.assertEqual(output.read_bytes(),b'previous archive')
+
+    def test_symlinked_recovery_root_is_rejected(self):
+        for relative in ('private','dist'):
+            with self.subTest(relative=relative),tempfile.TemporaryDirectory() as folder:
+                root=Path(folder);(root/'controller').mkdir();target=root/'target';target.mkdir()
+                (target/'fixture.json').write_text('{}')
+                (root/'controller'/relative).symlink_to(target,target_is_directory=True)
+                with self.assertRaisesRegex(ValueError,'symlink'):list(a.private_files(root))
 
 
 if __name__ == '__main__': unittest.main()

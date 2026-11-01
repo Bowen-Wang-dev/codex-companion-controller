@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 import unittest
 from unittest import mock
+import subprocess
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'scripts'))
@@ -21,6 +22,14 @@ class ConsoleLifecycleTests(unittest.TestCase):
         with mock.patch.object(controller_console.subprocess,'run',return_value=mock.Mock(returncode=2)):
             with self.assertRaisesRegex(RuntimeError,'无法检查'):
                 controller_console.app_is_running()
+
+    def test_hooks_menu_targets_repository_and_propagates_install_failure(self):
+        failure=subprocess.CalledProcessError(1,['fixture'])
+        with mock.patch('builtins.input',return_value='YES'),mock.patch.object(controller_console.subprocess,'run',side_effect=failure) as run,mock.patch('builtins.print') as output:
+            with self.assertRaises(subprocess.CalledProcessError):controller_console.hooks_menu()
+        self.assertEqual(run.call_args.args[0][-1],str(ROOT.parent))
+        self.assertTrue(run.call_args.kwargs['check'])
+        self.assertFalse(any('请在 Codex 审阅' in str(call) for call in output.call_args_list))
 
 
 if __name__=='__main__':unittest.main()

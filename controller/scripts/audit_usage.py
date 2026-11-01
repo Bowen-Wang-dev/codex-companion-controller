@@ -43,8 +43,8 @@ def main():
     # treating a partially read large rollout as a final total.
     for _ in range(64):
         records.extend(reader.read(threads))
-        if all(v['offset']>=v['path'].stat().st_size for v in reader.files.values()):break
-    complete=not reader.missing and all(v['offset']>=v['path'].stat().st_size for v in reader.files.values())
+        if reader.caught_up():break
+    complete=reader.caught_up()
     book=load_rates(ROOT/'private/token_rates.json');seen=set();totals=zero();groups={};turns={}
     for record in records:
         if not start<=record['at']<end or record['id'] in seen:continue

@@ -37,7 +37,8 @@ def main():
     if data.get('currency')!='USD':raise ValueError('原费率不是 USD，请先在编辑器核对；未覆盖。')
     data['models'][MODEL]=CARD
     private_json(path,data)
-    if load_rates(path)['models'].get(MODEL)!=CARD:raise ValueError('新费率校验失败；请保留备份继续排查。')
+    expected=dict(CARD,rate_source='custom',multiplier=1.0)
+    if load_rates(path)['models'].get(MODEL)!=expected:raise ValueError('新费率校验失败；请保留备份继续排查。')
     print('已备份并保存；正在保持 App 打开重启 Bridge。',flush=True)
     stop_idle_bridge(status)
     os.execv(sys.executable,[sys.executable,str(ROOT/'bridge/service.py'),'--desktop'])

@@ -135,5 +135,37 @@ class ReaderTests(unittest.TestCase):
         self.append(self.usage('b'))
         records=self.reader.read([THREAD]);self.assertEqual(records[0]['model'],'')
 
+    def test_removed_rollout_defers_reconciliation_and_can_recover(self):
+        self.reader.read([THREAD])
+        self.assertTrue(self.reader.caught_up())
+        self.path.unlink()
+        self.assertFalse(self.reader.caught_up())
+        self.assertEqual(self.reader.issue,'response_file_unavailable')
+        self.assertEqual(self.reader.read([THREAD]),[])
+        self.assertIn(THREAD,self.reader.missing)
+        self.assertFalse(self.reader.caught_up())
+        self.append({'type':'session_meta','payload':{'id':THREAD}})
+        self.append(self.usage())
+        self.assertEqual(len(self.reader.read([THREAD])),1)
+        self.assertTrue(self.reader.caught_up())
+        self.assertEqual(self.reader.issue,'')
+
+    def test_partial_append_is_not_caught_up(self):
+        self.append(self.usage(),newline=False)
+        self.reader.read([THREAD])
+        self.assertFalse(self.reader.caught_up())
+
+    def test_truncated_or_replaced_rollout_requires_a_fresh_read(self):
+        self.reader.read([THREAD])
+        original=self.path.read_bytes()
+        self.path.write_bytes(b'')
+        self.assertFalse(self.reader.caught_up())
+        self.path.write_bytes(original)
+        replacement=self.path.with_suffix('.replacement')
+        replacement.write_bytes(original);replacement.replace(self.path)
+        self.assertFalse(self.reader.caught_up())
+        self.reader.read([THREAD])
+        self.assertTrue(self.reader.caught_up())
+
 
 if __name__=='__main__':unittest.main()

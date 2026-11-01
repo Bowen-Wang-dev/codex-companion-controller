@@ -1,3 +1,5 @@
+> 历史资料：本文记录所列版本当时的实现与验证，不作为当前运行或操作指引。现行状态见[项目状态](../../docs/handoff/01-PROJECT-STATE.md)，日常步骤见[运行手册](../../docs/handoff/06-RUNBOOK.md)。原始结果保留，不自动延伸至后续版本。
+
 # 0.2.10 · Token 与无线修复 / Accounting and transport fixes
 
 2026-10-26 · Australia/Sydney

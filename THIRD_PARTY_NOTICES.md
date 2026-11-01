@@ -11,7 +11,7 @@ Original project code has not been assigned an open-source license. No broader l
 | LVGL and associated font assets | `controller/firmware/main/ui_font.c` and managed dependency | LVGL, Montserrat, FontAwesome notices in `controller/licenses/` |
 | Source Han Sans subset | `controller/firmware/main/ui_font.c` | SIL Open Font License; `controller/licenses/SourceHanSansSC.txt`, provenance in `controller/docs/ui-font.json` |
 | websockets 17.3 | Unmodified wheel in `controller/vendor/` | BSD-3-Clause license inside wheel; digest documented in vendor README |
-| pySerial | Installed during Bridge setup | BSD; distributed through its upstream package |
+| pySerial 3.5 | Unmodified wheel in `controller/vendor/` | BSD; included `pyserial-LICENSE.txt` and pinned digest in vendor README |
 
 Apple Emoji artwork and Apple Color Emoji font files are **not distributed**. The Mac demo uses the OS-provided font. The optional renderer and importer do not grant image redistribution rights. No firmware binaries are included in this source repository.
 

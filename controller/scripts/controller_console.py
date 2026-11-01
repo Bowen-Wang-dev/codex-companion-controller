@@ -9,8 +9,8 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'bridge'));sys.path.insert(0,str(ROOT/'scripts'))
 from connection_diagnostics import inspect,show
-from meter_client import request
 from recover_bridge import stop_idle_bridge
+from launch_desktop import app_is_running
 
 PY=sys.executable
 
@@ -23,15 +23,6 @@ def launch_app():
 
 def run(*parts):
     return subprocess.run([PY,*map(str,parts)],cwd=ROOT).returncode
-
-
-def app_is_running():
-    """Return whether the verified desktop App process is currently running."""
-    result=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],
-                          capture_output=True)
-    if result.returncode not in (0,1):
-        raise RuntimeError('无法检查桌面 App 是否运行；未启动或停止 Bridge。')
-    return result.returncode==0
 
 
 def device_bridge_menu():
@@ -84,8 +75,8 @@ def pairing_menu():
 def hooks_menu():
     print('此操作注册本机用户级 Hook，不改账号或固件。之后需在 Codex 审阅并信任。')
     if input('输入 YES 安装／更新 Hook；其他输入返回：').strip()!='YES':return
-    project=ROOT.parent.parent
-    subprocess.run([PY,str(ROOT/'scripts/install_hooks.py'),'--user','--remove-project-copy',str(project)],cwd=ROOT)
+    project=ROOT.parent
+    subprocess.run([PY,str(ROOT/'scripts/install_hooks.py'),'--user','--remove-project-copy',str(project)],cwd=ROOT,check=True)
     print('请在 Codex 审阅并信任 Passport Hook，再通过菜单启动桌面 App 审批。')
 
 

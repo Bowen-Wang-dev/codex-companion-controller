@@ -71,6 +71,15 @@ def stop_bridge(process):
         except subprocess.TimeoutExpired:process.terminate();process.wait(timeout=3)
 
 
+def app_is_running():
+    """Treat a failed process probe as unknown, never as an exited App."""
+    result=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],
+                          capture_output=True)
+    if result.returncode not in (0,1):
+        raise RuntimeError('无法检查桌面 App 是否运行；未启动或停止 Bridge。')
+    return result.returncode==0
+
+
 def main():
     print('桌面 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。',flush=True)
     print('Controller 0.2.13 · 原 App 原生审批与设备同步 · 双端直接允许或拒绝。',flush=True)
@@ -81,8 +90,7 @@ def main():
     from connection_diagnostics import inspect, show
     show(inspect())
     version=verify_build()
-    running=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],capture_output=True)
-    if running.returncode==0:
+    if app_is_running():
         raise RuntimeError('请先 Command+Q 完全退出桌面 App，再运行本入口；不会自动关闭正在工作的 App。')
     lease=acquire_endpoint();lease.close()
     private=ROOT/'private';private.mkdir(mode=0o700,exist_ok=True)

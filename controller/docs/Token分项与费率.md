@@ -1,3 +1,5 @@
+> 历史资料：本文记录所列版本当时的实现与验证，不作为当前运行或操作指引。现行状态见[项目状态](../../docs/handoff/01-PROJECT-STATE.md)，日常步骤见[运行手册](../../docs/handoff/06-RUNBOOK.md)。原始结果保留，不自动延伸至后续版本。
+
 # Token 分项与费率 / Token components and pricing
 
 设备现在把未缓存输入、缓存读取、缓存写入、可见输出和推理分别显示数量与估价。推理是输出 Token 的子集，单独显示但只在总计中计算一次；OpenAI 文档说明 reasoning tokens 按 output tokens 计费。

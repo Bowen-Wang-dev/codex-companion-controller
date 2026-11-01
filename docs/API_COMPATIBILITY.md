@@ -4,7 +4,7 @@
 
 用户要求兼容第三方提供的 Codex／OpenAI／GPT API。本计划指兼容这些模型与协议的服务商或网关，当前不扩展为通用多平台模型框架。
 
-**状态：自定义 provider 的会话 Token 计数与本地估价已实现；服务商覆盖仍需逐一实测。** Bridge 读取当前 Codex App Server 的 `thread/tokenUsage/updated` 通知，并显示实际线程报告的本轮与会话累计 Token 分项；没有通知时不估算。它不会调用 ChatGPT 专用账户／重置 RPC，也不会把第三方余额伪装成订阅额度。可在 Mac 用 `配置Token费率.command` 按模型 ID 设置每百万 Token 价格；不预设 GPT-6 Astra 价格，费率文件留在私有本机目录。
+**状态：自定义 provider 的会话 Token 计数与本地估价已实现；服务商覆盖仍需逐一实测。** Bridge 读取当前 Codex App Server 的 `thread/tokenUsage/updated` 通知，并显示实际线程报告的本轮与会话累计 Token 分项；没有通知时不估算。它不会调用 ChatGPT 专用账户／重置 RPC，也不会把第三方余额伪装成订阅额度。可在唯一控制台菜单 4 按模型 ID 设置每百万 Token 价格；不预设 GPT-6 Astra 价格，费率文件留在私有本机目录。
 
 分三层实现，保留现有固件协议：
 
@@ -27,7 +27,7 @@
 
 The compatibility target is third-party services or gateways exposing Codex/OpenAI/GPT models and protocols. A general-purpose multi-provider model framework is outside this phase.
 
-**Status: session token metering and local estimates for custom providers are implemented; each model/gateway still needs real-world verification.** The Bridge reads the active Codex App Server `thread/tokenUsage/updated` notification and reports per-turn and session totals for the active thread. Missing notifications stay unavailable. The Bridge does not call ChatGPT-only account/reset RPCs or present third-party balances as subscription limits. A local Mac editor configures per-million-token prices by model ID; GPT-6 Astra pricing is not hard-coded and the rate file stays private.
+**Status: session token metering and local estimates for custom providers are implemented; each model/gateway still needs real-world verification.** The Bridge reads the active Codex App Server `thread/tokenUsage/updated` notification and reports per-turn and session totals for the active thread. Missing notifications stay unavailable. The Bridge does not call ChatGPT-only account/reset RPCs or present third-party balances as subscription limits. Console menu 4 opens the local editor for per-million-token prices by model ID; GPT-6 Astra pricing is not hard-coded and the rate file stays private.
 
 Keep the firmware protocol and separate three responsibilities:
 

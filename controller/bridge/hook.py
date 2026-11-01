@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Official lifecycle hook client. Fail back to native approval on every error."""
 import json
-from pathlib import Path
 import socket
 import sys
 from ipc_path import check_directory

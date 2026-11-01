@@ -16,6 +16,8 @@ SKIP_DIRS = {'bridge-venv', 'bridge-venv-homebrew', 'pycache', 'checks', 'compon
 
 def private_files(root):
     private = root / 'controller/private'
+    if private.is_symlink():
+        raise ValueError('Refusing symlink recovery directory')
     for directory, dirs, files in os.walk(private, followlinks=False):
         here = Path(directory)
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not (here / d).is_symlink())
@@ -26,6 +28,8 @@ def private_files(root):
             if p.is_file(): yield p, p.relative_to(root).as_posix()
     for relative in ('controller/dist',):
         base = root / relative
+        if base.is_symlink():
+            raise ValueError('Refusing symlink recovery directory')
         for p in sorted(base.rglob('*')):
             if p.is_symlink(): raise ValueError('Refusing symlink in recovery material')
             if p.is_file(): yield p, p.relative_to(root).as_posix()
@@ -36,7 +40,15 @@ def private_files(root):
 
 def pack_private(destination, files):
     records = []
-    with tarfile.open(destination, 'w:gz') as archive:
+    # Protect even an interrupted/invalid archive before writing private bytes,
+    # and never truncate a previous recovery archive or follow its symlink.
+    with destination.open('xb') as output:
+        os.fchmod(output.fileno(), 0o600)
+        return _pack_private(destination, output, files, records)
+
+
+def _pack_private(destination, output, files, records):
+    with tarfile.open(fileobj=output, mode='w:gz') as archive:
         for source, name in files:
             if source.is_symlink(): raise ValueError('Refusing symlink')
             raw = source.read_bytes()
@@ -50,7 +62,7 @@ def pack_private(destination, files):
         raw = (json.dumps(manifest, ensure_ascii=False, indent=2) + '\n').encode()
         info = tarfile.TarInfo('PRIVATE-MANIFEST.json'); info.size = len(raw); info.mode = 0o600
         archive.addfile(info, io.BytesIO(raw))
-    destination.chmod(0o600)
+    output.flush()
     # Full readback verifies every archived byte against the per-file manifest.
     with tarfile.open(destination, 'r:gz') as archive:
         for record in records:

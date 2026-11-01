@@ -3,7 +3,6 @@
 import argparse
 import json
 from pathlib import Path
-import shutil
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--source', type=Path, required=True)
@@ -50,6 +49,6 @@ for name in parts[:6]+['exhausted']:
     output.append(f'if(!strcmp(state,"{name}"))return &asset_{name};')
 output.append('return &asset_idle; }')
 (root/'firmware/main/pet_assets.h').write_text('\n'.join(output))
-(root/'assets/generated').mkdir(exist_ok=True)
+(root/'assets/generated').mkdir(parents=True,exist_ok=True)
 (root/'assets/generated/rights.json').write_text(json.dumps(rights,indent=2))
 print('Imported originals; no replacement Emoji generated. Rebuild firmware.')

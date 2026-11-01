@@ -16,7 +16,7 @@ TOKEN_FIELDS = (
 )
 MAX_TOKENS = 10**12
 
-# These are the standard prices shown in the OpenAI pricing table.  They are
+# Bundled price snapshot, not a live pricing feed. These values are
 # used only when a model is explicitly configured with rate_source="openai";
 # local custom-provider prices remain opt-in and are never guessed.
 OPENAI_PRICES = {
@@ -265,7 +265,7 @@ class UsageLedger:
             return
         try:
             saved = json.loads(self.path.read_text())
-            if saved.get('version') not in (1, 2) or not isinstance(saved.get('reset_id'), str):
+            if not isinstance(saved, dict) or saved.get('version') not in (1, 2) or not isinstance(saved.get('reset_id'), str):
                 raise ValueError('Unsupported ledger')
             groups = saved['groups']
             threads = saved['threads']
@@ -611,6 +611,8 @@ class UsageLedger:
                  'multiplier': None}
         result = dict(empty)
         found = False
+        tiers = set()
+        multipliers = set()
         requests = requests or {}
         for model, tokens in groups.items():
             if not tokens['totalTokens']:
@@ -641,12 +643,10 @@ class UsageLedger:
                             'cache_write_tokens','visible_output_tokens','reasoning_tokens',
                             'output_tokens','total_tokens'):
                     result[key] += detail[key]
-                if result['multiplier'] is None:
-                    result['multiplier'] = detail['multiplier']
-                elif result['multiplier'] != detail['multiplier']:
-                    result['multiplier'] = None
-                if result['tier'] == 'mixed' or result['tier'] != detail['tier']:
-                    result['tier'] = detail['tier'] if result['tier'] == 'mixed' else 'mixed'
+                multipliers.add(detail['multiplier'])
+                tiers.add(detail['tier'])
+        result['multiplier'] = next(iter(multipliers)) if len(multipliers) == 1 else None
+        result['tier'] = next(iter(tiers)) if len(tiers) == 1 else 'mixed'
         return (result if found else empty), ''
 
     def request_prices(self, groups, key=None):

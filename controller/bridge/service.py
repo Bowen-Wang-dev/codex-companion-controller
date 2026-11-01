@@ -4,6 +4,7 @@ import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 import select
 from pathlib import Path
@@ -193,10 +194,10 @@ class Broker:
     def desktop_request(self,event,alive=lambda:True):
         from native_approvals import permission_display
         method=event.get('method');params=event.get('params');relay=event.get('relay')
-        if method not in ('item/permissions/requestApproval','item/commandExecution/requestApproval','item/fileChange/requestApproval') or not isinstance(params,dict) or type(event.get('native_id')) not in (str,int):return {}
+        if method not in ('item/permissions/requestApproval','item/commandExecution/requestApproval','item/fileChange/requestApproval') or not isinstance(params,dict) or type(event.get('native_id')) not in (str,int) or not isinstance(relay,str):return {}
         thread=params.get('threadId');turn=params.get('turnId');item=params.get('itemId');started=params.get('startedAtMs')
         if not all(isinstance(v,str) and v for v in (thread,turn,item)):return {}
-        if type(started) not in (int,float) or started>time.time()*1000+5000:return {}
+        if type(started) not in (int,float) or not 0<=started<=time.time()*1000+5000 or not math.isfinite(started):return {}
         timeout=600-max(0,time.time()-started/1000)
         with self.lock:
             registered=self.desktop_relays.get(relay)
@@ -697,6 +698,7 @@ class Broker:
         threading.Thread(target=consume,daemon=True).start(); return True
 
     def device_message(self,message,transport):
+        if not isinstance(message,dict):return
         with self.lock:
             if message.get('type')=='hello' and isinstance(message.get('boot'),str):
                 gap=time.monotonic()-self.last_seen if self.last_seen else 0
@@ -783,6 +785,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                 if len(line) > 65536:
                     return
                 event = json.loads(line)
+                if not isinstance(event,dict):return
                 if event.get('type')=='shutdown':
                     # Local Unix socket only; callers must possess the private
                     # per-user socket path in the 0700 IPC directory.
@@ -878,7 +881,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             except FileNotFoundError:
                 billing=[];billing_signature=None
             except (OSError,ValueError,UnicodeError):billing_issue='provider_export_invalid'
-            complete=not reader.missing and all(v['offset']>=v['path'].stat().st_size for v in reader.files.values())
+            complete=reader.caught_up()
             revision=len(reader.records)
             additions=None
             if billing and complete and revision!=billing_revision and not billing_issue:

@@ -6,6 +6,7 @@ forks a thread, changes sandbox policy, or grants session-persistent permissions
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import queue
 import threading
@@ -215,7 +216,7 @@ class NativeApprovals:
         broker=self.broker;params=message['params'];method=message['method'];req=None
         try:
             started=params.get('startedAtMs')
-            if not isinstance(started,(int,float)) or started>time.time()*1000+5000:return
+            if type(started) not in (int,float) or not 0<=started<=time.time()*1000+5000 or not math.isfinite(started):return
             ttl=(600 if broker.review_protocol==1 else 110)-max(0,time.time()-started/1000)
             if ttl<=0 or not params.get('turnId') or not params.get('itemId'):return
             if method=='item/permissions/requestApproval':

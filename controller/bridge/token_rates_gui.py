@@ -71,7 +71,7 @@ class RateEditor:
         for row,(key,label) in enumerate(FIELDS,1):
             ttk.Label(tier,text=label+' $ / 1M').grid(row=row,column=0,sticky='w')
             entry=ttk.Entry(tier,textvariable=self.long_values[key],width=16);entry.grid(row=row,column=1,sticky='w');self.long_entries[key]=entry
-        note = ('OpenAI 模式采用当前公开单价，仅核对过的模型可选；custom 模式由你填写基准价。\n'
+        note = ('OpenAI 模式使用内置价格快照，不自动更新；custom 模式由你填写基准价。\n'
                 '两种模式都乘倍率一次；默认倍率为 1。推理单独显示，费率同输出且合计不重复。\n'
                 '长档按完整单次请求判档；缺少旧请求边界时不猜。费率只保存在本机。')
         ttk.Label(right, text=note, justify='left', foreground='#666').grid(row=16, column=0, columnspan=2, sticky='w', pady=(12, 8))
@@ -87,7 +87,7 @@ class RateEditor:
         try:
             data = json.loads(RATE_FILE.read_text())
             self.currency.set('USD')
-            self.rates = data.get('models') if isinstance(data.get('models'), dict) else {}
+            self.rates = data.get('models') if isinstance(data,dict) and isinstance(data.get('models'), dict) else {}
         except (OSError, ValueError, TypeError):
             self.rates = {}
         try:
@@ -146,8 +146,9 @@ class RateEditor:
         entries=tuple(self.base_entries.values())+tuple(self.long_entries.values())
         if mode=='openai' and self.previous_source=='custom':
             self.custom_backup={field:(self.values[field].get() or None) for field,_ in FIELDS}
-            self.custom_backup['long_context']={'above_input_tokens':int(self.long_threshold.get() or 272000),
-                **{field:(self.long_values[field].get() or None) for field,_ in FIELDS}}
+            if self.long_enabled.get():
+                self.custom_backup['long_context']={'above_input_tokens':self.long_threshold.get(),
+                    **{field:(self.long_values[field].get() or None) for field,_ in FIELDS}}
         elif mode=='custom' and self.previous_source=='openai' and self.custom_backup:
             for field,_ in FIELDS:self.values[field].set('' if self.custom_backup.get(field) is None else str(self.custom_backup[field]))
             old=self.custom_backup.get('long_context',{})
@@ -165,7 +166,7 @@ class RateEditor:
             self.long_enabled.set(bool(long));self.long_threshold.set(str(long.get('above_input_tokens',272000)))
             for key,_ in FIELDS:self.long_values[key].set('' if long.get(key) is None else str(long[key]))
             for entry in entries: entry.state(['disabled'])
-            self.status.set('已加载 OpenAI 官方价格；倍率会单独应用一次。')
+            self.status.set('已加载内置 OpenAI 价格快照；保存前请核对适用单价，倍率仅应用一次。')
         else:
             for entry in entries: entry.state(['!disabled'])
             self.status.set('custom：基准价 × 倍率；倍率默认 1。')

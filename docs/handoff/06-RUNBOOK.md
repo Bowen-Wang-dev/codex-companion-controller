@@ -1,64 +1,89 @@
-# 启动、检查与测试
+# 运行、诊断与测试手册
 
-## 桌面 App 接入条件
+适用源码：固件 `0.2.13`、Bridge `0.2.13-native-app`。当前部署与验收记录见[项目状态](01-PROJECT-STATE.md)，历史测试次数不作为本次运行结果。
 
-设备显示“无线同步正常”只说明设备已连接 Bridge。设备连接页显示“App 审批尚未连接”时，不要发起审批测试；需要先让原 App 通过已核对的启动入口接入 relay。统一控制台的 **2 → 2** 现在会根据 App 是否运行选择完整 App/Bridge 启动链或仅重启 Bridge；成功标准是设备显示“App 实体审批已接入”，并且模型和 Token 状态开始同步。
+## 日常启动
 
-如果只看到“等待启动适配接入实际 App 会话”，说明 Bridge 已启动但 App/relay 尚未接入。不要把设备在线或 `UserPromptSubmit` 单条事件当成审批链路通过。
+唯一入口：`controller/Codex Companion 控制台.command`。
 
-## 日常
-最新版本为 v0.2.12，Bridge 诊断修订号 `0.2.12-native-app`，五项真实双端验收见 [发布说明](../releases/v0.2.12.md)。电脑端使用原 App 原生审批卡片，不使用独立审批弹窗。
+| 菜单 | 操作 |
+|---|---|
+| 1 | 启动经过精确版本与摘要校验的 App、relay 和 Bridge |
+| 2 → 1 | 只读诊断设备与 App 连接 |
+| 2 → 2 | 安全重启 Bridge；App 未运行时使用完整启动链 |
+| 2 → 3 | USB 恢复或重新配置 Wi-Fi |
+| 3 | 首次配对或更新 Wi-Fi |
+| 4 | 本机模型费率、来源、长上下文和倍率 |
+| 5 | 计数、最近一小时只读核对、确认后清零本机计数 |
+| 6 | 注册或修复 Hooks，随后人工审阅信任 |
+| 7 | USB 固件备份与应用更新 |
 
-日常审批：设备响铃后直接选择在设备或电脑原生卡片操作，任一端先答即结束对端。“长按转到 Mac”已抛弃，历史记录和 Git `v0.2.12` 代码保留。v0.2.13 源码与构建已移除交接实现，Bridge 修订号为 `0.2.13-native-app`；完整 Python 237 项及 C/音频主机检查通过，尚未部署。当前运行仍为此前 0.2.12，升级详情见 [v0.2.13](../releases/v0.2.13.md)。
+App 已运行时，2 → 2 只重启 Bridge，不能把普通启动的 App 自动接入 relay。若 App 未经适配入口启动，应保存工作并手动 Command+Q 完全退出，再用菜单 1 启动并打开原聊天。程序不自动关闭用户工作。
 
-准备部署本机 0.2.13 时使用唯一控制台菜单 **7**，该入口已更新到 0.2.13 校验：检查依赖与测试、确认后停 Bridge、双备份/live 分区校验、仅更新应用并回读验证，再加载新 Bridge 接回原 App。保持原聊天，不用清零或重配网。仅安全重启 Bridge 不会替换设备旧文案；部署后需分别做真实双端及详情长按无交接验收。下段 0.2.12 操作说明是已发布版本的使用边界，当前菜单 7 要求本机 0.2.13 构建。
+有待处理审批时不得重启或配网。App 进程探测失败时停止操作，不将“无法探测”当作“App 已退出”。
 
-设备已是 0.2.12 时，保留原 App 与聊天，主菜单 2 → 子菜单 2 安全重启 Bridge 即可加载 Mac 端修改，无需再次刷机或配网；有待审批时不能重启。旧设备的本机固件升级使用菜单 7，普通 Terminal 需在 ignored private/local-env.sh 指定 CONTROLLER_FLASH_PYTHON（esptool 4.x），串口枚举和 IPC 使用 CONTROLLER_BRIDGE_PYTHON。先检查依赖，再停 Bridge、双备份和应用更新。
+## 连接状态
 
-双击 `controller/Codex Companion 控制台.command`。保持 Bridge 所在 Terminal 运行；关闭 App/Terminal 对服务生命周期有影响，不能理解为已安装后台常驻服务。
+- “无线同步正常”：设备与 Bridge 已同步。
+- “App 已连接 · 等待会话”：relay 存在，尚未确认原聊天接入。
+- “App 实体审批已接入”：relay 和会话已连接；仍需实际请求验证审批功能。
+- “App 审批尚未连接”或启动日志“等待启动适配接入实际 App 会话”：审批链路尚未建立。
+- “在 Mac 确认”：需要电脑端处理，不是设备批准成功。
 
-菜单：1 App 实体审批；2 Bridge/USB/Wi-Fi 恢复；3 配对；4 费率/长上下文/倍率；5 用量核对/清零；6 Hooks；7 USB 固件备份更新。
+设备在线、单条 `UserPromptSubmit`、模型同步或 Token 同步均不能单独证明真实 Allow/Deny 验收完成。审批提交、工具返回和任务成功须分别判断。
 
-迁移准备文件 `controller/private/runtime-migration.json` 存在时，菜单 1 自动先进入旧→新目录切换：先保存工作、手动 Command+Q 退出 App，再在 Terminal 按回车。脚本停止旧服务并同步最新账本、备份并精确切换 Hooks，然后从新路径启动 App。新路径 Hook 仍需重新审阅信任。不要用菜单 6 把新命令直接追加到旧 Hooks。
+## 断线与改网
 
-App 实体审批需要通过适配入口启动真实 App，不能在普通手动打开的 App 上仅启动 Bridge 就声称已接入。已有旧 Bridge 时先停旧 Bridge；保存当前工作后用户手动 Command+Q，再由入口启动并打开原聊天。程序不要自动退出用户工作。
+1. 先检查 Bridge、relay、设备状态和 Mac 当前局域网 IPv4。
+2. 地址不再匹配配对 URL 时，重启不能修正证书与设备配置；需 USB 配对流程。
+3. 配对脚本先打开 USB 并等待稳定 hello，再由设备连接页短按确认开放 60 秒窗口。
+4. 收到保存回执并确认 Wi-Fi 同步后再拔 USB。可配置路由器 DHCP 地址预留。
+5. USB termios 或网络沙箱受限时，保留具体错误，由获准环境运行；不得关闭 TLS 校验或无限延长离线阈值。
 
-## 状态含义
-- Wi-Fi 在线：设备与 Bridge 成功同步，不等于 App relay 已接上。
-- App 已连接·等待会话：relay 在，但未见到原聊天。
-- App 实体审批已接入：relay 和会话握手，之后还需真实请求测试。
-- 在 Mac 确认：不是设备批准成功。已读通知也不是回复。
+迁移标记 `controller/private/runtime-migration.json` 存在时，菜单 1 进入受保护切换流程。先手动退出 App，备份并精确替换旧 Hook 路径，停止旧服务后同步最新账本。新路径仍需人工审阅信任。不得同时运行新旧 Bridge。
 
-## 改网或断线
-1. 只读看进程/私有 IPC、HTTPS 监听、设备状态。
-2. 检查 Mac 当前局域网 IPv4 是否还是设备配对 URL 的地址。
-3. 换 IP 时旧 URL 与证书不能靠重启自动修正；用 USB 配对，先开串口稳定 hello，再在第六页短按确认允许 60 秒。
-4. 修复后先等 Wi-Fi hello/同步，再拔 USB。建议路由器 DHCP 预留地址，别仅延长离线期限掩盖问题。
-5. 网络/USB权限不足则由用户普通 Terminal 执行，不无限重试或更改 TLS 验证。
+## 主机测试
 
-## 测试命令
+以下命令从仓库根目录执行，使用 `env.sh` 选定的 Bridge Python：
+
 ```sh
-controller/private/bridge-venv/bin/python -m unittest discover -s controller/tests -v
+source controller/scripts/env.sh
+"$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s controller/tests -v
+python3 -m unittest discover -s tools -p 'test_*.py'
 bash tools/check-host.sh
 zsh mac-demo/test.sh
 ```
-运行 socket 测试需要允许本机 TCP/Unix。网络沙箱拒绝不等于断言失败；不得删掉测试来宣称全通过。Swift 缓存目录可设 COMPANION_BUILD_CACHE。
 
-固件需要 ESP-IDF 5.5.3；先 export.sh。已有离线组件时 PASSPORT_DEPS 指向缓存；仅构建：
+TCP/Unix socket 测试需要本机权限；沙箱拒绝不是业务断言失败，应在获准环境重跑并保留两次结果。Swift 缓存可通过 `COMPANION_BUILD_CACHE` 指定。C 音频检查使用 mocked BSP/RTOS，不能称为扬声器实机验收。
+
+## 构建与设备维护
+
+固件需要 ESP-IDF 5.5.3；先载入其 `export.sh`。有已锁定离线组件时可配置 `PASSPORT_DEPS`，然后执行：
+
 ```sh
 bash controller/scripts/build.sh
 ```
-构建不刷机。源码仓库不含 Apple 资源；迁移的本机私有文件可补足本地构建。固件/工具链目录迁移后不能复制旧 CMake 缓存继续用，须重新配置。
 
-## 审计
+构建不刷机。镜像综合检查 `controller/scripts/check.sh` 额外需要 `CONTROLLER_FLASH_PYTHON`（esptool 4.x）。Bridge 与刷写解释器分别选择，维护入口在停服务前检查依赖。
+
+设备更新通过菜单 7：测试与 manifest 校验、人工确认、停止 Bridge、双读完整备份、现场分区校验、仅应用更新及回读验证，再连接原 App。设备已报告目标版本时，不能为加载纯 Bridge 修复重复刷机。具体安全要求见[硬件与刷写](04-HARDWARE-AND-FLASH.md)。
+
+## 指定区间的只读对账
+
+控制台默认核对最近一小时。导出文件路径及时间区间需显式传参：
+
 ```sh
-controller/private/bridge-venv/bin/python controller/scripts/audit_usage.py --provider-log /absolute/path/to/export.csv --since '2026-11-01T00:00:00+11:00' --until '2026-11-02T00:00:00+11:00'
+source controller/scripts/env.sh
+"$CONTROLLER_BRIDGE_PYTHON" controller/scripts/audit_usage.py \
+  --provider-log /absolute/path/to/export.csv \
+  --since '2026-11-01T00:00:00+11:00' \
+  --until '2026-11-02T00:00:00+11:00'
 ```
-示例区间仅演示参数，不自动代表用户真实对账范围。不得打印凭据或上传实际账单。
 
-## 独立 Bridge Python（2026-11-02）
-本机 `private/local-env.sh` 选择 `/opt/homebrew/opt/python@3.12/bin/python3.12` 和 `private/bridge-venv-homebrew/bin/python`。所有 shell 启动入口通过 env.sh 的 CONTROLLER_BRIDGE_PYTHON 使用相同环境，不沿用 ESP-IDF 的旧 Python。
+示例日期仅演示带时区参数，不代表实际账期。对账不修改账单；缺失、未读完、截断或已轮换的本机记录必须报告扫描未完成。
 
-新启动配置需要用户自行退出当前 App 后生效；可运行唯一控制台 command 加 `--restart-app`，在 Terminal 按提示确认已退出。不会自动关闭当前聊天。启动成功后 private/active-python.json 记录实际解释器；不要把 prepared 回执当成进程已激活。
+## 环境与运行证据
 
-离线依赖校验：`bash controller/scripts/setup_bridge.sh`。本机测试：`controller/private/bridge-venv-homebrew/bin/python -m unittest discover -s controller/tests -v`；网络 sandbox 拒绝时需获准本机 socket，不能删测试。GUI 的 Tcl/Tk 基础检查不等于所有费率菜单人工验收。
+本机已记录独立 Homebrew Python 3.12 环境。所有 shell 入口通过 `CONTROLLER_BRIDGE_PYTHON` 选择 Bridge Python；不得用 prepared 回执代替实际激活记录。
+
+`--restart-app` 需要用户自行保存工作并退出 App；启动后 `private/active-python.json` 记录所选解释器。该回执不证明后续每个补丁已加载，也不证明实机验收。Tcl/Tk 导入检查不覆盖价格编辑器的人工交互全流程。

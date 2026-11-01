@@ -1,31 +1,28 @@
-# 新会话从这里开始
+# 项目交接入口
 
-交接整理日期：2026-11-02（Australia/Sydney）。原生双端审批 v0.2.12 已完成五项实机验收并获准发布，其余开发保持暂停；最新状态和历史阶段已在 01-PROJECT-STATE.md 分开。
+维护日期：2026-11-02（Australia/Sydney）。本次授权范围为代码审查、必要修复及文档整理；新功能、部署、刷机、配网、清零和账户调整不在本次范围内。
 
-最新补丁：Bridge 的普通工具返回回执已从英文改为“工具已返回”，11 项相关主机回归通过，修复待安全重启 Bridge 加载；本条不涉及固件刷写。更新后已收到一次真实审批操作正常反馈，完整新版验收仍以 01-PROJECT-STATE.md 为准。
+## 当前摘要
 
-此前构建阶段记录：版本规划已在文档提交 `9545223` 留档。v0.2.13 源码与本机构建完成，移除固件/Bridge 交接和 Mac 唤回，仅保留双端直接审批及电脑详情提示；完整 Python 237 项、C/音频主机检查通过，尚未重启 Bridge 或刷机，实际运行仍为此前 0.2.12。已抛弃功能的历史文档、验收和 Git `v0.2.12` 旧代码保留。见 [项目状态](01-PROJECT-STATE.md)、[交互契约](03-UX-CONTRACT.md) 和 [v0.2.13 状态](../releases/v0.2.13.md)。
+- 源码：固件 `0.2.13`，Bridge `0.2.13-native-app`；已移除详情页长按交接，保留双端直接审批。
+- 已有发布基线：`v0.2.12`，五项原生双端实机验收记录完整保留。
+- 最近运行记录：后续日志已报告设备固件 `0.2.13`，且有一次真实审批操作正常的反馈；新版完整验收矩阵及各补丁是否已加载仍需分别确认。
+- 本次审查不采集新的运行版本快照，不重启服务，不刷写设备。当前状态、历史阶段和验证边界见 [01-PROJECT-STATE.md](01-PROJECT-STATE.md)。
+- 普通工具返回中文回执及控制台启动链修复已有源码与回归证据；是否在运行进程中生效，不能从源码版本推定。
 
-## 建议阅读顺序
-1. 根目录 `AGENTS.md`：工作边界。
-2. [项目现状](01-PROJECT-STATE.md)：版本与验收边界。
-3. [架构与文件](02-ARCHITECTURE.md)：从哪里改。
-4. [交互契约](03-UX-CONTRACT.md)：不能回退的体验。
-5. [硬件与安全刷写](04-HARDWARE-AND-FLASH.md)。
-6. [Token 与费用](05-TOKEN-AND-PRICING.md)。
-7. [运行与测试](06-RUNBOOK.md)。
-8. [迁移与私有数据](07-MIGRATION-AND-PRIVACY.md)。
-9. [版本演进与变更记录](08-CHANGE-AND-DECISIONS.md)、[待办](09-BACKLOG.md)。
+## 阅读顺序
 
-旧 `docs/STATUS.md`、`docs/CHANGELOG.md`、`controller/docs/` 为阶段性材料；与这里的最新状态冲突时，先核验代码和证据，再更新文档，不盲信旧文档。
+1. 根目录 [AGENTS.md](../../AGENTS.md)：工作边界。
+2. [项目状态](01-PROJECT-STATE.md)：当前证据及历史阶段。
+3. [架构与文件](02-ARCHITECTURE.md)、[交互契约](03-UX-CONTRACT.md)。
+4. 按任务阅读 [硬件与刷写](04-HARDWARE-AND-FLASH.md)、[计量](05-TOKEN-AND-PRICING.md)、[运行手册](06-RUNBOOK.md)、[迁移与隐私](07-MIGRATION-AND-PRIVACY.md)。
+5. [变更记录](08-CHANGE-AND-DECISIONS.md)、[待办](09-BACKLOG.md)、[常见问题](10-QUICK-FAQ.md)。
+6. 本次维护的范围、发现、修复和验证见[审查报告](../reviews/2026-11-02-code-and-docs.md)。
 
-## 给新 Agent 的开场任务模板
+## 操作入口与资料优先级
 
-> 先阅读 AGENTS.md 和 docs/handoff/00-START-HERE.md、01-PROJECT-STATE.md。总结实际版本、当前运行位置、已验证和未验证项。暂不刷机、清零、配网或改账户。然后针对我接下来提出的问题检查相关源码并执行。
+日常唯一入口为 `controller/Codex Companion 控制台.command`；历史入口在 `controller/维护工具/`。桌面 App 原聊天是主要交付对象，CLI 为备选。
 
-## 当前定位
-- 项目：FoloToy AI Passport / ESP32-C3 的 Codex 实体控制器、状态显示器、Apple Emoji 宠物。
-- 首要客户端：桌面 App，保持原聊天；CLI 是备选，不是替代交付。
-- 源码布局沿用 GitHub，根下 `controller/`、`mac-demo/`、`docs/`、`tools/`。
-- `controller/private/` 仅本机，迁移时需单独保留，GitHub 本身不是完整设备恢复包。
-- 这份文档不是自动批准未来权限或部署的授权。
+`docs/STATUS.md`、`docs/CHANGELOG.md`、`controller/docs/` 和 [Controller README 历史快照](../history/controller-readme-before-2026-11-02-review.md)属于历史资料。文中的“当前”“本次”均指各自记录阶段。冲突时核对源码和证据，更新现行摘要，不删除历史验收或将其扩展到新版本。
+
+`controller/private/` 仅本机保存，Git 仓库不是完整设备恢复包。文档中的操作步骤只说明流程，不构成未来部署或权限操作的自动授权。

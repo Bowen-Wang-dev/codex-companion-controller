@@ -70,9 +70,14 @@ class RecoveryTests(unittest.TestCase):
             request.assert_not_called()
 
     def test_running_app_does_not_stop_bridge_or_close_chat(self):
-        with mock.patch.object(restart,'verify_build',return_value='test'), mock.patch.object(restart,'inspect',return_value={}), mock.patch.object(restart,'show'), mock.patch('builtins.input',return_value=''), mock.patch.object(restart.subprocess,'run',return_value=mock.Mock(returncode=0)), mock.patch.object(restart,'stop_idle_bridge') as stop, mock.patch.object(restart.os,'execv') as execute:
+        with mock.patch.object(restart,'verify_build',return_value='test'), mock.patch.object(restart,'inspect',return_value={}), mock.patch.object(restart,'show'), mock.patch('builtins.input',return_value=''), mock.patch.object(restart,'app_is_running',return_value=True), mock.patch.object(restart,'stop_idle_bridge') as stop, mock.patch.object(restart.os,'execv') as execute:
             with self.assertRaisesRegex(RuntimeError,'仍在运行'):restart.main()
             stop.assert_not_called();execute.assert_not_called()
+
+    def test_failed_app_probe_prevents_launcher_from_starting_bridge(self):
+        with mock.patch.object(launcher,'verify_build',return_value='test'), mock.patch.object(diagnostics,'inspect',return_value={}), mock.patch.object(diagnostics,'show'), mock.patch('usage_meter.load_rates',return_value={'models':{}}), mock.patch.object(launcher.subprocess,'run',return_value=mock.Mock(returncode=2)), mock.patch.object(launcher,'acquire_endpoint') as endpoint, mock.patch.object(launcher.subprocess,'Popen') as start:
+            with self.assertRaisesRegex(RuntimeError,'无法检查'):launcher.main()
+            endpoint.assert_not_called();start.assert_not_called()
 
     def test_macos_termios_permission_error_becomes_actionable_oserror(self):
         import termios

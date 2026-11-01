@@ -22,6 +22,11 @@ APPROVALS={'item/permissions/requestApproval','item/commandExecution/requestAppr
 MAX_LINE=16*1024*1024
 
 
+def object_value(value):
+    """Ignore unsupported metadata shapes while preserving the original line."""
+    return value if isinstance(value,dict) else {}
+
+
 class Arbitration:
     """One response per outstanding server request; serialize both input paths."""
     def __init__(self,write):
@@ -32,7 +37,8 @@ class Arbitration:
         return json.dumps(identifier,ensure_ascii=True,separators=(',',':'))
 
     def offer(self,message):
-        if message.get('method') not in APPROVALS or type(message.get('id')) not in (str,int):return None
+        if (message.get('method') not in APPROVALS or type(message.get('id')) not in (str,int)
+                or not isinstance(message.get('params'),dict)):return None
         key=self.key(message['id'])
         with self.lock:
             if key in self.pending or len(self.pending)>=32:return None
@@ -84,7 +90,7 @@ def valid_response(message,result):
     if not isinstance(result,dict):return False
     if message.get('method')=='item/permissions/requestApproval':
         if set(result)!={'permissions','scope'} or result['scope']!='turn':return False
-        grant=result['permissions'];requested=message.get('params',{}).get('permissions')
+        grant=result['permissions'];requested=object_value(message.get('params')).get('permissions')
         if not isinstance(grant,dict) or not isinstance(requested,dict):return False
         # The Bridge may deny everything or grant only exact, requested fields.
         def subset(value,original):
@@ -177,7 +183,7 @@ class Relay:
                 except ValueError:message=None
                 with self.arbiter.lock:
                     if isinstance(message,dict) and 'id' in message and message.get('method') in ('thread/start','thread/resume','thread/fork','turn/start'):
-                        params=message.get('params') or {}
+                        params=object_value(message.get('params'))
                         call={'method':message['method'],'thread':params.get('threadId'),'model':params.get('model')}
                         if message['method']=='thread/resume' and isinstance(params.get('threadId'),str):
                             self.restoring.add(params['threadId'])
@@ -195,18 +201,18 @@ class Relay:
         if not isinstance(message,dict):
             self.app_out.write(line);self.app_out.flush();return
         with self.arbiter.lock:
-            method=message.get('method');params=message.get('params') or {}
+            method=message.get('method');params=object_value(message.get('params'))
             if 'id' in message and 'method' not in message:
                 origin=self.client_calls.pop(self.arbiter.key(message['id']),None)
                 if origin:
                     if isinstance(origin,str):origin={'method':origin}
-                    result=message.get('result') or {}
-                    thread=(message.get('result') or {}).get('thread') or {}
+                    result=object_value(message.get('result'))
+                    thread=object_value(result.get('thread'))
                     thread_id=thread.get('id') or thread.get('sessionId')
                     thread_id=thread_id or origin.get('thread')
                     if isinstance(thread_id,str):
                         self.sessions.add(thread_id)
-                        turn=result.get('turn') or {}
+                        turn=object_value(result.get('turn'))
                         # Official ThreadStart/ResumeResponse returns model at
                         # result.model, alongside thread, not inside thread.
                         model=result.get('model') or turn.get('model') or origin.get('model') or thread.get('model')
@@ -271,7 +277,7 @@ class Relay:
                 thread_id=params.get('threadId')
                 if method=='turn/started':self.restoring.discard(thread_id)
                 if isinstance(thread_id,str):self.sessions.add(thread_id)
-                turn=params.get('turn') or {}
+                turn=object_value(params.get('turn'))
                 model=turn.get('model')
                 if isinstance(thread_id,str) and isinstance(model,str) and model:
                     self.models[thread_id]=model
@@ -310,7 +316,11 @@ def main():
     # Version, login and other CLI utility calls remain exact passthroughs.
     if 'app-server' not in command or any(v in command for v in ('daemon','proxy','generate-ts','generate-json-schema')):
         os.execv(str(real),[str(real),*command])
-    if '--listen' in command and command[command.index('--listen')+1]!='stdio://':
+    if '--listen' in command:
+        index=command.index('--listen')
+        if index+1>=len(command) or command[index+1]!='stdio://':
+            os.execv(str(real),[str(real),*command])
+    if any(value.startswith('--listen=') and value!='--listen=stdio://' for value in command):
         os.execv(str(real),[str(real),*command])
     child=subprocess.Popen([str(real),*command],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
         stderr=sys.stderr.buffer)

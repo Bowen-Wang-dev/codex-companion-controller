@@ -65,10 +65,27 @@ class MigrationTests(unittest.TestCase):
         migration.migrate(self.src,self.root/'destination',build_env=False)
         self.assertFalse((self.root/'destination/controller/private/auth.json').exists())
 
+    def test_never_copies_credentials_from_runtime_or_backup_tree(self):
+        for relative in ('private/auth.json', 'private/backups/example/auth.json'):
+            (self.runtime/relative).write_text('{"synthetic":"credential"}')
+        self.migrate()
+        private=self.root/'destination/controller/private'
+        self.assertFalse((private/'auth.json').exists())
+        self.assertFalse((private/'backups/example/auth.json').exists())
+        self.assertTrue((private/'wireless.json').is_file())
+        self.assertTrue((private/'backups/example/flash.bin').is_file())
+
     def test_rejects_symlink_in_source_without_changing_original(self):
         (self.src/'linked.md').symlink_to(self.src/'AGENTS.md')
         with self.assertRaises(ValueError):self.migrate()
         self.assertTrue((self.src/'AGENTS.md').is_file())
+
+    def test_rejects_symlinked_private_tree_root(self):
+        target=self.root/'external';target.mkdir();(target/'fixture.json').write_text('{}')
+        link=self.root/'linked-private';link.symlink_to(target,target_is_directory=True)
+        with self.assertRaisesRegex(ValueError,'symlink'):
+            migration.private_tree(link,self.root/'copied',[])
+        self.assertFalse((self.root/'copied').exists())
 
     def test_checksum_failure_does_not_remove_source(self):
         with mock.patch.object(migration,'digest',side_effect=['a','b']):

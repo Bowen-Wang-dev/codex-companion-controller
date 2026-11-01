@@ -1,234 +1,94 @@
 # Codex Companion Controller
 
-> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。v0.2.12 原生双端审批已通过五项实机验收；v0.2.13 源码与构建完成、尚未部署，其余工作保持暂停，状态见交接文档。
-
-**AI Passport · ESP32-C3 · Mac Bridge · SwiftUI Demo**
+FoloToy AI Passport 的 Codex 实体控制器、状态显示器与 Emoji 交互原型。Mac Bridge 负责会话、审批和本地计量，ESP32-C3 负责显示、三键输入、无线连接与提示音。本项目不是 OpenAI、Apple 或 FoloToy 的官方产品。
 
 [简体中文](#简体中文) · [English](#english)
 
-> Source/build: Firmware **0.2.13** · Bridge **0.2.13-native-app** · Mac demo **0.4.0** · Deployed baseline: **0.2.12**
->
-> Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
-
-> **v0.2.13 源码与构建完成，待部署**：原 App 与设备双端直接允许/拒绝，移除已抛弃的长按“转到 Mac”实现，详情仅提示可在电脑查看。完整 Python 237 项和 C/音频主机检查通过，尚未刷机或重启 Bridge。历史功能和旧版本保留；见 [交互说明](docs/handoff/03-UX-CONTRACT.md)、[v0.2.13 状态](docs/releases/v0.2.13.md) 和 [v0.2.12 五项实机验收](docs/releases/v0.2.12.md)。Source-only; no private data, Apple artwork or firmware binaries.
-
-## 当前运行前提
-
-设备在线不等于桌面审批已接入。设备连接页必须显示“App 实体审批已接入”，模型和 Token 状态才会由原 App relay 同步；若显示“App 审批尚未连接”或“等待启动适配接入实际 App 会话”，请通过统一控制台 **2 → 2** 重新接入。App 未运行时该入口会启动经过版本/摘要校验的 App、relay 和 Bridge；App 已运行时只重启 Bridge。
-
 ## 简体中文
 
-把 FoloToy AI Passport 变成 Codex 的实体状态显示器、三键控制器和 Emoji 电子宠物。Mac Bridge 负责账户、会话和审批，ESP32-C3 负责显示、按键、Wi-Fi 与提示音。
+### 版本与验证状态
 
-```text
-Codex desktop App → version-checked stdio relay → Mac Bridge → HTTPS / Wi-Fi → AI Passport
-Codex Hooks → Mac Bridge (task state and user-action notifications)
-Codex CLI → shared App Server → Mac Bridge (optional)
-```
+截至 2026-11-02（Australia/Sydney）：
 
-### 当前功能与真实边界
-
-| 功能 | 当前状态 |
+| 项目 | 状态 |
 |---|---|
-| Wi-Fi 同步、USB 首次配对、时间与电量 | 已实现；设备已通过无线同步联调。时间来自 Mac，精度依赖 Mac 校时 |
-| ChatGPT 额度窗口、倒计时与额外重置次数 | 已接入官方账户接口；未知数据不冒充 0 |
-| 额外额度重置 | 已实现二次确认和幂等提交；测试没有消耗真实重置次数 |
-| 任务状态、事件记录与三秒回待机 | 已实现；Hook 的 Stop 表示本轮结束，不保证整个项目成功 |
-| BB 机提醒、音量 0–100%、10% 步进 | 已实现；三声约 1200 Hz，每声 180 ms，间隔 120 ms |
-| App 内置目录权限申请 | **已实机验证设备直接批准与拒绝**，保留 App 界面和原聊天 |
-| App 网络权限与命令审批 | 网络权限已实测设备允许；命令审批通过协议及主机测试，实机覆盖需单独验收 |
-| 长请求与中文说明 | 完整分页显示实际路径、原因、工作目录、权限和有效期；无需模型精简 |
-| 普通 PermissionRequest Hook 审批 | 新固件支持完整输入分页；只处理实际收到的官方 Hook |
-| 等待用户操作／回复 | 设备提醒、翻阅、确认已读；已读不代替 Mac 上的回答 |
-| CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
-| 第三方 OpenAI／GPT／Codex 兼容 API | 已识别活动 provider/model；从 Codex App Server 接收当前线程 Token 用量；费用仅按用户本地配置的模型费率估算 |
+| 源码 | 固件 `0.2.13`；Bridge `0.2.13-native-app`；Mac Demo `0.4.0` |
+| 已有发布基线 | Git 标签 `v0.2.12`；五项原生双端实机验收见[发布记录](docs/releases/v0.2.12.md) |
+| 设备最近记录 | 后续运行日志已报告固件 `0.2.13`；尚未完成新版完整验收，不能继续概括为“从未部署” |
+| 本次维护 | 代码审查、缺陷修复、回归与文档整理；未启动或重启 App/Bridge，未刷写设备 |
+| 后续工作 | 新功能及部署需另行安排；当前证据与未验证项见[项目状态](docs/handoff/01-PROJECT-STATE.md) |
 
-当前验收组合为 App **26.1027.30824**、设备 **0.2.12** 和 Bridge **0.2.12-native-app**。2026-11-02 已逐项通过设备允许、设备拒绝、Mac 允许、Mac 拒绝、设备转到 Mac 后允许五项真实测试；设备允许捕获 source=desktop 与匹配的 submitted 回执。详见 [v0.2.12 发布与验收](docs/releases/v0.2.12.md)。其他权限类型及长期稳定性仍需分别验收。
+固件版本、Bridge 源码修订号、当前进程已加载的代码与实机验收是不同状态。最近一次日志或单次操作反馈不能替代完整验收。
 
-App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
+### 功能与边界
 
-### 表情与三键
+- 同一审批经 relay 同时交给原桌面 App 原聊天和设备，首个有效答复生效。设备端保留完整分页、无默认选择、二次确认及长按提交。
+- v0.2.13 移除详情页长按“转到 Mac”；电脑端可直接查看和处理请求。缺少文件修改明细或尚未支持的授权语义时，设备不能批准。
+- Hooks 提供任务状态及用户操作提醒。确认已读不代替回复；工具返回、审批提交和任务成功分别表示不同事件。
+- 支持 USB 物理确认配对与 HTTPS 同步。设备在线只说明设备与 Bridge 连通；桌面审批还需 relay 和原会话接入。
+- ChatGPT 账户窗口与第三方 Token 计量分别处理。估价使用本机配置，按逐请求边界判定费率；不是账户总账或实时官方价格服务。
+- Mac Demo 的任务、审批、额度和重置均为模拟数据；HTTPS 校时是真实网络请求，不修改系统时间。
 
-| 状态 | 表情 |
+桌面 App 适配仅支持源码登记的精确版本和文件摘要，当前登记 `26.1016.62342`、`26.1027.30824`。内部启动开关不是稳定公开设置；未知版本必须重新核查。
+
+### 日常入口
+
+仅使用 `controller/Codex Companion 控制台.command`。
+
+| 菜单 | 用途 |
 |---|---|
-| 待机 | 😋 |
-| 思考／工作 | 🤔 |
-| 等待审批 | 🥺 |
-| 互动／确认批准后的短暂反馈 | 😆 |
-| 额度耗尽 | 😐🤲 |
-| 拒绝／失败 | 😭 |
-| 本轮完成 | 🥳 |
+| 1 | 通过已核对入口启动 App、relay 与 Bridge |
+| 2 | 诊断和恢复设备 / Bridge；子菜单 2 根据 App 状态选择启动链 |
+| 3 | 首次配对或更新 Wi-Fi |
+| 4 | 编辑本地模型费率、价格来源、长上下文档位与倍率 |
+| 5 | 查看计数、只读核对最近一小时、确认后清零本机计数 |
+| 6 | 安装或修复 Hooks；信任仍需人工审阅 |
+| 7 | USB 固件备份与应用更新 |
 
-拒绝直接显示 😭，没有中间表情。普通浏览页短按、长按方向键都换页；设置和事件页短按选择、长按换页。长请求详情页短按上下翻页，长按上键跳到首页、长按下键跳到末页；只有末页的短按上下键才选择允许／拒绝。短按确认进入二次确认，长按上下可返回首／末页；审批不预选，长按确认约 1 秒提交。电源键不作为第四个应用键；固件不依赖同时按上下键静音。
+App 已运行时，仅重启 Bridge 不能为普通启动的 App 补上 relay。应保留工作，手动退出 App，再由控制台启动。设备显示“App 实体审批已接入”是连接条件，仍需真实请求验证。完整步骤见[运行手册](docs/handoff/06-RUNBOOK.md)。历史 `.command` 入口保留在 `controller/维护工具/`，不作为日常入口。
 
-### 项目结构
+### 开发与检查
 
-```text
-controller/       ESP-IDF 固件、Mac Bridge、安全刷写及配网脚本、测试
-mac-demo/         SwiftUI / AppKit 交互 Demo，键盘 ↑ ↓ Return 模拟三键
-docs/            架构、验证状态、OpenAI 兼容 API 路线图
-tools/           可独立运行的源码检查
-```
-
-### 先体验 Mac Demo
-
-需要 macOS 14+、Swift 6 和 Xcode Command Line Tools。Demo 的任务、额度与审批是模拟数据；应用时钟会发起 HTTPS 校时请求，不修改系统时间。
+Bridge 需要 Python 3.11+、OpenSSL 3；本机使用独立 Python 3.12 环境。先配置 `CONTROLLER_MODERN_PYTHON`，已有环境可配置 `CONTROLLER_BRIDGE_PYTHON`。`scripts/env.sh` 读取本机私有配置；固定摘要的依赖 wheel 随源码提供。
 
 ```sh
-cd mac-demo
-./test.sh
-./build.sh
-open "Codex Companion.app"
-```
-
-### 配置 Bridge 与构建固件
-
-需要 ESP-IDF **5.5.3**、ESP32-C3 工具链，以及 Python **3.11+ / OpenSSL 3**。先按 ESP-IDF 官方步骤安装并载入 `export.sh`；BSP 在仓库内，组件版本记录在 `controller/firmware/dependencies.lock`。
-
-```sh
-# 仅执行本机状态机与 Bridge 测试，不刷写、不登录、不消费额度
-python3 -m venv controller/private/bridge-venv
-controller/private/bridge-venv/bin/python -m pip install -r controller/requirements-bridge.txt
-controller/private/bridge-venv/bin/python controller/scripts/setup_bridge_deps.py
-controller/private/bridge-venv/bin/python -m unittest discover -s controller/tests -v
+bash controller/scripts/setup_bridge.sh
+source controller/scripts/env.sh
+"$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s controller/tests -v
+python3 -m unittest discover -s tools -p 'test_*.py'
 bash tools/check-host.sh
-
-# 已安装并激活 ESP-IDF 5.5.3 后构建
-bash controller/scripts/build.sh
+zsh mac-demo/test.sh
 ```
 
-这个源码仓库不包含 Apple 图像。未导入资源时固件显示素材缺失提示；这不是完整视觉体验的成品镜像。导入有权使用的 Apple 原图见 [controller/README.md](controller/README.md)。
+socket 回归需要本机 TCP/Unix 权限。主机测试不调用模型、不消费额外重置次数，也不构成设备功能验收。
 
-首次使用：在 Mac 登录官方 Codex，构建固件并通过备份及应用区刷写流程更新设备。运行 `配置无线连接.command`，用 USB 和设备确认完成配对。通过 `安装通知接入.command` 注册并审阅 Hooks。
+固件构建需要 ESP-IDF 5.5.3 和 ESP32-C3 工具链；先载入该工具链的 `export.sh`，再执行 `bash controller/scripts/build.sh`。组件版本见 `controller/firmware/dependencies.lock`。构建不会刷写，源码也不包含 Apple 图像。素材导入、镜像检查和恢复说明见[Controller 使用说明](controller/README.md)。
 
-桌面 App 实体审批：先停止旧 Bridge 并退出 App，再运行 `controller/启动桌面App实体审批.command`，打开原聊天。之后若仅更新 Bridge，只在 Bridge 终端 Control+C，再运行 `controller/仅启动桌面App桥接.command`；保持 App 打开，无需刷机。普通 `仅启动桥接.command` 是通知／同步模式，不等于 App 实体审批入口。具体版本限制与入口见 [controller/README.md](controller/README.md)。
+### 安全与数据
 
-### 更新与计量诊断
+Codex 登录凭据只保留在 Mac，设备不保存该凭据。`controller/private/`、配对密钥、账本、Flash 备份、Apple 原图和含图固件均不得上传。设备更新必须经过双读完整备份、现场分区校验及仅应用更新，不整片擦除。
 
-已有设备升级运行 `controller/更新Token计量与清零固件.command`，保留原 App 和聊天；脚本自动只停止本项目 Bridge，备份、更新、验证后重新连接。日常启动无需刷机。`检查Token计量.command` 提供诊断，`核对Token用量.command` 提供只读对账，`清零Token计数.command` 只清本机计数且要求确认。设备清零须先进入二次确认，再重新长按确认一秒。
+Apple 图像不随源码分发；下载、裁剪或本机渲染不代表已取得固件分发许可。原始项目代码尚未指定开源许可证，第三方条款见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-### 数据、素材与后续 API 兼容
+### 文档导航
 
-- 账户凭据只留在 Mac；设备只有 Wi-Fi 配置、Bridge 配对密钥和证书。请求绑定 ID、摘要、启动标识和有效期。
-- 刷写要求双读校验完整 8 MB 备份，检查实际设备及分区，只更新受支持的 factory 应用；不执行整片擦除，不覆盖 bootloader、分区表或已有 NVS。
-- `private/`、设备备份、账户文件、Wi-Fi 密码、配对证书、Apple 图像和含图像固件均不纳入 Git。
-- Apple Emoji 设计属于相应权利人。项目未取得将其随固件公开分发的许可；在线图片、裁剪及本机渲染都不自动产生分发权。Mac Demo 使用系统 Emoji，不附带 Apple 字体或图像。
-- 自定义 provider 模式跳过 ChatGPT 专用额度查询，设备显示会话累计与本轮 Token；Mac 的「配置Token费率.command」可按模型 ID 设置每百万 Token 价格，未配置对应模型费率时不估价；费率支持热更新，保存在私有 `private/token_rates.json` 且不进入 GitHub。当前计量核对 App Server 用量与本机完成记录，包括压缩调用；可选私有服务商 CSV/TSV 对账，不等同账户总账，不以工作时长代替。
-
-项目原始代码尚未指定开源许可证；第三方组件保留各自许可，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。当前验证状态见 [docs/STATUS.md](docs/STATUS.md)。
+- [Agent 工作边界](AGENTS.md)与[交接入口](docs/handoff/00-START-HERE.md)
+- [架构](docs/handoff/02-ARCHITECTURE.md)、[交互规范](docs/handoff/03-UX-CONTRACT.md)、[硬件与刷写](docs/handoff/04-HARDWARE-AND-FLASH.md)
+- [计量模型](docs/handoff/05-TOKEN-AND-PRICING.md)、[迁移与私有数据](docs/handoff/07-MIGRATION-AND-PRIVACY.md)
+- [变更记录](docs/handoff/08-CHANGE-AND-DECISIONS.md)、[待办](docs/handoff/09-BACKLOG.md)、[本次审查报告](docs/reviews/2026-11-02-code-and-docs.md)
 
 ## English
 
-A physical Codex status display, three-button controller, and emoji companion for the FoloToy AI Passport. The Mac Bridge owns account access, sessions, and approval routing; the ESP32-C3 owns the screen, buttons, Wi-Fi, and audio.
+A physical Codex controller and status display for the FoloToy AI Passport. The desktop App retains the original chat and account; a version-checked stdio relay mirrors supported approval requests to the Mac Bridge and device. The first valid response resolves the request.
 
-```text
-Codex desktop App → version-checked stdio relay → Mac Bridge → HTTPS / Wi-Fi → AI Passport
-Codex Hooks → Mac Bridge (task state and user-action notifications)
-Codex CLI → shared App Server → Mac Bridge (optional)
-```
+As of November 2, 2026 (Australia/Sydney), source versions are firmware `0.2.13`, Bridge `0.2.13-native-app`, and Mac Demo `0.4.0`. The existing release baseline is `v0.2.12`, with five recorded hardware acceptance cases. Later logs report device firmware `0.2.13`; complete acceptance of that version remains pending. Source, deployment and acceptance status are tracked separately in the [project state](docs/handoff/01-PROJECT-STATE.md).
 
-### Current capabilities and limits
+Use only `controller/Codex Companion 控制台.command` for daily operation. Device connectivity alone does not establish App approval connectivity. If the App was opened without the relay, save work, quit it manually and start it through the console. Unrecognized App versions or file digests are rejected.
 
-| Feature | Status |
-|---|---|
-| Wi-Fi sync, initial USB pairing, clock, battery | Implemented; wireless sync tested on the device. Clock accuracy depends on the Mac |
-| ChatGPT usage windows, countdowns, reset-credit count | Official account integration implemented; missing values are not shown as zero |
-| Extra rate-limit reset | Confirmation and idempotent submission implemented; tests did not spend real credits |
-| Task state, history, return to idle after three seconds | Implemented; a Hook Stop means the turn ended, not that the whole project passed |
-| Pager alerts and 0–100% volume in 10% steps | Implemented; three tones around 1200 Hz, 180 ms each with 120 ms gaps |
-| Built-in App directory permission requests | **Physical Allow and Deny verified in the real App**, retaining its UI and original chat |
-| App network and command approvals | Physical network Allow verified; command protocol has host tests and needs separate hardware acceptance |
-| Long requests and readable Chinese details | Complete paged paths, reason, working directory, permissions and validity; no model summarization |
-| Ordinary PermissionRequest Hook approvals | Complete input pagination on new firmware, for Hooks actually received |
-| User-action / reply requests | Device notification, reading and acknowledgement; acknowledgement does not answer the Mac question |
-| CLI sharing an App Server with the Bridge | Protocol integration and host tests implemented; full hardware acceptance remains separate |
-| Third-party OpenAI/GPT/Codex APIs | Active provider/model detected; usage reconciles App Server events and local completion records, including compaction; private provider exports are optional; estimates require local per-model rates |
+The device requires paged review, an explicit choice, confirmation, release and a new one-second hold. Version 0.2.13 removes the former hold-to-handoff action; users can act directly in the App. Missing file diffs and unsupported permission semantics still require Mac review. Reading a notification does not answer a question or grant permission.
 
-Historical approval acceptance used App **26.1016.62342**, firmware 0.2.5 and the encrypted Wi-Fi Bridge. The current Bridge is 0.2.10; device firmware was last confirmed as 0.2.9. Built firmware 0.2.10 awaits physical update and endurance acceptance. Real directory requests passed physical Allow/Deny. A network permission request in the original App chat was also allowed on-device; the physical choice matched the Bridge delivery receipt and the official tool confirmed the turn-scoped grant. The user confirmed the 😆 feedback displayed correctly. No test files were written and no extra reset credits were spent. See the [hardware acceptance record](controller/docs/桌面App实体审批验收.md).
+Token estimates use local model-specific price cards and per-request boundaries. They are not account-wide invoices or a live price feed. Demo tasks, usage and approvals are simulated; its HTTPS clock synchronization is real.
 
-The App launch adapter uses internal switches present in the checked build, not stable public settings. Version changes reject the old adapter. Native approvals use the official App Server protocol while preserving the App's account and original chat. Missing file diffs and unsupported extra-grant semantics still require Mac review. These directory tests do not establish every client or permission type.
+Host checks and build requirements are listed in the Chinese section. Builds and mock tests are not hardware acceptance. This maintenance review does not deploy firmware, restart services, change pairing, reset counters or modify accounts.
 
-### Expressions and controls
-
-| State | Emoji |
-|---|---|
-| Idle | 😋 |
-| Thinking / working | 🤔 |
-| Waiting for approval | 🥺 |
-| Interaction / brief confirmed-approval feedback | 😆 |
-| Usage exhausted | 😐🤲 |
-| Denied / failed | 😭 |
-| Turn completed | 🥳 |
-
-Denial shows 😭 immediately without an intermediate face. On browsing pages, short and long direction presses change pages. On settings/history pages, short presses select content and long presses change pages. During request review, short Up/Down browse details; hold Up/Down to jump to the first/final page. Only the final page uses short Up/Down to choose Allow/Deny. Short Confirm opens a second confirmation; hold Up/Down there to return to the first/final page. No option is preselected; a fresh one-second Confirm hold submits. The power button is not a fourth application key; firmware does not depend on an Up+Down mute chord.
-
-### Repository layout
-
-```text
-controller/       ESP-IDF firmware, Mac Bridge, pairing/flashing scripts and tests
-mac-demo/         SwiftUI/AppKit demo; ↑ ↓ Return emulate the physical controls
-docs/             Architecture, validation status and compatible-API roadmap
-tools/            Standalone source checks
-```
-
-### Try the Mac demo
-
-Requires macOS 14+, Swift 6, and Xcode Command Line Tools. Tasks, usage, and approvals are simulated. The demo makes HTTPS clock-calibration requests without changing system time.
-
-```sh
-cd mac-demo
-./test.sh
-./build.sh
-open "Codex Companion.app"
-```
-
-### Set up the Bridge and build firmware
-
-Use ESP-IDF **5.5.3**, the ESP32-C3 toolchain, and Python **3.11+ / OpenSSL 3**. Install ESP-IDF and source its `export.sh` first. The BSP is included; component versions are recorded in `controller/firmware/dependencies.lock`.
-
-```sh
-# Host tests only: no flashing, account login, model tasks or credit redemption
-python3 -m venv controller/private/bridge-venv
-controller/private/bridge-venv/bin/python -m pip install -r controller/requirements-bridge.txt
-controller/private/bridge-venv/bin/python controller/scripts/setup_bridge_deps.py
-controller/private/bridge-venv/bin/python -m unittest discover -s controller/tests -v
-bash tools/check-host.sh
-
-# After installing and activating ESP-IDF 5.5.3
-bash controller/scripts/build.sh
-```
-
-Apple artwork is excluded. Firmware built without imported assets displays a missing-artwork message; this source checkout is not a ready-to-flash image with the complete visuals. See [controller/README.md](controller/README.md) for importing authorized Apple originals.
-
-For first setup, sign into official Codex, build firmware and use the backup/application-only flash workflow. Run `配置无线连接.command` for USB pairing with physical confirmation. Register and review Hooks with `安装通知接入.command`.
-
-For desktop App physical approvals, stop the old Bridge and quit the App, then run `controller/启动桌面App实体审批.command` and reopen the original chat. For Bridge-only updates, stop just the Bridge with Control+C and run `controller/仅启动桌面App桥接.command`, keeping the App open; no flashing is needed. The ordinary `仅启动桥接.command` starts notification/sync mode, not the desktop approval adapter. See [controller/README.md](controller/README.md) for translated launchers and version limits.
-
-### Unified local console / 统一控制台
-
-Use `controller/Codex Companion 控制台.command` for the daily workflow. Its menu starts desktop App physical approval, manages Bridge and Wi-Fi, configures custom/OpenAI prices and multipliers, audits/resets local Token counts, manages Hooks, and opens USB firmware maintenance. Legacy launchers are under `controller/维护工具/`.
-
-日常双击 `controller/Codex Companion 控制台.command`，菜单统一管理实体按键审批、Bridge、配网、费率与倍率、长上下文、Token 核对、清零、Hook 和固件维护；历史入口收在 `controller/维护工具/`。
-
-### Updating and metering diagnostics
-
-For an existing device, run `controller/更新Token计量与清零固件.command` with the original App/chat open. It stops only this project's Bridge, backs up, updates, verifies and reconnects. Daily startup does not flash firmware. The metering diagnostic and audit launchers are read-only; the reset launcher clears only local counters after confirmation. On-device reset requires a separate confirmation screen followed by a fresh one-second hold.
-
-### Data, artwork and API compatibility
-
-- Codex credentials stay on the Mac. The device stores Wi-Fi configuration, a Bridge pairing key, and certificate. Requests bind their ID, digest, boot identity, and expiry.
-- Flashing requires two matching full 8 MB reads, live device/partition checks, and a supported factory application layout. The updater does not erase the entire flash or overwrite the bootloader, partition table, or existing NVS.
-- Runtime state, flash backups, account files, Wi-Fi passwords, pairing certificates, Apple artwork, and firmware containing artwork are excluded from Git.
-- Apple Emoji designs belong to their rights holders. No public firmware redistribution license has been established. Downloading, cropping, or locally rendering an image does not grant distribution rights. The Mac demo uses the system emoji font without bundling it.
-- Custom-provider metering reconciles App Server usage with local completed responses, including compaction. Optional private billing exports help reconcile missing completions; local estimates are not account-wide invoices. Configure model-specific rates with `配置Token费率.command`; missing rates never produce a fabricated cost.
-- Future compatibility targets third-party OpenAI/GPT/Codex APIs. Validate Responses streaming, tools, and conversation continuation, and keep provider balances separate from ChatGPT limits/reset credits. Changing inference providers does not automatically expose desktop App approvals. See [API compatibility roadmap](docs/API_COMPATIBILITY.md).
-
-No open-source license has been selected for original project code. Third-party components retain their own terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). See [docs/STATUS.md](docs/STATUS.md) for validation evidence and remaining work.
-
-## References / 参考
-
-- [FoloToy AI Passport](https://github.com/FoloToy/ai-passport)
-- [Codex Hooks](https://learn.chatgpt.com/docs/hooks)
-- [Codex App Server](https://learn.chatgpt.com/docs/app-server)
-- [Codex provider/gateway configuration](https://learn.chatgpt.com/docs/enterprise/connect-to-a-gateway)
-- [Gateway compatibility](https://learn.chatgpt.com/docs/enterprise/gateway-compatibility)
+Private state, credentials, Apple artwork and firmware containing artwork are excluded from publication. Device updates require two matching full backups, live partition checks and an application-only write. See the [controller guide](controller/README.md), [review report](docs/reviews/2026-11-02-code-and-docs.md), and [third-party notices](THIRD_PARTY_NOTICES.md).

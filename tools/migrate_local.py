@@ -5,7 +5,6 @@ import datetime
 import hashlib
 import importlib.util
 import json
-import os
 from pathlib import Path
 import shlex
 import shutil
@@ -49,18 +48,22 @@ def copy_checked(src,dst,records,private=False):
 
 
 def private_tree(source,dest,records):
+    if source.is_symlink():raise ValueError('Refusing symlink private directory')
     if not source.exists():return
     for p in source.rglob('*'):
         if p.is_symlink():raise ValueError('Private backup contains a symlink; inspect locally before copying')
-        if p.is_file():copy_checked(p,dest/p.relative_to(source),records,private=True)
+        if p.is_file() and p.name != 'auth.json':
+            copy_checked(p,dest/p.relative_to(source),records,private=True)
     for p in [dest,*dest.rglob('*')]:
         if p.is_dir():p.chmod(0o700)
 
 
 def copy_runtime(runtime,dest,records):
-    private=runtime/'private';out=dest/'controller/private';out.mkdir(parents=True,mode=0o700,exist_ok=True)
+    private=runtime/'private'
+    if private.is_symlink():raise ValueError('Refusing symlink private directory')
+    out=dest/'controller/private';out.mkdir(parents=True,mode=0o700,exist_ok=True)
     for p in private.iterdir():
-        if p.is_file() and not p.is_symlink() and p.suffix.lower() in ('.json','.csv','.tsv','.pem','.key','.cnf'):
+        if p.name != 'auth.json' and p.is_file() and not p.is_symlink() and p.suffix.lower() in ('.json','.csv','.tsv','.pem','.key','.cnf'):
             copy_checked(p,out/p.name,records,True)
     for name in ('backups','apple-originals','hook-backups'):
         if (private/name).exists():private_tree(private/name,out/name,records)

@@ -29,6 +29,20 @@ class ResponseUsageReader:
         self.missing = set()
         self.records = {}
 
+    def caught_up(self):
+        """A rotated or removed rollout must defer billing reconciliation."""
+        if self.missing:
+            return False
+        try:
+            for state in self.files.values():
+                info=state['path'].stat()
+                if state['offset'] != info.st_size or state['file'] != (info.st_dev,info.st_ino):
+                    return False
+            return True
+        except OSError:
+            self.issue = 'response_file_unavailable'
+            return False
+
     def _find(self, thread):
         # The Bridge's attached session IDs cannot become arbitrary file paths.
         if not isinstance(thread, str) or not THREAD.fullmatch(thread):
@@ -110,6 +124,7 @@ class ResponseUsageReader:
                             self.issue = 'response_record_invalid'
             except OSError:
                 self.issue = 'response_file_unavailable'
+                self.missing.add(thread)
         for record in records:
             if len(self.records)<100000 or record['id'] in self.records:
                 self.records[record['id']]=record

@@ -109,6 +109,34 @@ class LedgerTests(unittest.TestCase):
             p=Path(d)/'meter.json';p.write_text('broken');m=UsageLedger(p)
             self.assertFalse(m.observe(value(),MODEL));self.assertEqual(p.read_text(),'broken')
 
+    def test_non_object_ledger_blocks_accounting_without_overwriting(self):
+        for raw in ('[]','null','42','"ledger"'):
+            with self.subTest(raw=raw), tempfile.TemporaryDirectory() as d:
+                p=Path(d)/'meter.json';p.write_text(raw);m=UsageLedger(p)
+                self.assertTrue(m.blocked)
+                self.assertEqual(m.issue,'ledger_unreadable')
+                self.assertFalse(m.observe(value(),MODEL))
+                self.assertEqual(p.read_text(),raw)
+
+    def test_mixed_pricing_metadata_is_order_independent(self):
+        import itertools
+        standard=tokens(100,20,30,10);long=tokens(300,20,30,10)
+        rates={'input':2,'cached_input':.2,'output':8,'cache_write':None,
+               'long_context':{'above_input_tokens':200,'input':4,'cached_input':.4,
+                               'output':12,'cache_write':None}}
+        groups={'a':standard,'b':long,'c':standard}
+        book={'models':{name:dict(rates,multiplier=multiplier)
+                        for name,multiplier in (('a',1),('b',2),('c',1))}}
+        requests={name:[usage] for name,usage in groups.items()}
+        expected=sum(estimate(usage,book['models'][name]) for name,usage in groups.items())
+        for order in itertools.permutations(groups):
+            with self.subTest(order=order):
+                detail,issue=UsageLedger.cost_details({name:groups[name] for name in order},book,'a',requests)
+                self.assertEqual(issue,'')
+                self.assertEqual(detail['tier'],'mixed')
+                self.assertIsNone(detail['multiplier'])
+                self.assertAlmostEqual(detail['total'],expected)
+
     def test_persistence_failure_does_not_confirm_reset(self):
         m=UsageLedger();m.observe(value(),MODEL);old=m.reset_id
         with mock.patch.object(m,'save',return_value=False):self.assertFalse(m.clear(old))

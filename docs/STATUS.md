@@ -1,3 +1,5 @@
+> 历史资料：本文记录所列版本当时的实现与验证，不作为当前运行或操作指引。现行状态见[项目状态](handoff/01-PROJECT-STATE.md)，日常步骤见[运行手册](handoff/06-RUNBOOK.md)。原始结果保留，不自动延伸至后续版本。
+
 # Validation status / 验证状态
 
 ## 0.2.10 candidate / 候选 · 2026-10-26

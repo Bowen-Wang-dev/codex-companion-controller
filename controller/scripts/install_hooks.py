@@ -85,7 +85,7 @@ def main():
     backups=ROOT/'private'/'hook-backups' if args.user and not args.output else None
     save(target, merge, backups)
     if args.user and not args.output:
-        projects={ROOT.parents[1].resolve(),*(p.resolve() for p in args.remove_project_copy)}
+        projects={ROOT.parent.resolve(),*(p.resolve() for p in args.remove_project_copy)}
         for project in sorted(projects):
             local = project.resolve() / '.codex' / 'hooks.json'
             if local.exists():
