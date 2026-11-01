@@ -1,2 +1,3 @@
-# websockets is pinned and vendored separately; see vendor/README.md.
-pyserial==3.5
+# Locked versions; scripts/setup_bridge.sh enables both verified local wheels offline.
+pyserial==3.5 --hash=sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0
+websockets==17.3 --hash=sha256:dc2b495a92b3971966bf102e73589f950db3ec1ca6713265355ce7771d97b199

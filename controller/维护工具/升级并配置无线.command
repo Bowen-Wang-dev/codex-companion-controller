@@ -12,4 +12,4 @@ echo '备份需读取两次 8 MB：此设备之前每轮约 3 分钟。以下显
 python "$CONTROLLER_ROOT/scripts/flash.py" flash --port "${CONTROLLER_PORTS[0]}" --execute
 sleep 2
 python "$CONTROLLER_ROOT/scripts/pair_wifi.py"
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" "$CONTROLLER_ROOT/bridge/service.py"
+"$CONTROLLER_BRIDGE_PYTHON" "$CONTROLLER_ROOT/bridge/service.py"

@@ -8,4 +8,4 @@ if [[ $# -gt 0 ]]; then CONTROLLER_PORT="$1"; else
   elif [[ ${#CONTROLLER_PORTS[@]} == 1 ]]; then CONTROLLER_PORT="${CONTROLLER_PORTS[0]}"; else CONTROLLER_PORT=""; fi
 fi
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
-exec "$CONTROLLER_ROOT/private/bridge-venv/bin/python" "$CONTROLLER_ROOT/bridge/service.py" --port "$CONTROLLER_PORT"
+exec "$CONTROLLER_BRIDGE_PYTHON" "$CONTROLLER_ROOT/bridge/service.py" --port "$CONTROLLER_PORT"

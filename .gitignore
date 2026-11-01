@@ -40,3 +40,7 @@
 **/*.log
 **/node_modules/
 **/.DS_Store
+
+# Local-only migration provenance / receipts / reference material
+LOCAL-MIGRATION-*.json
+docs/local-reference/

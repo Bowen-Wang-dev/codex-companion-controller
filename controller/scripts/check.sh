@@ -11,5 +11,5 @@ for CONTROLLER_AUDIO_CASE in pager priority mute request_mute pending_mute zero 
  "$CONTROLLER_ROOT/private/checks/audio-runtime" "$CONTROLLER_AUDIO_CASE"
 done
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
+"$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
 python -m esptool --chip esp32c3 image_info "$CONTROLLER_ROOT/dist/PassportController.bin"

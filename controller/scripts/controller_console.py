@@ -15,6 +15,12 @@ from recover_bridge import stop_idle_bridge
 PY=sys.executable
 
 
+def launch_app():
+    pending=ROOT/'private/runtime-migration.json'
+    script='activate_migrated_runtime.py' if pending.exists() else 'launch_desktop.py'
+    return run(ROOT/'scripts'/script)
+
+
 def run(*parts):
     return subprocess.run([PY,*map(str,parts)],cwd=ROOT).returncode
 
@@ -67,10 +73,14 @@ def hooks_menu():
 
 
 def main():
+    if sys.argv[1:]==['--activate-migration']:
+        return launch_app()
+    if sys.argv[1:]==['--restart-app']:
+        return run(ROOT/'scripts/restart_desktop_bridge.py')
     print('Codex Companion 控制台 · AI Passport')
     print('USB 方向键与确认键审批由设备固件处理；此处管理 Mac Bridge 和费率。')
     actions={
-        '1':('启动 Codex App + 实体按键审批',lambda:run(ROOT/'scripts/launch_desktop.py')),
+        '1':('启动 Codex App + 实体按键审批',launch_app),
         '2':('设备 / Bridge 连接管理',device_bridge_menu),
         '3':('首次配对或更新 Wi-Fi',pairing_menu),
         '4':('Token 计费方式、基准价、长上下文及倍率',billing_menu),

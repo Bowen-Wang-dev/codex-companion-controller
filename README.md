@@ -1,5 +1,7 @@
 # Codex Companion Controller
 
+> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。项目目前暂停，整理状态见交接文档。
+
 **AI Passport · ESP32-C3 · Mac Bridge · SwiftUI Demo**
 
 [简体中文](#简体中文) · [English](#english)

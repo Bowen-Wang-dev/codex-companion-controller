@@ -4,7 +4,7 @@ source "$(dirname "$0")/../scripts/env.sh"
 trap 'echo "流程已结束；按回车关闭窗口。"; read -r' EXIT
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
 python "$CONTROLLER_ROOT/scripts/preflight.py"
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" - "$CONTROLLER_ROOT" <<'PY'
+"$CONTROLLER_BRIDGE_PYTHON" - "$CONTROLLER_ROOT" <<'PY'
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(sys.argv[1])/'scripts'))
@@ -27,4 +27,4 @@ echo '请记下当前聊天名称，使用 Command+Q 完全退出 Codex/ChatGPT 
 echo '退出后回到本终端，按回车重新打开 App 与 Bridge，然后从侧栏打开原来的聊天。'
 echo '这不会清除聊天，也不需要重新配 Wi-Fi。'
 read -r
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" "$CONTROLLER_ROOT/scripts/launch_desktop.py"
+"$CONTROLLER_BRIDGE_PYTHON" "$CONTROLLER_ROOT/scripts/launch_desktop.py"

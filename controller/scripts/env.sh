@@ -9,6 +9,10 @@ else
   return 1
 fi
 CONTROLLER_ROOT="$(cd "$(dirname "$CONTROLLER_ENV_PATH")/.." && pwd)"
+if [[ -f "$CONTROLLER_ROOT/private/local-env.sh" ]]; then
+  source "$CONTROLLER_ROOT/private/local-env.sh"
+fi
+export CONTROLLER_BRIDGE_PYTHON="${CONTROLLER_BRIDGE_PYTHON:-$CONTROLLER_ROOT/private/bridge-venv/bin/python}"
 # Prefer the environment produced by ESP-IDF's export.sh. The optional bundled
 # tool root keeps the original offline-layout workflow available without a
 # developer-specific absolute path in the source release.

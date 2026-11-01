@@ -3,7 +3,7 @@ set -euo pipefail
 source "$(dirname "$0")/../scripts/env.sh"
 trap 'echo "流程已结束；按回车关闭窗口。"; read -r' EXIT
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" - "$CONTROLLER_ROOT" <<'PY'
+"$CONTROLLER_BRIDGE_PYTHON" - "$CONTROLLER_ROOT" <<'PY'
 import os,sys
 sys.path.insert(0,os.path.join(sys.argv[1],'bridge'))
 from ipc_path import acquire_endpoint
@@ -21,4 +21,4 @@ echo '先双读备份，只更新应用；保留 Wi-Fi 配对、NVS、分区表�
 echo '保持当前桌面 App 打开；本入口不退出 App，也不切换聊天。'
 python "$CONTROLLER_ROOT/scripts/flash.py" flash --port "${CONTROLLER_PORTS[0]}" --execute
 echo '固件更新完成。正在重新连接现有 App 的实体审批通道…'
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" "$CONTROLLER_ROOT/bridge/service.py" --desktop
+"$CONTROLLER_BRIDGE_PYTHON" "$CONTROLLER_ROOT/bridge/service.py" --desktop

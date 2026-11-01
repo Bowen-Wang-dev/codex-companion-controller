@@ -93,6 +93,17 @@ def main():
                 stdout=bridge_log,stderr=bridge_log,start_new_session=True)
             time.sleep(.5)
             if bridge.poll() is not None:raise RuntimeError('Bridge 未启动，请先在旧 Bridge 终端 Control+C。日志：private/desktop-bridge.log')
+            import ssl
+            import serial
+            import websockets
+            runtime={'recorded_at':int(time.time()),'executable':sys.executable,
+                     'base_prefix':sys.base_prefix,'python':sys.version.split()[0],
+                     'ssl':ssl.OPENSSL_VERSION,'pyserial':serial.VERSION,
+                     'websockets':websockets.__version__,'app_version':version,
+                     'note':'Bridge process started; not a device approval acceptance result'}
+            runtime_path=private/'active-python.json'
+            runtime_path.write_text(json.dumps(runtime,indent=2)+'\n');runtime_path.chmod(0o600)
+            print('Bridge Python：'+sys.executable,flush=True)
             env=dict(os.environ)
             env['CODEX_APP_SERVER_FORCE_CLI']='1'
             env['CODEX_CLI_PATH']=str(ROOT/'scripts/app_relay.command')

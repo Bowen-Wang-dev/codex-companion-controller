@@ -14,8 +14,10 @@ if not files:
 blocked_parts = {'private', '.codex', '.git', '.venv', '__pycache__', 'managed_components', 'dist', 'node_modules'}
 blocked_names = {'auth.json', 'wireless.json', 'wireless-pending.json', 'pet_assets.h', '.env', 'sdkconfig'}
 blocked_suffixes = {'.pem', '.key', '.p12', '.pfx', '.bin', '.elf', '.map', '.zip', '.png', '.jpg', '.jpeg', '.heic', '.webp', '.pyc', '.log'}
-wheel = Path('controller/vendor/websockets-17.3-py3-none-any.whl')
-wheel_sha = 'dc2b495a92b3971966bf102e73589f950db3ec1ca6713265355ce7771d97b199'
+wheels = {
+    Path('controller/vendor/websockets-17.3-py3-none-any.whl'): 'dc2b495a92b3971966bf102e73589f950db3ec1ca6713265355ce7771d97b199',
+    Path('controller/vendor/pyserial-3.5-py2.py3-none-any.whl'): 'c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0',
+}
 patterns = [
     re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----'),
     re.compile(r'gh[pousr]_[A-Za-z0-9]{30,}'),
@@ -29,8 +31,8 @@ for relative in files:
         failures.append(str(relative) + ': forbidden publication path')
         continue
     raw = path.read_bytes()
-    if relative == wheel:
-        if hashlib.sha256(raw).hexdigest() != wheel_sha:
+    if relative in wheels:
+        if hashlib.sha256(raw).hexdigest() != wheels[relative]:
             failures.append(str(relative) + ': vendor digest mismatch')
         continue
     try:

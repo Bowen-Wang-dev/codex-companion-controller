@@ -1,0 +1,40 @@
+"""Archive tests use only synthetic secrets and temporary files."""
+import importlib.util
+import json
+from pathlib import Path
+import tarfile
+import tempfile
+import unittest
+
+spec = importlib.util.spec_from_file_location('archive_local', Path(__file__).with_name('archive_local.py'))
+a = importlib.util.module_from_spec(spec); spec.loader.exec_module(a)
+
+
+class ArchiveTests(unittest.TestCase):
+    def test_private_archive_manifest_and_permissions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); private = root / 'controller/private'; private.mkdir(parents=True)
+            ledger = private / 'token-ledger.json'; ledger.write_text('{"synthetic":42}')
+            output = root / 'private.tar.gz'
+            self.assertEqual(a.pack_private(output, list(a.private_files(root))), 1)
+            self.assertEqual(output.stat().st_mode & 0o777, 0o600)
+            with tarfile.open(output) as archive:
+                self.assertEqual(json.load(archive.extractfile('controller/private/token-ledger.json'))['synthetic'], 42)
+                self.assertEqual(len(json.load(archive.extractfile('PRIVATE-MANIFEST.json'))['files']), 1)
+
+    def test_excludes_credentials_logs_venvs_and_symlinks(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); private = root / 'controller/private'; private.mkdir(parents=True)
+            for name in ('auth.json', 'service.log'): (private / name).write_text('excluded')
+            (private / 'bridge-venv-homebrew').mkdir(); (private / 'bridge-venv-homebrew/cache').write_text('excluded')
+            (private / 'wireless.json').write_text('{"token":"synthetic"}')
+            (private / 'link').symlink_to(private / 'wireless.json')
+            self.assertEqual([name for _, name in a.private_files(root)], ['controller/private/wireless.json'])
+
+    def test_invalid_live_json_refuses_archive_success(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); source = root / 'bad.json'; source.write_text('partial')
+            with self.assertRaises(ValueError): a.pack_private(root / 'output.tar.gz', [(source, 'bad.json')])
+
+
+if __name__ == '__main__': unittest.main()

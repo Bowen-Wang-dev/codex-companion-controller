@@ -16,4 +16,4 @@ echo '将双读验证 8 MB 备份，然后只更新 factory 应用；不擦除�
 python "$CONTROLLER_ROOT/scripts/flash.py" flash --port "$CONTROLLER_PORT" --execute
 sleep 2
 "$CONTROLLER_ROOT/scripts/setup_bridge.sh"
-"$CONTROLLER_ROOT/private/bridge-venv/bin/python" "$CONTROLLER_ROOT/bridge/service.py" --port "$CONTROLLER_PORT"
+"$CONTROLLER_BRIDGE_PYTHON" "$CONTROLLER_ROOT/bridge/service.py" --port "$CONTROLLER_PORT"
