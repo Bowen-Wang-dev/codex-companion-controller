@@ -2,7 +2,9 @@
 
 交接整理日期：2026-11-02（Australia/Sydney）。原生双端审批 v0.2.12 已完成五项实机验收并获准发布，其余开发保持暂停；最新状态和历史阶段已在 01-PROJECT-STATE.md 分开。
 
-最新用户决定：保留设备与原 App 原生卡片双端显示、双端直接操作；“长按转到 Mac”标注已抛弃，历史文档、验收与 Git `v0.2.12` 旧代码保留。下一版本移除固件及 Bridge 交接实现，设备仅提示可在电脑查看详情。本回合严格只改 Markdown 并 commit，下一步才改代码；当前仍为 0.2.12，见 [交互契约](03-UX-CONTRACT.md) 和 [下一版本计划](../releases/v0.2.13.md)。
+最新补丁：Bridge 的普通工具返回回执已从英文改为“工具已返回”，11 项相关主机回归通过，修复待安全重启 Bridge 加载；本条不涉及固件刷写。更新后已收到一次真实审批操作正常反馈，完整新版验收仍以 01-PROJECT-STATE.md 为准。
+
+此前构建阶段记录：版本规划已在文档提交 `9545223` 留档。v0.2.13 源码与本机构建完成，移除固件/Bridge 交接和 Mac 唤回，仅保留双端直接审批及电脑详情提示；完整 Python 237 项、C/音频主机检查通过，尚未重启 Bridge 或刷机，实际运行仍为此前 0.2.12。已抛弃功能的历史文档、验收和 Git `v0.2.12` 旧代码保留。见 [项目状态](01-PROJECT-STATE.md)、[交互契约](03-UX-CONTRACT.md) 和 [v0.2.13 状态](../releases/v0.2.13.md)。
 
 ## 建议阅读顺序
 1. 根目录 `AGENTS.md`：工作边界。
@@ -13,7 +15,7 @@
 6. [Token 与费用](05-TOKEN-AND-PRICING.md)。
 7. [运行与测试](06-RUNBOOK.md)。
 8. [迁移与私有数据](07-MIGRATION-AND-PRIVACY.md)。
-9. [历史决策](08-CHANGE-AND-DECISIONS.md)、[待办](09-BACKLOG.md)。
+9. [版本演进与变更记录](08-CHANGE-AND-DECISIONS.md)、[待办](09-BACKLOG.md)。
 
 旧 `docs/STATUS.md`、`docs/CHANGELOG.md`、`controller/docs/` 为阶段性材料；与这里的最新状态冲突时，先核验代码和证据，再更新文档，不盲信旧文档。
 

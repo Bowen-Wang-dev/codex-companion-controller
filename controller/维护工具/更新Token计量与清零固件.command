@@ -8,7 +8,7 @@ if [[ ! -x "${CONTROLLER_FLASH_PYTHON:-}" ]]; then
  exit 1
 fi
 "$CONTROLLER_FLASH_PYTHON" -c 'import esptool; assert esptool.__version__.split(".")[0]=="4", "需要 esptool 4.x"; print("Flash runtime: esptool",esptool.__version__)'
-echo '0.2.12：Mac 与设备双端审批、真实 Mac 交接及窗口显示回执。'
+echo '0.2.13：原 App 与设备双端直接审批，移除长按转到 Mac。'
 echo '程序目录：'"$CONTROLLER_ROOT"
 echo '先运行主机测试；不会调用模型，也不会消耗重置次数。'
 "$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
@@ -16,7 +16,7 @@ echo '先运行主机测试；不会调用模型，也不会消耗重置次数�
 import hashlib,json,sys
 from pathlib import Path
 root=Path(sys.argv[1]);manifest=json.loads((root/'dist/manifest.json').read_text())
-assert manifest['version']=='0.2.12','请先构建 0.2.12 固件'
+assert manifest['version']=='0.2.13','请先构建 0.2.13 固件'
 assert manifest['sha256']==hashlib.sha256((root/'dist/PassportController.bin').read_bytes()).hexdigest(),'固件校验失败'
 sys.path.insert(0,str(root/'scripts'))
 from launch_desktop import verify_build

@@ -66,9 +66,9 @@ int main(void) {
  tap(&s,0,1000); tap(&s,1,1200); assert(s.selected==-1 && s.stage==0);
  controller_press(&s,2,1400); assert(controller_release(&s,2,1500)==ACTION_MUTE);
  assert(s.muted && s.stage==0);
- controller_press(&s,2,1600); assert(controller_tick(&s,2600)==ACTION_MAC);
+ controller_press(&s,2,1600); assert(controller_tick(&s,2600)==ACTION_NONE);
  assert(controller_release(&s,2,2700)==ACTION_NONE && s.stage==0);
- assert(s.handling_on_mac);tap(&s,2,2800);assert(!s.handling_on_mac && s.request_visible);
+ assert(s.request_visible && s.selected==-1);
  // Volume is an explicit editor: 10% steps, inclusive bounds, no wrapping.
  controller_init(&s); assert(s.volume==20); s.page=3; s.option=3;
  tap(&s,2,1000); assert(s.volume_edit && s.volume==20);
@@ -143,18 +143,31 @@ int main(void) {
  controller_press(&s,0,3800);assert(controller_tick(&s,4450)==ACTION_REVIEW);
  assert(s.review_page==0 && s.stage==0 && s.selected==-1);
  controller_release(&s,0,4500);
- // Holding OK during review is a Mac handoff, not an approval or a reply.
- s.last_rx=4600;controller_press(&s,2,4600);assert(controller_tick(&s,5250)==ACTION_MAC);
- assert(s.handling_on_mac && s.muted && s.stage==0 && s.selected==-1);
- controller_release(&s,2,5300);tap(&s,1,5400);assert(s.review_page==0);
- tap(&s,2,5600);assert(!s.handling_on_mac && s.request_visible && s.stage==0);
- controller_review_snapshot(&s,0,140,"first");
+ // Holding OK during review is inert, including release: no handoff or mute.
+ s.muted=false;s.last_rx=4600;controller_press(&s,2,4600);assert(controller_tick(&s,5250)==ACTION_NONE);
+ assert(!s.muted && s.stage==0 && s.selected==-1 && s.review_page==0);
+ assert(controller_release(&s,2,5300)==ACTION_NONE);
+ assert(s.request_visible && !s.muted && s.stage==0 && s.selected==-1);
  controller_press(&s,1,5800);assert(controller_tick(&s,6450)==ACTION_REVIEW);controller_release(&s,1,6500);
  controller_review_snapshot(&s,140,140,"");s.last_rx=6600;
  tap(&s,0,6600);tap(&s,2,6800);assert(s.stage==1);
- controller_press(&s,2,7000);assert(controller_tick(&s,7650)==ACTION_NONE && !s.handling_on_mac);
+ controller_press(&s,2,7000);assert(controller_tick(&s,7650)==ACTION_NONE);
  assert(controller_tick(&s,8000)==ACTION_ALLOW && s.stage==2);
  assert(controller_release(&s,2,8100)==ACTION_NONE);
+ // Retired long OK is inert on detail/final, legacy, notification and reply pages.
+ for(int kind=0;kind<5;kind++)for(int choice=-1;choice<2;choice++) {
+  controller_init(&s);s.online=true;s.last_rx=1000;
+  controller_request(&s,"hold-inert");s.expires=99999;s.can_allow=true;
+  if(kind<2)controller_review_snapshot(&s,0,2,"detail");
+  if(kind==1) { s.review_page=2;controller_review_snapshot(&s,2,2,""); }
+  if(kind==3)s.can_allow=s.can_deny=false;
+  if(kind==4) { s.user_input=true;s.can_allow=s.can_deny=false; }
+  s.selected=choice;
+  controller_press(&s,2,1100);assert(controller_tick(&s,1750)==ACTION_NONE);
+  assert(controller_tick(&s,2300)==ACTION_NONE);
+  assert(controller_release(&s,2,2400)==ACTION_NONE);
+  assert(s.request && s.request_visible && s.stage==0 && s.selected==choice && !s.muted);
+ }
  // The same slot is the latest-turn token page for custom providers; it must
  // never enter or submit the extra-credit reset flow.
  controller_init(&s);strcpy(s.billing,"token");s.page=2;s.online=true;s.last_rx=1000;s.resets=2;strcpy(s.reset_id,"offer");

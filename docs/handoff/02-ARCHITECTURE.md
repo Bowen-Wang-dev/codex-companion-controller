@@ -15,7 +15,7 @@ App 适配使用已安装版本的内部启动开关，并非稳定公开设置�
 - `scripts/launch_desktop.py`：精确 App 版本/摘要、环境与 relay 启动、Bridge 生命周期。
 - `scripts/app_relay.command` + `bridge/stdio_relay.py`：透明 JSONL 转发、硬件/原 App 审批竞争及唯一回执。
 - `bridge/service.py`：Broker 状态、请求/事件管理、设备 snapshot、账户/数值更新、私有 IPC。
-- `bridge/native_app_ui.py`：当前 0.2.12 的 `mac_handoff` 激活原 App 实现，只激活已运行且精确版本/摘要校验通过的原 App。**交接功能已抛弃，下一版本计划移除此模块及 service 中调用路径**；本回合只更新文档，代码尚未变。旧实现保留于 Git `v0.2.12`。双端审批直接使用原生卡片及 stdio relay，设备无需先转交。`mac_approval_gui.py` 是已退役的无操作兼容入口，绝不可恢复独立弹窗（用户明确否定）。
+- **已抛弃的历史模块：** ~~`bridge/native_app_ui.py`：通过 `mac_handoff` 激活原 App。~~ v0.2.13 已删除模块和 service 对应加载/调用、Hook 交接释放及 `mac_ready` 字段；旧消息无动作，历史代码在 Git `v0.2.12`。双端审批直接使用原生卡片及 stdio relay，设备无需先转交。`mac_approval_gui.py` 是已退役的无操作兼容入口，当前 service 不加载；不可恢复独立弹窗（用户明确否定）。
 - `bridge/ipc_path.py`：路径相关的短 Unix socket 与锁；迁移路径会改变 IPC endpoint。
 - `bridge/wireless.py`：已配对 HTTPS、证书验证、固定设备接收上限。
 - `bridge/usb_transport.py`：开串口前设置 DTR/RTS；macOS termios 错误规范化。

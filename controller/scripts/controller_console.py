@@ -25,6 +25,15 @@ def run(*parts):
     return subprocess.run([PY,*map(str,parts)],cwd=ROOT).returncode
 
 
+def app_is_running():
+    """Return whether the verified desktop App process is currently running."""
+    result=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],
+                          capture_output=True)
+    if result.returncode not in (0,1):
+        raise RuntimeError('无法检查桌面 App 是否运行；未启动或停止 Bridge。')
+    return result.returncode==0
+
+
 def device_bridge_menu():
     report=inspect();show(report)
     print('\n1 诊断状态\n2 安全重启 Bridge（保留现有配对）\n3 恢复 USB / 重配 Wi-Fi\nq 返回')
@@ -32,6 +41,14 @@ def device_bridge_menu():
     if choice=='1':return
     if choice=='3':run(ROOT/'scripts/recover_bridge.py');return
     if choice!='2':return
+    # A Bridge-only restart cannot create the App relay. If the App is closed,
+    # use the verified launch path so the App, relay and Bridge start as one
+    # lifecycle. Keep the existing Bridge-only behavior when App is running.
+    if not app_is_running():
+        print('检测到桌面 App 未运行；将通过已核对入口同时启动 App、relay 和 Bridge。',flush=True)
+        if status:=report['status']:
+            stop_idle_bridge(status)
+        return launch_app()
     status=report['status']
     stop_idle_bridge(status)
     wireless=ROOT/'private/wireless.json'

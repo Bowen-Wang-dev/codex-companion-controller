@@ -1,16 +1,20 @@
 # Codex Companion Controller
 
-> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。本次原生双端审批更新已通过五项实机验收；其余工作保持暂停，状态见交接文档。
+> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。v0.2.12 原生双端审批已通过五项实机验收；v0.2.13 源码与构建完成、尚未部署，其余工作保持暂停，状态见交接文档。
 
 **AI Passport · ESP32-C3 · Mac Bridge · SwiftUI Demo**
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.12** · Bridge **0.2.12-native-app** · Mac demo **0.4.0**
+> Source/build: Firmware **0.2.13** · Bridge **0.2.13-native-app** · Mac demo **0.4.0** · Deployed baseline: **0.2.12**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
-> **v0.2.12**：原 App 原生审批与设备同步，任一端均可直接允许或拒绝。五项双端实机测试通过；不使用独立审批弹窗。长按“转到 Mac”已标注为抛弃的历史功能，记录和旧版本保留；当前源码及固件仍有旧实现，下一版本再移除。本回合仅更新文档并 commit；见 [交互说明](docs/handoff/03-UX-CONTRACT.md)、[v0.2.13 计划（未实现/未发布）](docs/releases/v0.2.13.md) 和 [v0.2.12 历史验收](docs/releases/v0.2.12.md)。Source-only release; no private data, Apple artwork or firmware binaries.
+> **v0.2.13 源码与构建完成，待部署**：原 App 与设备双端直接允许/拒绝，移除已抛弃的长按“转到 Mac”实现，详情仅提示可在电脑查看。完整 Python 237 项和 C/音频主机检查通过，尚未刷机或重启 Bridge。历史功能和旧版本保留；见 [交互说明](docs/handoff/03-UX-CONTRACT.md)、[v0.2.13 状态](docs/releases/v0.2.13.md) 和 [v0.2.12 五项实机验收](docs/releases/v0.2.12.md)。Source-only; no private data, Apple artwork or firmware binaries.
+
+## 当前运行前提
+
+设备在线不等于桌面审批已接入。设备连接页必须显示“App 实体审批已接入”，模型和 Token 状态才会由原 App relay 同步；若显示“App 审批尚未连接”或“等待启动适配接入实际 App 会话”，请通过统一控制台 **2 → 2** 重新接入。App 未运行时该入口会启动经过版本/摘要校验的 App、relay 和 Bridge；App 已运行时只重启 Bridge。
 
 ## 简体中文
 

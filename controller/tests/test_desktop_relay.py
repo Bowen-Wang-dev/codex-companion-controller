@@ -101,7 +101,7 @@ class DesktopBrokerTests(unittest.TestCase):
         self.wait(lambda:bool(result))
         self.assertEqual(result,[{'type':'desktop_decision','result':{'permissions':{'network':{'enabled':True}},'scope':'turn'}}])
 
-    def test_pretool_does_not_add_a_second_mac_handoff_for_attached_app(self):
+    def test_pretool_does_not_add_a_second_request_for_attached_app(self):
         event={'hook_event_name':'PreToolUse','session_id':'desktop-thread','passport_hook_version':3,
             'tool_name':'request_permissions','tool_input':{'permissions':{'network':{'enabled':True}}}}
         self.assertEqual(self.b.handle_hook(event),{});self.assertIsNone(self.b.request);self.assertIsNone(self.b.notice)
@@ -150,6 +150,23 @@ class DesktopBrokerTests(unittest.TestCase):
         self.assertGreater(self.b.expression_until-time.monotonic(),2.5)
         self.b.expression_until=time.monotonic()-1;self.assertEqual(self.b.snapshot()['face'],'')
         self.b.desktop_event(event);self.assertEqual(self.b.snapshot()['face'],'') # Duplicate cannot replay.
+
+    def test_tool_return_uses_chinese_without_synthesizing_approval(self):
+        self.b.set_state('working')
+        self.b.event({'hook_event_name':'PostToolUse','session_id':'desktop-thread',
+            'tool_name':'Bash','tool_input':{'command':'false'},'tool_response':{'exit_code':1}})
+        view=self.b.snapshot()
+        self.assertEqual(view['receipt'],'工具已返回')
+        self.assertEqual(view['state'],'working');self.assertEqual(view['face'],'')
+
+    def test_tool_return_during_real_delivery_feedback_uses_chinese(self):
+        self.b.desktop_event(self.submitted_request())
+        until=self.b.expression_until
+        self.b.event({'hook_event_name':'PostToolUse','session_id':'desktop-thread',
+            'tool_name':'Bash','tool_input':{'command':'pwd'}})
+        view=self.b.snapshot()
+        self.assertEqual(view['receipt'],'工具已返回')
+        self.assertEqual(view['face'],'delight');self.assertEqual(self.b.expression_until,until)
 
     def test_receipt_timeout_and_reboot_never_fake_success(self):
         event=self.submitted_request()

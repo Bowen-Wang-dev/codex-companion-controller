@@ -15,7 +15,7 @@ uint32_t controller_view_hash(const controller_t *s) {
  for(int i=0;i<s->history_count && i<8;i++)
   for(const unsigned char *p=(const unsigned char *)s->history[i];*p;p++)h=(h^*p)*16777619u;
  const int values[]={s->page,s->option,s->stage,s->selected,s->online,s->request_visible,
-  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->handling_on_mac,s->mac_ready,s->sound,s->muted,s->volume,s->volume_edit,
+  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->sound,s->muted,s->volume,s->volume_edit,
   s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count,
   s->review_protocol,s->review_page,s->review_loaded,s->review_total,s->meter_stage,s->token_updated,s->token_total_updated,s->token_priced};
  for(unsigned i=0;i<sizeof(values)/sizeof(values[0]);i++)h=(h^(uint32_t)values[i])*16777619u;
@@ -42,8 +42,6 @@ void controller_request(controller_t *s, const char *id) {
  if(strcmp(s->id,id)) {
   controller_cancel_input(s); snprintf(s->id,sizeof(s->id),"%s",id);
   s->request=*id!=0; s->request_visible=s->request; s->muted=false;
-  s->handling_on_mac=false;
-  s->mac_ready=false;
   s->review_protocol=0; s->review_page=0; s->review_loaded=-1; s->review_total=0; s->review_text[0]=0;
  }
 }
@@ -69,7 +67,7 @@ static action_t review_move(controller_t *s,int key,bool held) {
   next=key==0?0:s->review_total;
   // Even if already on the final page, a held direction exits the second
   // confirmation and clears its choice. Releasing it must never select again.
-  s->selected=-1;s->stage=0;s->handling_on_mac=false;
+  s->selected=-1;s->stage=0;
  }
  else if(s->review_loaded==s->review_page && s->review_page<s->review_total)
   next+=key==0?-1:1;
@@ -115,7 +113,6 @@ action_t controller_tick(controller_t *s,int64_t now) {
  if(s->meter_stage==2)return ACTION_NONE;
  // Long OK on a browsing page returns to the pending request, or home.
  if(!s->request_visible) { s->page=0; s->request_visible=s->request; s->volume_edit=false; }
- else if(s->stage==0) { s->selected=-1;s->handling_on_mac=true;s->muted=true;return ACTION_MAC; }
  return ACTION_NONE;
 }
 action_t controller_release(controller_t *s,int key,int64_t now) {
@@ -124,10 +121,6 @@ action_t controller_release(controller_t *s,int key,int64_t now) {
  bool short_press=!s->consumed; s->key=-1;
  if(!short_press) return a;
  if(s->request_visible && (!s->online || now>=s->expires))return ACTION_NONE;
- if(s->request_visible && s->handling_on_mac) {
-  if(key==2)s->handling_on_mac=false;
-  return ACTION_NONE;
- }
  if(key!=2) {
   if(s->request_visible) {
    if(s->review_protocol==1 && !controller_review_final(s))return review_move(s,key,false);
