@@ -10,7 +10,7 @@
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
-> **v0.2.12**：原 App 原生审批与设备同步，长按设备交接到 Mac。五项双端实机测试通过；不使用独立审批弹窗。升级方式与限制见 [发布说明](docs/releases/v0.2.12.md)。Source-only release; no private data, Apple artwork or firmware binaries.
+> **v0.2.12**：原 App 原生审批与设备同步，任一端均可直接允许或拒绝。五项双端实机测试通过；不使用独立审批弹窗。长按“转到 Mac”已标注为抛弃的历史功能，记录和旧版本保留；当前源码及固件仍有旧实现，下一版本再移除。本回合仅更新文档并 commit；见 [交互说明](docs/handoff/03-UX-CONTRACT.md)、[v0.2.13 计划（未实现/未发布）](docs/releases/v0.2.13.md) 和 [v0.2.12 历史验收](docs/releases/v0.2.12.md)。Source-only release; no private data, Apple artwork or firmware binaries.
 
 ## 简体中文
 
