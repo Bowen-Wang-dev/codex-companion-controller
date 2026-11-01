@@ -73,7 +73,7 @@ def stop_bridge(process):
 
 def main():
     print('桌面 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。',flush=True)
-    print('Controller 0.2.10 · 含压缩请求计量与无线修复 · 原 App 聊天实体审批。',flush=True)
+    print('Controller 0.2.12 · 原 App 原生审批与设备同步 · 长按交接到 Mac。',flush=True)
     print('程序目录：'+str(ROOT),flush=True)
     from usage_meter import load_rates
     rates=load_rates(ROOT/'private'/'token_rates.json')

@@ -67,7 +67,7 @@ static void send_json(cJSON *o) {
 }
 static void hello(void) {
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","hello");
- cJSON_AddStringToObject(o,"firmware","0.2.11"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddStringToObject(o,"firmware","0.2.12"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
  cJSON_AddBoolToObject(o,"readonly_notices",true);
  cJSON_AddBoolToObject(o,"prehook_review",true);
  cJSON_AddBoolToObject(o,"user_input_notices",true);
@@ -108,7 +108,15 @@ static void action(action_t a) {
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"meter_id",s.meter_id);
   send_json(o);return;
  }
- if(a==ACTION_MUTE || a==ACTION_MAC) { sound_cancel_permission(); return; }
+ if(a==ACTION_MUTE || a==ACTION_MAC) {
+  sound_cancel_permission();
+  if(a==ACTION_MAC) {
+   cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","mac_handoff");
+   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
+   cJSON_AddStringToObject(o,"digest",s.digest); send_json(o);
+  }
+  return;
+ }
  if(a==ACTION_REVIEW) {
   cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","review_page");
   cJSON_AddStringToObject(o,"epoch",s.epoch); cJSON_AddStringToObject(o,"id",s.id);
@@ -195,6 +203,7 @@ static void snapshot(cJSON *o) {
  bool changed=strcmp(s.id,id)!=0;
  if(!changed && *id && strcmp(s.digest,text(o,"digest")))controller_cancel_input(&s);
  controller_request(&s,id);
+ s.mac_ready=cJSON_IsTrue(cJSON_GetObjectItem(o,"mac_ready"));
  if(s.request) {
   s.expires=now_ms()+ttl*1000;
   snprintf(s.digest,sizeof(s.digest),"%s",text(o,"digest"));
@@ -367,8 +376,8 @@ static void render(void) {
   lv_image_set_scale(face,128); lv_obj_set_pos(face,144,20);
 #endif
   if(s.handling_on_mac) {
-   label(r,16,106,210,"请在 Mac 处理此请求",0xffffff,16);
-   label(r,16,150,210,"在 App 的审批窗口\n查看详情并允许或拒绝。\n设备提醒已静音。",0x92a6b9,14);
+   label(r,16,106,210,s.user_input?"请在 Mac 查看并回复":s.mac_ready?"Mac 审批窗口已显示":"正在请求 Mac 显示",0xffffff,16);
+   label(r,16,150,210,s.user_input?"在原 App 查看问题。\n设备提醒已静音。":s.mac_ready?"在 Mac 审批窗口\n查看详情并允许或拒绝。\n设备提醒已静音。":"尚未收到窗口显示回执。\n可返回设备继续处理。\n设备提醒已静音。",0x92a6b9,14);
    label(r,16,226,210,"尚未提交允许或拒绝",0xffbf5c,14);
    label(r,16,277,210,"短按确认：返回设备审阅\n长按上/下：详情首/末页",0x92a6b9,12);
   } else if(s.stage==1) {

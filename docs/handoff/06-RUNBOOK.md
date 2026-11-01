@@ -1,6 +1,10 @@
 # 启动、检查与测试
 
 ## 日常
+最新版本为 v0.2.12，Bridge 诊断修订号 `0.2.12-native-app`，五项真实双端验收见 [发布说明](../releases/v0.2.12.md)。电脑端使用原 App 原生审批卡片，不使用独立审批弹窗。
+
+设备已是 0.2.12 时，保留原 App 与聊天，主菜单 2 → 子菜单 2 安全重启 Bridge 即可加载 Mac 端修改，无需再次刷机或配网；有待审批时不能重启。旧设备的本机固件升级使用菜单 7，普通 Terminal 需在 ignored private/local-env.sh 指定 CONTROLLER_FLASH_PYTHON（esptool 4.x），串口枚举和 IPC 使用 CONTROLLER_BRIDGE_PYTHON。先检查依赖，再停 Bridge、双备份和应用更新。
+
 双击 `controller/Codex Companion 控制台.command`。保持 Bridge 所在 Terminal 运行；关闭 App/Terminal 对服务生命周期有影响，不能理解为已安装后台常驻服务。
 
 菜单：1 App 实体审批；2 Bridge/USB/Wi-Fi 恢复；3 配对；4 费率/长上下文/倍率；5 用量核对/清零；6 Hooks；7 USB 固件备份更新。

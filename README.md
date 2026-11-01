@@ -1,16 +1,16 @@
 # Codex Companion Controller
 
-> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。项目目前暂停，整理状态见交接文档。
+> 新会话 / New agent: 先阅读 [AGENTS.md](AGENTS.md) 和 [交接入口](docs/handoff/00-START-HERE.md)。本次原生双端审批更新已通过五项实机验收；其余工作保持暂停，状态见交接文档。
 
 **AI Passport · ESP32-C3 · Mac Bridge · SwiftUI Demo**
 
 [简体中文](#简体中文) · [English](#english)
 
-> Firmware **0.2.11 candidate** · Bridge **0.2.10-response-ledger** · Mac demo **0.4.0**
+> Firmware **0.2.12** · Bridge **0.2.12-native-app** · Mac demo **0.4.0**
 >
 > Experimental personal hardware project. Not an official OpenAI, Apple, or FoloToy product.
 
-> 0.2.10：修复压缩请求漏计、加入后台导出对账和无线传输修复。See the bilingual [repair record](controller/docs/Token与无线修复0.2.10.md). Hardware update/endurance acceptance is reported there.
+> **v0.2.12**：原 App 原生审批与设备同步，长按设备交接到 Mac。五项双端实机测试通过；不使用独立审批弹窗。升级方式与限制见 [发布说明](docs/releases/v0.2.12.md)。Source-only release; no private data, Apple artwork or firmware binaries.
 
 ## 简体中文
 
@@ -39,7 +39,7 @@ Codex CLI → shared App Server → Mac Bridge (optional)
 | CLI 共享 App Server 审批 | 已实现官方协议接入及主机测试；完整实机链路仍需单独验收 |
 | 第三方 OpenAI／GPT／Codex 兼容 API | 已识别活动 provider/model；从 Codex App Server 接收当前线程 Token 用量；费用仅按用户本地配置的模型费率估算 |
 
-历史审批验收组合为 App **26.1016.62342**、固件 0.2.5 和加密 Wi-Fi Bridge。当前 Bridge 为 0.2.10，设备最后确认版本为 0.2.9；新固件 0.2.11 已构建，待更新与耐久验收。目录权限已通过设备允许／拒绝实测；网络权限也已在原 App 聊天中由设备批准，硬件选择与 Bridge 提交回执匹配，官方工具确认本轮网络权限授予。用户确认批准后显示 😆 正常。测试未写测试文件、未消费额外重置次数。见[实机验收记录](controller/docs/桌面App实体审批验收.md)。
+当前验收组合为 App **26.1027.30824**、设备 **0.2.12** 和 Bridge **0.2.12-native-app**。2026-11-02 已逐项通过设备允许、设备拒绝、Mac 允许、Mac 拒绝、设备转到 Mac 后允许五项真实测试；设备允许捕获 source=desktop 与匹配的 submitted 回执。详见 [v0.2.12 发布与验收](docs/releases/v0.2.12.md)。其他权限类型及长期稳定性仍需分别验收。
 
 App 启动适配使用已核对版本的内部开关，并非稳定公开 API；App 升级后会拒绝套用旧适配。原生审批走官方 App Server 协议，账户和原聊天继续留在 App。缺少文件修改 diff 或尚未支持的额外授权语义，仍需在 Mac 审阅。不能把这次目录测试扩展为所有客户端和所有权限类型均已完成。
 

@@ -23,6 +23,7 @@ if [[ -n "${PASSPORT_TOOL_ROOT:-}" ]]; then
 fi
 if [[ -n "${IDF_PYTHON_ENV_PATH:-}" ]]; then
   export PATH="$IDF_PYTHON_ENV_PATH/bin:$PATH"
+  export CONTROLLER_FLASH_PYTHON="${CONTROLLER_FLASH_PYTHON:-$IDF_PYTHON_ENV_PATH/bin/python}"
 fi
 export IDF_COMPONENT_CACHE_PATH="$CONTROLLER_ROOT/private/component-cache"
 export PYTHONPYCACHEPREFIX="$CONTROLLER_ROOT/private/pycache"

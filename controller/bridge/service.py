@@ -48,7 +48,7 @@ def desktop_reply(broker,event,connection,stream,interval=20):
 
 
 class Broker:
-    def __init__(self, meter_path=None):
+    def __init__(self, meter_path=None, app_focus=None):
         self.lock = threading.RLock()
         self.epoch = str(uuid.uuid4())
         self.boot = ''
@@ -106,6 +106,7 @@ class Broker:
         self.desktop_deliveries = {}
         self.last_device_delivery = None
         self.last_device_decision = None
+        self.app_focus = app_focus
 
     def desktop_session(self,session):
         now=time.monotonic()
@@ -195,8 +196,8 @@ class Broker:
         method=event.get('method');params=event.get('params');relay=event.get('relay')
         if method not in ('item/permissions/requestApproval','item/commandExecution/requestApproval','item/fileChange/requestApproval') or not isinstance(params,dict) or type(event.get('native_id')) not in (str,int):return {}
         thread=params.get('threadId');turn=params.get('turnId');item=params.get('itemId');started=params.get('startedAtMs')
-        if not all(isinstance(v,str) and v for v in (thread,turn,item)) or type(started) not in (int,float):return {}
-        if started>time.time()*1000+5000:return {}
+        if not all(isinstance(v,str) and v for v in (thread,turn,item)):return {}
+        if type(started) not in (int,float) or started>time.time()*1000+5000:return {}
         timeout=600-max(0,time.time()-started/1000)
         with self.lock:
             registered=self.desktop_relays.get(relay)
@@ -314,7 +315,7 @@ class Broker:
             metering=self.metering_snapshot()
             metering['usage']['reader_issue'] = self.response_reader_issue
             return {'online':self.online(),'transport':self.transport,'firmware':self.firmware,'battery':self.battery,
-                    'bridge_revision':'0.2.10-response-ledger',
+                    'bridge_revision':'0.2.12-native-app',
                     'metering':metering,
                     'project_root':str(ROOT),
                     'network':dict(self.network_health),
@@ -324,6 +325,7 @@ class Broker:
                     'review_format':'中文说明',
                     'last_device_decision':self.last_device_decision,
                     'last_device_delivery':self.last_device_delivery,
+                    'approval_ui':'native_app',
                     'hook_count':self.hook_count,'hook_age':round(time.monotonic()-self.last_hook,1) if self.last_hook else None,
                     'permission_pending':bool(self.request),'directory_notice_pending':bool(self.notice),
                     'permission_notice_pending':bool(self.notice),'notification_version':3,
@@ -423,6 +425,8 @@ class Broker:
             return {}
 
     def handle_hook(self,event,alive=lambda:True):
+        if event.get('hook_event_name')=='PermissionRequest' and (self.desktop_mode or self.desktop_session(event.get('session_id'))):
+            return self.permission(event,alive=alive)
         if event.get('hook_event_name') in ('PreToolUse','PermissionRequest') and event.get('tool_use_id'):
             digest=hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest()
             with self.lock:
@@ -440,7 +444,7 @@ class Broker:
         self.event(event)
         with self.lock:
             summary=permission_summary(event)
-            if not summary or self.native_session or self.desktop_session(event.get('session_id')) or not self.prehook_review:return {}
+            if not summary or self.native_session or self.desktop_mode or self.desktop_session(event.get('session_id')) or not self.prehook_review:return {}
             heading,details=summary
             if self.notice and self.notice['session']==event.get('session_id') and self.notice['tool_use_id']==event.get('tool_use_id'):
                 self.notice=None
@@ -452,6 +456,10 @@ class Broker:
         with self.lock:
             if self.native_session:return {} # Native App Server owns CLI approvals in this mode.
             self.note_hook(event)
+            # Let the original App present its native card. Blocking this Hook
+            # prevents that card from being created; the relay mirrors the
+            # subsequent real approval to the device instead.
+            if self.desktop_mode or self.desktop_session(event.get('session_id')):return {}
         view=hook_display(event)
         if self.review_protocol==1:
             # This is the official PermissionRequest hook, not PreToolUse.
@@ -485,6 +493,7 @@ class Broker:
                     if req['result'] is not None:return req['result']
                     if req['cancelled'] or not self.online() or self.boot != req['boot']:
                         return {}
+                    if req.get('handoff'):return {}
                     if self.request is None and self.hook_pending and self.hook_pending[0] is req:
                         self.request=req
                     if req['choice'] in ('allow','deny'):
@@ -534,6 +543,27 @@ class Broker:
                         self.hook_results[digest]=(time.monotonic()+120,req['result'])
                     if self.request is req:self.request=None
                     if req in self.hook_pending:self.hook_pending.remove(req)
+
+    def mac_handoff(self,message):
+        """Focus the original App; never invent or answer an approval card."""
+        with self.lock:
+            req=self.request
+            if (not req or req['cancelled'] or req['choice'] is not None or not self.online() or
+                time.monotonic()>=req['deadline'] or any(message.get(k)!=v for k,v in
+                (('id',req['id']),('digest',req['digest']),('boot',req['boot']),('epoch',self.epoch)))):return False
+            if req['source']!='desktop':
+                # Release legacy blocking Hooks so native approval can appear.
+                req['handoff']=True
+            self.receipt='请在原 App 审批 · 尚未提交决定'
+            if self.app_focus:
+                def activate():
+                    try:ok=self.app_focus()
+                    except (OSError,ValueError):ok=False
+                    if not ok:
+                        with self.lock:
+                            if self.request is req:self.receipt='请手动切回原 App 审批'
+                threading.Thread(target=activate,daemon=True).start()
+            return True
 
     def decision(self, message):
         with self.lock:
@@ -628,13 +658,15 @@ class Broker:
                 token_usage=metering['usage'],
                 token_cost={k:v for k,v in metering['cost'].items() if k!='known_models'})
             req = self.request
-            if req and not req['cancelled']:
+            if req and not req['cancelled'] and req['choice'] is None:
                 # Only excerpts, explicitly non-approvable. No raw Hook payload/secrets.
                 data.update(req_id=req['id'], digest=req['digest'],
                             ttl=max(0, min(120,int(req['deadline']-time.monotonic()))),
                             command=excerpt(req['command'],150),
                             project=excerpt(req['project'],90), scope=excerpt(req['scope'],120), can_allow=req['can_allow'],can_deny=req.get('can_deny',True),
                             action_mode=req.get('action_mode',''))
+                # Native request forwarding does not prove its UI was painted.
+                data['mac_ready']=False
                 self.add_review(data,req)
             elif self.notice and self.readonly_notices:
                 n=self.notice
@@ -730,6 +762,7 @@ class Broker:
                             if key in message and isinstance(message[key],(str,int,bool))}
             elif message.get('type')=='decision':self.decision(message)
             elif message.get('type')=='review_page':self.review_page(message)
+            elif message.get('type')=='mac_handoff':self.mac_handoff(message)
             elif message.get('type')=='dismiss':
                 if message.get('boot')==self.boot and message.get('epoch')==self.epoch:
                     self.input_notices=[n for n in self.input_notices if not (n['id']==message.get('id') and n['digest']==message.get('digest'))]
@@ -763,7 +796,8 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
     import serial
     os.umask(0o077)
     lease = acquire_endpoint()
-    broker = Broker(ROOT/'private'/'token-ledger.json')
+    from native_app_ui import focus as focus_app
+    broker = Broker(ROOT/'private'/'token-ledger.json',app_focus=focus_app)
     broker.native_session=thread_id
     broker.desktop_mode=desktop
     stopping = threading.Event()

@@ -2,6 +2,40 @@
 
 日期：2026-11-02（悉尼）；基于归档时的本地文件。
 
+## 2026-11-02 v0.2.12 五项原生双端实机验收完成，授权发布
+- 用户已完成 Bridge 切换；本聊天实际 IPC 确认设备 0.2.12 在线、approval_ui=native_app、desktop.connected=true。不是仅有源码/编译结果。
+- 用户逐项操作并确认五项 passed：设备允许、设备拒绝、Mac 原生卡片允许、Mac 原生卡片拒绝、设备详情长按交接唤回原 App 后在 Mac 允许。设备与 Mac 端互相结束审批，交接不自动批准；设备表情由用户确认。
+- 第 1 项真实命令成功，source=desktop、choice=allow，与独立 delivery stage=submitted 匹配，补齐此前 native relay 独立提交回执未验收项。第 2/4 项工具返回 rejected by user 且命令未执行；第 3/5 项分别有成功打印标记。仅第 1 项捕获独立回执，不扩展为五项均采集。
+- 私有证据为 controller/private/hardware-acceptance-native-20261102.json（0600），源自当前真实工具输出和用户逐项确认；对外发布去身份化的验收矩阵 docs/releases/v0.2.12.md。
+- 用户明确要求先更新 Markdown 再发布：源码发布标识 **v0.2.12**，Bridge 修订号 **0.2.12-native-app**，设备固件仍 **0.2.12**。仅发布审计源码/文档，不上传私有数据、Apple 素材或含图固件。发布完成以 origin/main 和远端标签核对结果为准。
+- README、controller README、发布说明、运行手册和交接文档已更新；此前“待切换/待验收”和独立窗口段落均属历史阶段，下文历史证据不等同当前状态。
+- 其余权限类型、所有项目、文件 diff/附加授权语义、休眠唤醒和长期稳定性仍未覆盖。0.2.12 的交接页可能保守显示等待窗口回执；native 转发不等于界面绘制回执，本次由用户目视确认唤回原 App。
+
+## 历史阶段：2026-11-02 改用原 App 原生审批（当时尚待切换）
+- **用户明确不接受单独 Tk/Companion 审批窗口，要求审批显示在当前 ChatGPT/Codex App 原聊天内。** 本决定覆盖下文独立窗口方案；不再增加独立审批界面，不换 CLI/新聊天，不修改 App 安装包。
+- 用户已自行更新后，本聊天只读 IPC 实测设备 firmware=0.2.12、online=true、App desktop.connected=true、approval_receipts=true；一次只读查询由旧独立窗口 Hook allow 执行，**这不是原生双端验收**。随后的拒绝验收被用户中止，独立测试文件不存在，不能记录 Deny 通过。
+- 已将 `mac_approval_gui.py` 改为不创建任何窗口的兼容空入口（旧运行 Broker 仍可能调用此文件，因此暂留）；新 service 不再导入或启动它，移除 mac_review/mac_decision 私有审批接口和独立窗口页状态。
+- 新 Bridge desktop 模式的 PermissionRequest/权限 PreToolUse 不再等待硬件：返回空 Hook 结果，既不批准也不拒绝，让原 App 创建原生审批；随后由现有 stdio relay 原样转发 native request，同时交给设备，同一请求先答者生效。旧 Hook 结果缓存也不能抢先返回 allow。
+- mac_handoff 改为仅激活已运行、精确版本/摘要验证通过的原 App；不自动点按钮、不另起聊天。旧非桌面阻塞 Hook 的交接只释放等待以允许原生界面出现。保留 0.2.12 固件兼容，无需本轮重刷；其原有“正在请求 Mac 显示/尚未收到显示回执”提示仍保守保留，不伪造原生界面已绘制回执。
+- 核对安装版本 26.1027.30824 的登记摘要通过；从本机官方二进制仅生成 JSON schema，保留该版本 startedAtMs 等校验。查阅官方 App Server 审批/解决事件文档，不将协议支持等同于本机 App 实机成功。
+- **本轮完整 controller Python 240 项通过**：移除独立 UI 的 13 项测试，新增 8 项 native routing/缓存/交接/版本检查/空入口用例；既有 2 项“Mac”集成改为原 App 真实协议响应的 Allow/Deny（包括页未读完时 App 答复取消设备）。再补强激活超时处理后相关 8 项通过。数字下降来自移除被用户否定的功能用例，不是删失败用例。
+- **待切换/验收**：新 Bridge 源码尚未重启载入；未再触发实机授权测试。用户可用唯一控制台主菜单 2 → 子菜单 2“安全重启 Bridge”，保留当前 App、聊天、现有配对及 0.2.12 固件。此操作需无待审批，现有入口会检查。随后仅验收原 App 审批卡片与设备双端 Allow/Deny；未出现真实 native 回调则继续排查，不退回独立弹窗或声称完成。
+
+## 历史阶段：2026-11-02 独立窗口方案准备与首次更新失败（已被替代）
+- **用户首次自行更新在刷写前退出，入口已修复待重试**：用户提供 01:49–01:50 终端日志，完整 242 测试通过后，菜单 7 在第 20 行串口发现阶段报 `python: command not found`。此时尚未停止 Bridge、读取备份或写入设备，不能记为已更新 0.2.12。
+- 根因：日常 Terminal 未提供裸 `python` 命令，原维护脚本仍依赖 IDF 环境的隐式 PATH。已将串口发现及 preflight 显式绑定 `CONTROLLER_BRIDGE_PYTHON`；刷写独立使用 `CONTROLLER_FLASH_PYTHON`，在停 Bridge 前验证可执行及 esptool 4.x。env.sh 支持已配置 IDF 环境的显式 fallback，本机 ignored private/local-env.sh 已指向现有 IDF 刷写解释器（Python 3.9.6 / esptool 4.12.0），不安装依赖、不更换 Bridge Python。
+- 本轮验证：3 项隔离 shell 回归通过（无裸 python 的 PATH 下正确调度；缺刷写解释器或缺 esptool 时不停止 Bridge/不写入），4 项既有依赖/入口测试通过；最小 Terminal PATH 下真实 esptool import 和 USB 候选发现通过（仅枚举，未开串口）。没有重新跑完整 242 项；没有执行刷写。请用户保持 USB，用同一控制台菜单 7 重试，更新仍未实机验收。
+- 用户随后要求自行更新固件并索取命令；核对发现控制台菜单 7 的历史维护脚本仍限定 0.2.11，已更新其说明及 manifest 校验为 0.2.12，shell 语法和本机产物/入口版本一致性核验通过。用户可保持现有 App 打开，经唯一控制台菜单 7 停 Bridge→双备份/live 校验→仅更新应用→启动新 Bridge 接回原聊天；本次 relay 未改，无需为这条路径额外退出 App。下文“退出 App 后重启”是另一种切换路径，不是菜单 7 的前置要求。本轮没有执行更新或连接设备。
+- 用户明确提出两项新任务：修复设备“转到 Mac”但 Mac 无界面；同一审批同时显示在电脑和设备，并可从任一端操作。本次授权恢复范围仅限这两项，不自动恢复其余 backlog。
+- 根因核对：0.2.11 的 ACTION_MAC 在 main.c 只取消提示音，未发送交接消息；PermissionRequest Hook 在返回前阻塞原 App 审批，所以不能假设原 App 已经显示审批框。
+- 新增 `bridge/mac_approval_gui.py`：Bridge 有待审批时自动启动独立 Mac Companion 审批窗口（不是模拟 Demo，也不是修改原 App UI）。通过原私有 Unix IPC 分块读取完整请求，确认后操作同一 pending；共用锁只接受首个决定，Mac 阅读不跳过设备本身分页约束。原 App native 审批仍通过原 relay 竞争，未知/缺少 diff 的批准继续留在原 App。
+- 固件源码 0.2.12：长按确认发送绑定 boot/epoch/id/digest 的 mac_handoff；等待真实窗口心跳，完整内容显示且窗口可见后才显示“Mac 审批窗口已显示”。收起窗口、重新交接或心跳超时清除已显示状态；普通问题通知仍在原 App 回复，不冒充设备回答。
+- 本轮验证：完整 controller Python 242 项通过（包含新增 13 项 Mac 审阅/交接/竞争用例与 2 项 Mac→relay stdio 集成用例）；随后补强显示回执清除和完整内容约束，相关 13 项重跑通过。C 三键导航、音序、8 组 mocked BSP/RTOS 音频检查通过。合成 Tk 窗口完整详情/按钮、收起/唤回、二次确认/提交检查通过；C UA 截图读取超时，未声称截图目视 QA 或实机验收。
+- ESP-IDF 5.5.3 构建成功；本机含图 0.2.12 镜像 2,360,544 字节，SHA-256 `dae8c7c2dacea383f0c3deb3cbc9ac3a0d78faa653151faf2b73e1338053de04`。新增固件文案字形覆盖检查通过。含图产物仅保留本机，不公开。
+- 首次完整测试 16 项因 socket sandbox 拒绝；获准本机网络后完整回归通过。首次构建无法访问 Espressif registry；获准后按锁定版本构建成功，没有升级依赖。
+- **尚未生效/验收**：没有停止或重启当前 App/Bridge，没有刷机、重新配网、清零、变更账户或上传。运行环境仍沿用下文已激活版本，不能因源码与构建完成声称设备已更新。
+- 下一步：用户保存工作并手动完全退出 App后，通过唯一控制台入口重启接入；USB 可用时仅走现有双备份/live 分区应用更新脚本更新 0.2.12，绝不执行 IDF 输出通用 flash。再在原 App 聊天验收双端同时显示、Mac Allow/Deny、设备 Allow/Deny 清除对端、长按唤回窗口及显示回执；保留原来的 native 独立回执与长稳未验收边界。
+
 ## 2026-11-02 新目录 Bridge 已激活
 - 用户已完成手动退出 App 和 Terminal 确认。私有 `runtime-activation.json` 记录 2026-11-02 01:07:29 +1100 激活：最新账本已同步，Hooks 已迁移；待迁移标记已移除。
 - 本次只读进程与 IPC 核验：Bridge、stdio relay、launch_desktop 均运行在 `/Users/bowen/Developer/codex-companion-controller/controller`；旧 outputs 工程 Bridge 不再运行。
@@ -17,8 +51,8 @@
 ## 版本与证据
 | 项 | 状态/证据 |
 |---|---|
-| GitHub 基线 | `00b61330f1b415b555d8acde8ddd4a6d055c48d0`，main；包含统一控制台和 Token 分项 |
-| 固件 | 0.2.11；本地含图镜像 2,360,240 字节；SHA-256 `5a9d882e2245b60e3e234d090714c550feb9b075c3a54458a3ee15db83885473` |
+| 历史 GitHub 基线 | `00b61330f1b415b555d8acde8ddd4a6d055c48d0`，main；包含统一控制台和 Token 分项 |
+| 当前固件 | 0.2.12；本机含图镜像 2,360,544 字节；SHA-256 `dae8c7c2dacea383f0c3deb3cbc9ac3a0d78faa653151faf2b73e1338053de04`；实际 hello 已确认 |
 | 实际刷写 | 旧运行目录 private/backups 下 2026-11-01 记录：`last-result.json` 的 verified=true，last-write 的镜像摘要吻合；仅 factory、未写分区表/bootloader、未整片擦除 |
 | Bridge | 源码为本项目 Python Bridge；部分启动/诊断仍显示 0.2.10 标签，不可单看这个标签判断功能 |
 | Mac Demo | SwiftUI/AppKit 0.4.0；模拟任务/额度，不能作为真实 App 审批验收 |

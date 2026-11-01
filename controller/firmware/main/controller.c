@@ -15,7 +15,7 @@ uint32_t controller_view_hash(const controller_t *s) {
  for(int i=0;i<s->history_count && i<8;i++)
   for(const unsigned char *p=(const unsigned char *)s->history[i];*p;p++)h=(h^*p)*16777619u;
  const int values[]={s->page,s->option,s->stage,s->selected,s->online,s->request_visible,
-  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->handling_on_mac,s->sound,s->muted,s->volume,s->volume_edit,
+  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->handling_on_mac,s->mac_ready,s->sound,s->muted,s->volume,s->volume_edit,
   s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count,
   s->review_protocol,s->review_page,s->review_loaded,s->review_total,s->meter_stage,s->token_updated,s->token_total_updated,s->token_priced};
  for(unsigned i=0;i<sizeof(values)/sizeof(values[0]);i++)h=(h^(uint32_t)values[i])*16777619u;
@@ -43,6 +43,7 @@ void controller_request(controller_t *s, const char *id) {
   controller_cancel_input(s); snprintf(s->id,sizeof(s->id),"%s",id);
   s->request=*id!=0; s->request_visible=s->request; s->muted=false;
   s->handling_on_mac=false;
+  s->mac_ready=false;
   s->review_protocol=0; s->review_page=0; s->review_loaded=-1; s->review_total=0; s->review_text[0]=0;
  }
 }

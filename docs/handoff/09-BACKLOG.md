@@ -1,6 +1,8 @@
 # 后续待办（未获自动实施授权）
 
-当前状态：暂停。只有用户明确要求继续时再做以下工作。
+当前状态：原生双端审批 v0.2.12 五项实机测试已完成并获准发布，其余保持暂停。只有用户明确要求继续时再做以下工作。
+
+2026-11-02 最新覆盖：设备 Allow/Deny、原 App Allow/Deny、设备转到原 App 后 Allow 全部通过；native relay 独立提交回执已由设备 Allow 捕获。以下历史待办中的这一项已经补齐，其他类型和长稳仍未覆盖。
 
 ## 优先核验
 - 迁移路径/虚拟环境/Hook命令替换/新IPC/当前App relay与Wi-Fi在线已核验（2026-11-02）；PermissionRequest Hook 信任已生效，原聊天设备 Allow/Deny、实际写入/拦截与 😆/😭 表情已于本次实机验证；剩余 native relay 独立提交回执、其他 Hook/权限及休眠唤醒后恢复；独立 Python 下 App 重启与设备重连已由用户确认并有 active-python.json。保持禁止新旧Bridge并行。
@@ -10,7 +12,7 @@
 - 对 unknown/model missing、缺请求边界、费率缺失区别展示；不再一律“费用关闭”。
 
 ## 迁移归档收尾
-- 本轮用户授权本地 commit 与独立目录归档；源码/私有包分开，实际路径与成功凭据见 01-PROJECT-STATE.md。未授权 push，不上传。
+- 本轮用户授权本地 commit 与独立目录归档；源码/私有包分开，实际路径与成功凭据见 01-PROJECT-STATE.md。后续用户已授权同步 GitHub，并在五项验收后再次要求发布 v0.2.12；仅审计源码/文档可上传。
 - 独立 Python、Tk 与离线依赖已安装并完成主机回归；用户已手动重开 App 并确认设备重连，active-python.json 已核对为 Homebrew 环境。旧 venv 不删除。
 - 本机 sibling 归档是同盘逐文件快照，异地/离线加密备份尚未执行；清理旧 outputs/IDF 或缓存前复核恢复能力。
 

@@ -257,10 +257,11 @@ sys.stdin.readline() # Keep the backend alive until receipt assertions finish.
                                     message['review_page']=view['review_total']
                                 self.assertTrue(b.decision(message))
                             else:
-                                app_writer.write(b'{"id":"approval-1","result":{"permissions":{},"scope":"turn"}}\n');app_writer.flush()
+                                response={'id':'approval-1','result':{'permissions':{'network':{'enabled':True}} if choice=='allow' else {},'scope':'turn'}}
+                                app_writer.write(json.dumps(response).encode()+b'\n');app_writer.flush()
                             echo=json.loads(app_reader.readline())
                             self.assertEqual(echo['method'],'fixture/echo')
-                            self.assertEqual(echo['params']['result'],{'permissions':{'network':{'enabled':True}},'scope':'turn'} if physical and choice=='allow' else {'permissions':{},'scope':'turn'})
+                            self.assertEqual(echo['params']['result'],{'permissions':{'network':{'enabled':True}},'scope':'turn'} if choice=='allow' else {'permissions':{},'scope':'turn'})
                             resolved=json.loads(app_reader.readline());self.assertEqual(resolved['method'],'serverRequest/resolved')
                             if physical:
                                 deadline=time.monotonic()+2
@@ -268,7 +269,12 @@ sys.stdin.readline() # Keep the backend alive until receipt assertions finish.
                                 while b.receipt!=expected and time.monotonic()<deadline:time.sleep(.005)
                                 self.assertEqual(b.receipt,expected)
                                 self.assertEqual(b.snapshot()['face'],'delight' if choice=='allow' else 'crying')
-                            else:self.assertEqual(b.snapshot()['face'],'')
+                            else:
+                                deadline=time.monotonic()+1
+                                while b.request is not None and time.monotonic()<deadline:time.sleep(.005)
+                                self.assertIsNone(b.request)
+                                self.assertNotIn('req_id',b.snapshot())
+                                self.assertEqual(b.snapshot()['face'],'')
                             app_writer.write(b'fixture-finish\n');app_writer.flush()
                             worker.join(timeout=2);self.assertFalse(worker.is_alive())
                         finally:
@@ -279,6 +285,8 @@ sys.stdin.readline() # Keep the backend alive until receipt assertions finish.
                 server.shutdown();server_thread.join(timeout=2)
 
     def test_physical_choice_crosses_real_stdio_and_private_unix_ipc(self):self.run_round_trip(True)
-    def test_app_choice_cancels_hardware_across_real_transports(self):self.run_round_trip(False)
+    def test_app_choice_cancels_hardware_across_real_transports(self):self.run_round_trip(False,choice='deny')
     def test_paged_device_allow_crosses_real_stdio_and_private_unix_ipc(self):self.run_round_trip(True,paged=True)
     def test_paged_device_deny_crosses_real_stdio_and_private_unix_ipc(self):self.run_round_trip(True,paged=True,choice='deny')
+    def test_native_app_allow_cancels_paged_device_request(self):self.run_round_trip(False,paged=True)
+    def test_native_app_deny_cancels_paged_device_request(self):self.run_round_trip(False,paged=True,choice='deny')

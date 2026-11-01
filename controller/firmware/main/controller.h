@@ -4,7 +4,7 @@
 typedef struct {
  int page, option, selected, stage, key;
  int64_t pressed_at, last_rx, expires, delight_until;
- bool consumed, online, request, request_visible, can_allow, can_deny, muted, sound, volume_edit, mac_confirm, user_input, handling_on_mac;
+ bool consumed, online, request, request_visible, can_allow, can_deny, muted, sound, volume_edit, mac_confirm, user_input, handling_on_mac, mac_ready;
  char id[40], epoch[40], digest[65], state[20], command[192], project[96];
  char scope[128], receipt[96];
  int review_protocol, review_page, review_total, review_loaded;
