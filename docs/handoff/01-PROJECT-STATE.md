@@ -9,9 +9,9 @@
 - 安装 App 26.1027.30824 的登记摘要再次核验通过。私有配对、证书、费率保持原值，旧工程保留；切换前账本及 Hooks 备份在 private/activation-backup-*。
 - 新增 6 项 synthetic/mock 切换回归、既有连接恢复 8 项、通知/Hooks 14 项通过（共 28 项，上一轮实际运行）；本轮为只读核验与文档更新，未重复跑代码测试。
 - **本次真实设备验收通过**：迁移后原 App 聊天经 PermissionRequest Hook，设备 Allow 后独立验收文件实际写入，设备 Deny 后工具返回 `PermissionRequest hook denied approval` 且目标文件不存在。用户确认两次均仅实体按键，批准 😆、拒绝直接 😭（无 😶）；验收文件已清理，证据在 private/hardware-acceptance-20261102-*.json。这是真实设备测试，非 mock。
-- **仍待验收**：native stdio relay 独立 `approval/submitted` 提交回执（本次 Allow 的 last_device_decision.source=hook，last_device_delivery=null，不能据此宣称 native relay 全链路通过）、重启/休眠后重连、所有权限类型和长期稳定性。Hook 路径信任已至少对本次 PermissionRequest 生效，不扩展声称所有 Hook 均已验收。
+- **仍待验收**：native stdio relay 独立 `approval/submitted` 提交回执（本次 Allow 的 last_device_decision.source=hook，last_device_delivery=null，不能据此宣称 native relay 全链路通过）、休眠唤醒后重连、所有权限类型和长期稳定性。Hook 路径信任已至少对本次 PermissionRequest 生效，不扩展声称所有 Hook 均已验收。
 - Python/依赖收尾：已安装 Homebrew Python 3.12.15、OpenSSL 3.5.9、Tk/Tcl 9.1，独立环境为 private/bridge-venv-homebrew；pySerial 3.5 与 websockets 17.3 均从本工程 vendor 的 SHA-256 校验 wheel 离线加载，pip check 通过。local-env.sh 与所有 shell 入口统一选择 CONTROLLER_BRIDGE_PYTHON，不再为未来启动依赖 Codex cache。
-- **激活边界**：本轮不自动关闭当前 App；已运行的旧 Python 进程须在用户手动退出并由新入口重开后才换用新环境。private/python-runtime-prepared.json 是准备证据，private/active-python.json 在实际新启动后生成；未看到后者及新进程前不可声称运行中进程已切换。旧 venv 保留回退，Hook 命令文件未改。
+- **独立 Python 已激活**：用户已手动退出并重开原 App，确认设备重新连接。private/active-python.json 记录 2026-11-02T01:27:58+11:00 启动，实际选择 private/bridge-venv-homebrew/bin/python，base_prefix 在 /opt/homebrew，Python 3.12.15 / OpenSSL 3.5.9 / pySerial 3.5 / websockets 17.3。原 prepared 回执保留作历史准备证据，不能覆盖此较新的激活记录；旧 venv 仍保留回退。
 - 日常仍仅使用 `controller/Codex Companion 控制台.command`。项目保持暂停，不因迁移成功自动开始功能开发或刷机。
 
 ## 版本与证据
@@ -38,7 +38,7 @@
 - 新控制台各菜单的真实 GUI 全流程；单元测试不覆盖所有组合。
 - 服务商账户总账实时读取。现有本地估价+可选 CSV/TSV 对账不是总账 API。
 - Apple 原图或含图固件的公开分发许可。
-- App/Bridge 关闭重开及休眠生命周期、native relay 独立提交回执和所有权限类型的全流程验收；新路径 PermissionRequest Hook 设备 Allow/Deny 与表情已真实验证。
+- 休眠唤醒生命周期、native relay 独立提交回执和所有权限类型的全流程验收；独立 Python 下 App 关闭重开与设备重连已有用户确认及启动回执，先前新路径 PermissionRequest Hook Allow/Deny 不自动扩展成新环境所有权限复测。
 
 ## 已知需复核的实现边界
 - OpenAI 预设目前仅内置明确核对的 gpt-6.1-sol；模型/价格会变化，未来调整需查当时官方文档。自定义价格优先尊重用户。
@@ -52,3 +52,9 @@
 - 修复迁移器 destination.absolute 与 source.resolve 混用导致的 macOS /var→/private/var 路径别名子目录检测漏洞；原有“目标不能位于源内”回归现已通过。
 - 归档目标为 `/Users/bowen/Developer/codex-companion-archives/2026-11-02-python-handoff`：源码 tar.gz、Git 历史 bundle、独立 PRIVATE-RECOVERY.tar.gz、恢复说明、摘要回执。以目标 ARCHIVE-RECEIPT.json 存在且摘要可复核为成功依据；私有包回读校验每个成员，不含 Codex auth.json、venv、缓存或运行日志。
 - 私有归档为服务运行期间逐文件快照，JSON 完整解析校验，不是全局停机事务快照；同盘独立目录不是异地备份。保持本机私密，不公开私有素材/含图固件或密钥。
+
+## 2026-11-02 最终激活与归档补记
+- 用户提供完整 --restart-app 日志，确认已重开并重新连接；独立 Python 的启动回执已核对。日志中“Bridge 未运行 / FileNotFoundError”发生在停止旧 Bridge 与启动新 Bridge 之间，是本次正常切换的中间状态。
+- 首份归档已实际生成：`2026-11-02-python-handoff` 对应 e4fb7c5，149 个私有成员回读校验通过；外层 SHA-256 已再次核对。
+- 最终补记归档目录：`/Users/bowen/Developer/codex-companion-archives/2026-11-02-final`，包含本次激活回执和更新后的源码/交接。以该目录 ARCHIVE-RECEIPT.json 的提交号与摘要作为最终对应版本；保留首份归档不覆盖。
+- 本轮仅核验、记录与本地归档，不重复运行前一轮已通过的 227+10 项代码回归，不自动扩大硬件验收范围。

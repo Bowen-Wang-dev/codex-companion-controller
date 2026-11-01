@@ -40,3 +40,5 @@ Developer 目标已完成复制和激活。根下 ignored `LOCAL-MIGRATION-RECEI
 本机归档目标：`/Users/bowen/Developer/codex-companion-archives/2026-11-02-python-handoff`。这是同盘副本，异地/离线加密备份尚未执行。校验成功以 ARCHIVE-RECEIPT.json 和包内 PRIVATE-MANIFEST.json 为证；所有成员回读比对 SHA-256。运行中逐文件读取账本，不声称停机一致快照。
 
 恢复 Python：先装独立 Python 3.11+ / OpenSSL 3；本机已选择 Homebrew python@3.12 与 python-tk@3.12。按新位置重建私有 venv，调整 private/local-env.sh 的 CONTROLLER_MODERN_PYTHON 和 CONTROLLER_BRIDGE_PYTHON，再运行 scripts/setup_bridge.sh（两项 wheel 均在 vendor 内，可离线校验加载）。保留本机旧环境直到新进程启动验证。
+
+最终激活补记归档为 sibling 目录 `2026-11-02-final`，包含实际 Homebrew Python 启动回执与更新交接文档。首份 `2026-11-02-python-handoff` 不覆盖；各自以 ARCHIVE-RECEIPT.json 指明对应源码提交。

@@ -53,3 +53,10 @@
 - 工具回归发现 macOS /var 路径别名使迁移子目录判断失效，已统一 destination.resolve 并通过原回归。归档工具新增排除凭据/venv/日志/符号链接、私有成员哈希回读、坏 JSON 拒绝测试。
 - 本地归档使用独立同盘 sibling 目录；源码快照与 Git bundle 分开保存，私有恢复包包含配对/账本/Flash 备份/私有素材与 Hooks 配置，0600/0700 权限，排除 Codex 登录凭据；逐文件在线快照不冒充全局事务或异地备份。
 - 运行中的 Python 不热替换，也不自动关闭用户 App。需手动退出后通过同一控制台 --restart-app 重启；实际启动时记录 private/active-python.json。旧 venv、旧 outputs 和 IDF 工具链保留。
+
+## 2026-11-02：独立 Python 重启完成
+- 用户已按 --restart-app 提示手动退出 App 并由同一控制台重开，提供完整 Terminal 日志并确认重新连上。
+- 核对 active-python.json：2026-11-02T01:27:58+11:00，解释器为新工程 bridge-venv-homebrew，base_prefix 指向 Homebrew，Python 3.12.15 / OpenSSL 3.5.9 / pySerial 3.5 / websockets 17.3。旧 prepared 回执的 false 是切换前历史，不是当前状态。
+- 切换时“Bridge 未运行 / FileNotFoundError”位于旧服务关闭与新服务启动之间，不作为持续连接故障。保留旧 venv 与首份已校验归档（e4fb7c5、149 私有文件）。
+- 最终激活文档和私有回执补充保存于 sibling 目录 2026-11-02-final；实际成功依据为其 ARCHIVE-RECEIPT.json。没有推送、刷机、重配网或清零。
+- 仍保留休眠唤醒、native relay 独立提交回执、全部权限类型及长稳测试边界，不将基础依赖检查或重新连上扩展成这些验收已通过。

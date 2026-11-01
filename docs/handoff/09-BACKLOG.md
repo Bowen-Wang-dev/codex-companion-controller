@@ -3,7 +3,7 @@
 当前状态：暂停。只有用户明确要求继续时再做以下工作。
 
 ## 优先核验
-- 迁移路径/虚拟环境/Hook命令替换/新IPC/当前App relay与Wi-Fi在线已核验（2026-11-02）；PermissionRequest Hook 信任已生效，原聊天设备 Allow/Deny、实际写入/拦截与 😆/😭 表情已于本次实机验证；剩余 native relay 独立提交回执、其他 Hook/权限及重启/休眠后恢复。保持禁止新旧Bridge并行。
+- 迁移路径/虚拟环境/Hook命令替换/新IPC/当前App relay与Wi-Fi在线已核验（2026-11-02）；PermissionRequest Hook 信任已生效，原聊天设备 Allow/Deny、实际写入/拦截与 😆/😭 表情已于本次实机验证；剩余 native relay 独立提交回执、其他 Hook/权限及休眠唤醒后恢复；独立 Python 下 App 重启与设备重连已由用户确认并有 active-python.json。保持禁止新旧Bridge并行。
 - 0.2.11 真屏分项数量/价格、中文字形、列宽、长数字/大金额、未知数据提示；实际音效和电量。
 - 新App登记版本 PermissionRequest Hook 真实 Allow/Deny 已通过；仍需 native relay 独立提交回执、用户回复通知及其他权限测试。网络测试通过不能自动扩展为所有文件diff和附加授权语义。
 - CSV 缺reasoning字段时当前填0：后续应标注未提供，避免把推理全算“可见输出”。对账与真实设备展示应使用相同来源完整性策略。
@@ -11,7 +11,7 @@
 
 ## 迁移归档收尾
 - 本轮用户授权本地 commit 与独立目录归档；源码/私有包分开，实际路径与成功凭据见 01-PROJECT-STATE.md。未授权 push，不上传。
-- 独立 Python、Tk 与离线依赖已安装并完成主机回归；仍需用户手动重开 App，核对 active-python.json 和实际新进程。旧 venv 不删除。
+- 独立 Python、Tk 与离线依赖已安装并完成主机回归；用户已手动重开 App 并确认设备重连，active-python.json 已核对为 Homebrew 环境。旧 venv 不删除。
 - 本机 sibling 归档是同盘逐文件快照，异地/离线加密备份尚未执行；清理旧 outputs/IDF 或缓存前复核恢复能力。
 
 ## 已知工程债
