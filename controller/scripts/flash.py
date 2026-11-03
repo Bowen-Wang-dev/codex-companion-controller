@@ -82,6 +82,45 @@ class Tool:
     def _link(self, baud, before):
         self.base = [sys.executable, '-m', 'esptool', '--chip', 'esp32c3', '--port', self.port, '--baud', str(baud), '--before', before, '--after', 'hard_reset']
 
+    def read_range(self, offset, size, destination):
+        """Bound Windows USB transfers; only read operations may be retried."""
+        destination = Path(destination)
+        if sys.platform != 'win32':
+            self.run('read_flash', hex(offset), hex(size), str(destination))
+            if destination.stat().st_size != size:
+                raise RuntimeError('Flash read returned an incomplete file')
+            return
+        # A single 8 MB stub stream plus per-frame console progress can stall
+        # Windows USB reception. Bound each stream and suppress that progress;
+        # report progress between transfers instead. esptool checks each stub
+        # read digest before saving its output. Never splice a failed transfer.
+        chunk_size = 256 * 1024
+        chunk_path = destination.with_suffix(destination.suffix+'.chunk')
+        with destination.open('xb') as output:
+            for position in range(0, size, chunk_size):
+                length = min(chunk_size, size-position)
+                for attempt in range(3):
+                    self._link(115200, 'usb_reset' if attempt < 2 else 'default_reset')
+                    # Keep the application stopped between chunks/passes so it
+                    # cannot update NVS and invalidate the independent backup.
+                    self.base[-1] = 'no_reset'
+                    # ROM fallback avoids the stub's streaming protocol.
+                    if attempt == 2:self.base.append('--no-stub')
+                    chunk_path.unlink(missing_ok=True)
+                    try:
+                        self.run('read_flash', hex(offset+position), hex(length), str(chunk_path), '--no-progress')
+                        data = chunk_path.read_bytes()
+                        if len(data) != length:raise RuntimeError('Incomplete read block')
+                        break
+                    except (RuntimeError, OSError) as error:
+                        if attempt == 2:
+                            raise RuntimeError('USB 备份读取失败，未写入设备；请更换数据线或直连 USB 后重试。') from error
+                        print('读取块校验失败；仅重试当前只读块，不写入 Flash。', flush=True)
+                output.write(data)
+                output.flush()
+                print(f'只读备份进度：{position+length}/{size} 字节', flush=True)
+        chunk_path.unlink(missing_ok=True)
+
     def run(self, *args):
         if args and args[0] in {'read_flash', 'write_flash', 'verify_flash'}:
             process = subprocess.Popen(self.base+list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -106,7 +145,8 @@ class Tool:
     def identity(self):
         info = None
         errors = []
-        for baud, before in ((460800, 'usb_reset'), (115200, 'usb_reset'), (115200, 'default_reset')):
+        initial_baud = 115200 if sys.platform == 'win32' else 460800
+        for baud, before in ((initial_baud, 'usb_reset'), (115200, 'usb_reset'), (115200, 'default_reset')):
             self._link(baud, before)
             try:
                 info = self.run('flash_id')
@@ -131,9 +171,9 @@ def backup(tool):
     set_private(folder, 0o700)
     image_path, verify_path = folder/'flash.bin', folder/'verify.bin'
     print('备份 1/2：读取 8 MB Flash（只读，不擦除、不写入）…', flush=True)
-    tool.run('read_flash', '0', hex(SIZE), str(image_path))
+    tool.read_range(0, SIZE, image_path)
     print('备份 2/2：再次读取 8 MB，用于独立校验…', flush=True)
-    tool.run('read_flash', '0', hex(SIZE), str(verify_path))
+    tool.read_range(0, SIZE, verify_path)
     image = image_path.read_bytes()
     if sha(image) != sha(verify_path.read_bytes()) or len(image) != SIZE:
         raise ValueError('Independent backup verification failed')
