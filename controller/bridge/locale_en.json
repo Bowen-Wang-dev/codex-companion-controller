@@ -339,5 +339,15 @@
   "网络权限请求": "network permission request",
   "目录权限请求": "directory permission request",
   "请先构建 0.2.13 固件": "Build firmware 0.2.13 first",
-  "固件校验失败": "Firmware validation failed"
+  "固件校验失败": "Firmware validation failed",
+  "固件缺少唯一的设备语言标记；请重新构建。": "Firmware has no unique device-language marker; rebuild first.",
+  "固件语言与 manifest 不一致；请重新构建。": "Firmware language does not match its manifest; rebuild first.",
+  "固件语言与当前控制台入口不一致；请从此入口重新构建。": "Firmware language does not match this console entry; rebuild from this entry.",
+  "Controller 0.2.14 · 原 App 原生审批与设备同步 · 双端直接允许或拒绝。": "Controller 0.2.14 · Original App native approvals synced to the device · Allow or deny directly on either side.",
+  "请先构建 0.2.14 固件": "Build firmware 0.2.14 first",
+  "macOS 请在 private/local-env.sh 配置 CONTROLLER_FLASH_PYTHON（esptool 4.x）。": "On macOS, configure CONTROLLER_FLASH_PYTHON (esptool 4.x) in private/local-env.sh.",
+  "1 构建本入口语言的固件（需原版私有表情素材）\n2 检查镜像、语言与当前源码\n3 USB 安全升级": "1 Build firmware in this entry language (original private emoji assets required)\n2 Check image, language and current source\n3 Safe USB update",
+  "4 准备 Windows 刷写环境（下载 esptool 4.8.1）": "4 Prepare Windows flash environment (download esptool 4.8.1)",
+  "4 查看 macOS 刷写环境要求": "4 View macOS flash environment requirements",
+  "q 返回": "q Back"
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include "cJSON.h"
+#define DEVICE_TX_BYTES 768
 void network_start(void);
 void network_arm(void);
 bool network_pairing_armed(void);

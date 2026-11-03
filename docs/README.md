@@ -22,6 +22,8 @@
 | 版本演进与决策 | [08](handoff/08-CHANGE-AND-DECISIONS.md) | [08](handoff/08-CHANGE-AND-DECISIONS.en.md) |
 | 待办与未验收项 | [09](handoff/09-BACKLOG.md) | [09](handoff/09-BACKLOG.en.md) |
 | 常见问题 | [10](handoff/10-QUICK-FAQ.md) | [10](handoff/10-QUICK-FAQ.en.md) |
+| 设备安装语言 | [13](handoff/13-DEVICE-LANGUAGES.md) | [13](handoff/13-DEVICE-LANGUAGES.en.md) |
+| v0.2.14 设备中英文版本 | [版本记录](releases/v0.2.14.md) | [Version record](releases/v0.2.14.en.md) |
 | PC 端语言与独立入口 | [12](handoff/12-HOST-LANGUAGES.md) | [12](handoff/12-HOST-LANGUAGES.en.md) |
 | macOS / Windows | [11](handoff/11-HOST-PLATFORMS.md) | [11](handoff/11-HOST-PLATFORMS.en.md) |
 | 第三方 API 兼容 | [路线图](API_COMPATIBILITY.md) | [Compatibility](API_COMPATIBILITY.en.md) |
@@ -40,6 +42,6 @@
 ## 维护规则与阶段
 
 - 更新现行中文时，同步更新对应英文，保留同等细节；命令、路径、版本、金额、阈值、摘要、测试数字及已验收/待验收结论必须一致。界面原文可作为识别设备提示的引用保留；不擅自翻译文件名或命令。
-- 第一阶段 Markdown 已单独 commit/push；第二阶段现实现独立中文/英文 `.command` / `.cmd` 控制台及 PC 子工具，单独提交/推送；第三阶段再处理固件及其他部分。文档描述后续计划不等于相关功能已经交付。
+- 第一阶段 Markdown 已单独 commit/push；第二阶段现实现独立中文/英文 `.command` / `.cmd` 控制台及 PC 子工具，单独提交/推送；第三阶段现提供由安装入口决定语言的 0.2.14 设备固件及配套保护，另行提交/推送，未代用户刷写。文档描述后续计划不等于相关功能已经交付。
 - 源码、镜像、运行加载和实机验收分开记录。本文档阶段不重新运行服务、不触及设备，不把以前测试称为本次新执行。
 - 私有配置、账单、配对、备份、Apple 素材及含图固件不进入公开文档或 Git。

@@ -8,7 +8,7 @@ if [[ ! -x "${CONTROLLER_FLASH_PYTHON:-}" ]]; then
  exit 1
 fi
 "$CONTROLLER_FLASH_PYTHON" -c 'import esptool; assert esptool.__version__.split(".")[0]=="4", "esptool 4.x required"; print("Flash runtime: esptool",esptool.__version__)'
-companion_message '0.2.13：原 App 与设备双端直接审批，移除长按转到 PC 端。' '0.2.13: direct approvals in the original App and device; hold-to-handoff removed.'
+companion_message '0.2.14：原 App 与设备双端直接审批，移除长按转到 PC 端。' '0.2.14: direct approvals in the original App and device; hold-to-handoff removed.'
 companion_prompt '程序目录：' 'Project directory: '; printf '%s\n' "$CONTROLLER_ROOT"
 companion_message '先运行主机测试；不会调用模型，也不会消耗重置次数。' 'Running host tests first; no model calls or reset credits are consumed.'
 "$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v
@@ -18,9 +18,11 @@ from pathlib import Path
 root=Path(sys.argv[1]);manifest=json.loads((root/'dist/manifest.json').read_text())
 sys.path.insert(0,str(root/'bridge'))
 from console_i18n import tr
-assert manifest['version']=='0.2.13',tr('请先构建 0.2.13 固件')
+assert manifest['version']=='0.2.14',tr('请先构建 0.2.14 固件')
 assert manifest['sha256']==hashlib.sha256((root/'dist/PassportController.bin').read_bytes()).hexdigest(),tr('固件校验失败')
 sys.path.insert(0,str(root/'scripts'))
+from firmware_update import validate_image
+validate_image(root)
 from launch_desktop import verify_build
 verify_build()
 PY

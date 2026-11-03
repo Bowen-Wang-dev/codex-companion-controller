@@ -1,6 +1,7 @@
 """Bounded device review for official Hooks; never grant new sandbox scopes."""
 import json
 from pathlib import Path
+from device_i18n import dt, DeviceText, render, localized_join, device_string
 import shlex
 
 
@@ -13,10 +14,10 @@ def permission_summary(event):
     permissions=args.get('permissions') if isinstance(args,dict) else None
     if not isinstance(permissions,dict):return None
     lines=[];network=permissions.get('network')
-    if isinstance(network,dict) and network.get('enabled') is True:lines.append('网络连接权限')
+    if isinstance(network,dict) and network.get('enabled') is True:lines.append(dt('网络连接权限'))
     fs=permissions.get('file_system',permissions.get('fileSystem'))
     if isinstance(fs,dict):
-        for mode,label in (('read','读取'),('write','写入')):
+        for mode,label in (('read',dt('读取')),('write',dt('写入'))):
             paths=fs.get(mode)
             if isinstance(paths,list):lines.extend(label+' '+p for p in paths if isinstance(p,str))
         entries=fs.get('entries')
@@ -25,10 +26,10 @@ def permission_summary(event):
                 if not isinstance(entry,dict):continue
                 path=entry.get('path')
                 if isinstance(path,dict) and isinstance(path.get('path'),str):
-                    lines.append(('读取' if entry.get('access')=='read' else '写入')+' '+path['path'])
+                    lines.append((dt('读取') if entry.get('access')=='read' else dt('写入'))+' '+path['path'])
     if not lines:return None
-    heading='权限请求' if len(lines)>1 else '网络权限请求' if lines[0]=='网络连接权限' else '目录权限请求'
-    return heading,'\n'.join(lines)
+    heading=dt('权限请求') if len(lines)>1 else dt('网络权限请求') if lines[0]==dt('网络连接权限') else dt('目录权限请求')
+    return heading,localized_join('\n',lines)
 
 
 def project_name(event):
@@ -76,8 +77,8 @@ def display(event):
     """All approvable details fit the existing 2 / 6 / 2 line device layout."""
     tool=event.get('tool_name','Operation');args=event.get('tool_input')
     name=project_name(event)
-    result={'command':'操作审批 · 在 PC 端查看','project':name or 'Unknown project',
-            'scope':'复杂操作：请在 PC 端审阅','can_allow':False,'can_deny':True}
+    result={'command':dt('操作审批 · 在 PC 端查看'),'project':name or 'Unknown project',
+            'scope':dt('复杂操作：请在 PC 端审阅'),'can_allow':False,'can_deny':True}
     if not isinstance(args,dict) or name is None:return result
     if tool=='Bash':
         command=args.get('command',args.get('cmd'))
@@ -89,13 +90,13 @@ def display(event):
         if not ordinary_command(command,cwd):return result
         mode=args.get('sandbox_permissions','use_default')
         if mode not in ('use_default','require_escalated'):return result
-        title='命令执行审批';body='项目：'+name+'\n'+command
-        scope='沙箱外执行，仅当前命令' if mode=='require_escalated' else '本次命令，现有沙箱权限'
+        title=dt('命令执行审批');body=dt('项目：')+name+'\n'+command
+        scope=dt('沙箱外执行，仅当前命令') if mode=='require_escalated' else dt('本次命令，现有沙箱权限')
     elif isinstance(tool,str) and tool.startswith(('mcp__filesystem__','mcp__fs__')):
         operation=tool.rsplit('__',1)[-1]
         if operation not in ('read_file','list_directory','get_file_info') or set(args)!={'path'} or not ordinary_path(args['path'],event.get('cwd')):return result
-        title='MCP '+operation;body='项目：'+name+'\n'+json.dumps(args,ensure_ascii=False,separators=(',',':'))
-        scope='仅本次操作 · 现有权限'
+        title='MCP '+operation;body=dt('项目：')+name+'\n'+json.dumps(args,ensure_ascii=False,separators=(',',':'))
+        scope=dt('仅本次操作 · 现有权限')
     else:return result
     if len(body.encode())>90 or len(title)>48:return result
     return {'command':title,'project':body,'scope':scope,'can_allow':True,'can_deny':True}

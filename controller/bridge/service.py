@@ -8,6 +8,7 @@ import math
 import os
 import select
 from pathlib import Path
+from device_i18n import dt, DeviceText, render, localized_join, device_string
 import socketserver
 import threading
 import time
@@ -24,7 +25,10 @@ from console_i18n import tr
 ROOT = Path(__file__).resolve().parents[1]
 
 def excerpt(value,limit):
-    return str(value).encode('utf-8')[:limit].decode('utf-8','ignore')
+    clipped = str(value).encode('utf-8')[:limit].decode('utf-8','ignore')
+    if isinstance(value, DeviceText):
+        return DeviceText(clipped, value.english.encode('utf-8')[:limit].decode('utf-8','ignore'))
+    return clipped
 
 
 def desktop_reply(broker,event,connection,stream,interval=20):
@@ -64,13 +68,13 @@ class Broker:
         self.completed_until = 0
         self.expression=''; self.expression_until=0
         self.awaiting_execution = None
-        self.history = ['Bridge 已启动，等待会话事件']
+        self.history = [dt('Bridge 已启动，等待会话事件')]
         self.account_binding = None
         self.reset_offer = None
         self.reset_busy = False
         self.reset_status = ''
         self.transport = 'usb'
-        self.usage_status = '正在读取账户'
+        self.usage_status = dt('正在读取账户')
         self.provider_info = {'id': 'chatgpt', 'name': 'ChatGPT', 'model': '', 'billing': 'subscription'}
         self.meter = UsageLedger(meter_path)
         self.session_turns = {}
@@ -86,6 +90,7 @@ class Broker:
         self.receipt = ''
         self.notice = None
         self.firmware = ''
+        self.device_language = 'zh-CN'
         self.readonly_notices = False
         self.prehook_review = False
         self.battery = None
@@ -123,7 +128,7 @@ class Broker:
                     if pending.get('relay')==relay:pending['cancelled']=True
                 self.desktop_deliveries={k:v for k,v in self.desktop_deliveries.items() if v['relay']!=relay}
                 if self.state=='approval_sent':
-                    self.set_state('idle');self.receipt='App 已断开 · 请在 PC 端检查结果'
+                    self.set_state('idle');self.receipt=dt('App 已断开 · 请在 PC 端检查结果')
             else:
                 if relay not in self.desktop_relays and len(self.desktop_relays)>=16:return {}
                 self.desktop_relays[relay]={'at':time.monotonic(),'sessions':set(sessions),
@@ -139,7 +144,7 @@ class Broker:
                         self.active_model=model
                     self.session_models[thread]=model
                     if changed and thread==self.active_session:
-                        self.receipt='模型已切换 · '+model
+                        self.receipt=dt('模型已切换 · ')+model
                         self.history.insert(0,self.receipt)
                         self.history=self.history[:20]
             elif kind=='token_usage':
@@ -168,7 +173,7 @@ class Broker:
                 if self.state=='approval_sent':self.set_state('working' if allow else 'denied')
                 self.expression='delight' if allow else 'crying'
                 self.expression_until=time.monotonic()+3
-                self.receipt='批准已送达 Codex' if allow else '拒绝已送达 Codex'
+                self.receipt=dt('批准已送达 Codex') if allow else dt('拒绝已送达 Codex')
                 self.last_device_delivery={'id':event['request_id'],'choice':pending['choice'],
                     'at':int(time.time()),'stage':'submitted'}
             elif kind=='turn/started':
@@ -188,7 +193,7 @@ class Broker:
                 status=event.get('status')
                 if status in ('completed','failed','interrupted'):
                     self.set_state({'completed':'completed','failed':'failed','interrupted':'idle'}[status])
-                    self.receipt={'completed':'本轮响应已结束','failed':'任务失败 · 请在 PC 端查看','interrupted':'操作已中断'}[status]
+                    self.receipt={'completed':dt('本轮响应已结束'),'failed':dt('任务失败 · 请在 PC 端查看'),'interrupted':dt('操作已中断')}[status]
                     self.history.insert(0,self.receipt);self.history=self.history[:20]
         return {}
 
@@ -213,20 +218,20 @@ class Broker:
             if params.get('additionalPermissions') is not None:can_allow=False
             available=params.get('availableDecisions')
             if available is not None and (not isinstance(available,list) or 'accept' not in available):can_allow=False
-            command=view.get('command','文件修改 · 请在 PC 端查看');project=view.get('project','')
-            scope=view.get('scope','修改内容请在 PC 端审阅')
+            command=view.get('command',dt('文件修改 · 请在 PC 端查看'));project=view.get('project','')
+            scope=view.get('scope',dt('修改内容请在 PC 端审阅'))
             allow={'decision':'accept'};deny={'decision':'decline'}
         normalized={'hook_event_name':'DesktopApproval','session_id':thread,'turn_id':turn,
             'tool_use_id':relay+':'+json.dumps(event['native_id']),'tool_name':method,
             'tool_input':params}
-        view={'command':command.replace('CLI','PC 端'),'project':project,'scope':scope.replace('CLI','PC 端'),
+        view={'command':command.replace('CLI',dt('PC 端')),'project':project,'scope':scope.replace('CLI',dt('PC 端')),
             'can_allow':can_allow,'can_deny':True,'allow_result':allow,'deny_result':deny,
             'relay':relay,'native_item':item,'native_method':method,
             'delivery_receipt':registered.get('approval_receipts',False)}
         # Old firmware keeps its bounded, single-screen policy. Only an explicit
         # capability handshake enables full, paged review and long approvals.
         if self.review_protocol == 1:
-            view.update(native_view(method,params))
+            view.update(native_view(method,params,self.device_language))
         return self.wait_hook(normalized,view,'desktop',timeout,alive)
 
     def observe_user_input(self,event):
@@ -244,14 +249,14 @@ class Broker:
         if call and any(n.get('tool_use_id')==call and n.get('session')==session for n in self.input_notices):return
         self.input_notices.append({'id':str(uuid.uuid4()),'session':session,'tool_use_id':call,
             'turn':event.get('turn_id'),'deadline':time.monotonic()+110,
-            'command':'等待你回复','project':'\n'.join(texts),'scope':'请在 PC 端查看完整问题并回复',
+            'command':dt('等待你回复'),'project':localized_join('\n',texts),'scope':dt('请在 PC 端查看完整问题并回复'),
             'digest':hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest(),
             'request_kind':'user_input','can_allow':False,'can_deny':False})
         self.input_notices=self.input_notices[-8:]
         if self.review_protocol==1:
-            self.input_notices[-1].update(review_pages=review_pages('\n'.join(texts)),
+            self.input_notices[-1].update(review_pages=review_pages(localized_join('\n',texts)),
                 review_index=0,review_furthest=0,review_delivered=-1)
-        self.history.insert(0,'需要你操作或回复');self.history=self.history[:20]
+        self.history.insert(0,dt('需要你操作或回复'));self.history=self.history[:20]
 
     def set_state(self, state):
         """Completion is a short presentation state, never a delayed callback."""
@@ -294,7 +299,7 @@ class Broker:
                 return {'cleared':False,'reason':'connection_changed'}
             if not self.meter.clear(message.get('meter_id')):
                 return {'cleared':False,'reason':'stale_meter'}
-            self.receipt='Token 计数已清零'
+            self.receipt=dt('Token 计数已清零')
             self.history.insert(0,self.receipt);self.history=self.history[:20]
             return {'cleared':True,'meter_id':self.meter.reset_id}
 
@@ -316,14 +321,14 @@ class Broker:
             metering=self.metering_snapshot()
             metering['usage']['reader_issue'] = self.response_reader_issue
             return {'online':self.online(),'transport':self.transport,'firmware':self.firmware,'battery':self.battery,
-                    'bridge_revision':'0.2.13-native-app',
+                    'bridge_revision':'0.2.14-native-app','device_language':self.device_language,
                     'metering':metering,
                     'project_root':str(ROOT),
                     'network':dict(self.network_health),
                     'reconnect_count':self.reconnect_count,
                     'device_age':round(time.monotonic()-self.last_seen,2) if self.boot else None,
                     'review_protocol':self.review_protocol,
-                    'review_format':'中文说明',
+                    'review_format':dt('中文说明'),
                     'last_device_decision':self.last_device_decision,
                     'last_device_delivery':self.last_device_delivery,
                     'approval_ui':'native_app',
@@ -347,7 +352,7 @@ class Broker:
         if event.get('hook_event_name') == 'PostToolUse':
             if self.notice and event.get('session_id') == self.notice['session'] and event.get('tool_use_id') == self.notice['tool_use_id']:
                 self.notice = None
-                self.receipt = '权限请求已返回，结果以 PC 端为准'
+                self.receipt = dt('权限请求已返回，结果以 PC 端为准')
             return
         summary=permission_summary(event)
         if summary is None:return
@@ -358,8 +363,8 @@ class Broker:
         heading,details=summary
         self.notice={'id':str(uuid.uuid4()),'session':key[0],'tool_use_id':key[1],
                      'turn':event.get('turn_id'),
-                     'deadline':time.monotonic()+110,'command':heading+' · 在 PC 端确认',
-                     'project':details,'scope':'详情与授权范围请在 PC 端查看',
+                     'deadline':time.monotonic()+110,'command':heading+dt(' · 在 PC 端确认'),
+                     'project':details,'scope':dt('详情与授权范围请在 PC 端查看'),
                      'digest':hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest()}
         print(tr('检测到') + tr(heading) + tr('：设备提醒，授权在 PC 端完成。'), flush=True)
 
@@ -377,8 +382,8 @@ class Broker:
             if name in ('PreToolUse','PostToolUse'):self.observe_permission_request(event)
             if name in ('Stop','Interrupt','SessionEnd') and self.notice and event.get('session_id')==self.notice['session'] and (name=='SessionEnd' or not event.get('turn_id') or self.notice.get('turn')==event.get('turn_id')):
                 self.notice=None
-            labels={'UserPromptSubmit':'开始处理新请求','PreToolUse':'正在调用工具','PostToolUse':'工具已返回','PermissionRequest':'等待权限确认','Stop':'本轮响应已结束','Interrupt':'操作已中断','SessionEnd':'会话已结束'}
-            self.history.insert(0, labels.get(name,str(name or '事件')))
+            labels={'UserPromptSubmit':dt('开始处理新请求'),'PreToolUse':dt('正在调用工具'),'PostToolUse':dt('工具已返回'),'PermissionRequest':dt('等待权限确认'),'Stop':dt('本轮响应已结束'),'Interrupt':dt('操作已中断'),'SessionEnd':dt('会话已结束')}
+            self.history.insert(0, labels.get(name,device_string(name or dt('事件'))))
             self.history = self.history[:20]
             session = event.get('session_id')
             if name in ('Stop','Interrupt','SessionEnd'):
@@ -395,7 +400,7 @@ class Broker:
                     self.set_state('denied' if outcome=='denied' else 'working')
                     self.expression='delight' if outcome=='granted' else 'crying' if outcome=='denied' else ''
                     self.expression_until=time.monotonic()+3
-                    self.receipt='权限已授予' if outcome=='granted' else '权限未授予' if outcome=='denied' else '仅部分权限授予 · 请在 PC 端查看'
+                    self.receipt=dt('权限已授予') if outcome=='granted' else dt('权限未授予') if outcome=='denied' else dt('仅部分权限授予 · 请在 PC 端查看')
                     return {}
             if name in ('UserPromptSubmit', 'PreToolUse'):
                 self.set_state('working')
@@ -403,7 +408,7 @@ class Broker:
                 self.active_session = session
             elif session == self.active_session and name == 'Stop' and not self.native_session and not self.desktop_session(session):
                 self.set_state('completed')
-                self.receipt = '本轮响应已结束'
+                self.receipt = dt('本轮响应已结束')
             elif session == self.active_session and name == 'Interrupt':
                 self.set_state('idle')
                 if self.request:
@@ -415,13 +420,13 @@ class Broker:
             # A failed shell command is not necessarily a failed Codex turn.
             # PostToolUse is execution evidence, never a synthetic permission ack.
             elif name == 'PostToolUse':
-                self.receipt = '工具已返回'
+                self.receipt = dt('工具已返回')
                 pending = self.awaiting_execution
                 digest = hashlib.sha256(json.dumps(event.get('tool_input'), sort_keys=True).encode()).hexdigest()
                 if pending and time.monotonic() < pending['until'] and session == pending['session'] and event.get('tool_name') == pending['tool'] and digest == pending['digest']:
                     self.set_state('working')
                     self.expression = 'delight'; self.expression_until = time.monotonic() + 1.2
-                    self.receipt = '已观察到该命令执行返回'
+                    self.receipt = dt('已观察到该命令执行返回')
                     self.awaiting_execution = None
             return {}
 
@@ -450,7 +455,7 @@ class Broker:
             if self.notice and self.notice['session']==event.get('session_id') and self.notice['tool_use_id']==event.get('tool_use_id'):
                 self.notice=None
         view={'command':heading,'project':details,
-              'scope':'批准在 PC 端 · 下键拒绝','can_allow':True,'can_deny':True,'action_mode':'mac_confirm'}
+              'scope':dt('批准在 PC 端 · 下键拒绝'),'can_allow':True,'can_deny':True,'action_mode':'mac_confirm'}
         return self.wait_hook(event,view,'prehook',timeout,alive)
 
     def permission(self, event, timeout=110,alive=lambda:True):
@@ -465,9 +470,9 @@ class Broker:
         if self.review_protocol==1:
             # This is the official PermissionRequest hook, not PreToolUse.
             # Its allow applies to this invocation only; show the full input.
-            view={'command':'操作审批','project':'','scope':'仅本次操作 · 不记住批准',
+            view={'command':dt('操作审批'),'project':'','scope':dt('仅本次操作 · 不记住批准'),
                   'can_allow':True,'can_deny':True,
-                  'review_pages':review_pages(hook_text(event))}
+                  'review_pages':review_pages(hook_text(event),self.device_language)}
         return self.wait_hook(event,view,'hook',timeout,alive)
 
     def wait_hook(self,event,view,source,timeout,alive):
@@ -500,12 +505,12 @@ class Broker:
                         if source=='prehook' and req['choice']=='allow':
                             # Continue the original invocation; the PC 端 still
                             # asks for the actual grant. Never return Hook allow.
-                            self.set_state('working');self.receipt='请在 PC 端确认权限'
-                            self.notice=dict(req,can_allow=False,can_deny=False,command=req['command']+' · 在 PC 端确认',
+                            self.set_state('working');self.receipt=dt('请在 PC 端确认权限')
+                            self.notice=dict(req,can_allow=False,can_deny=False,command=req['command']+dt(' · 在 PC 端确认'),
                                              tool_use_id=event.get('tool_use_id'),action_mode='')
                             self.expression='';req['result']={}
                             return {}
-                        self.receipt = '已向 Codex 提交' + ('批准' if req['choice']=='allow' else '拒绝')
+                        self.receipt = dt('已向 Codex 提交') + (dt('批准') if req['choice']=='allow' else dt('拒绝'))
                         self.set_state('approval_sent' if req['choice']=='allow' else 'denied')
                         self.expression='' if req['choice']=='allow' else 'crying'
                         self.expression_until=time.monotonic()+2.5
@@ -524,7 +529,7 @@ class Broker:
                             if req.get('delivery_receipt'):req['result']['request_id']=req['id']
                         elif source=='prehook':
                             req['result']={'hookSpecificOutput':{'hookEventName':'PreToolUse',
-                                'permissionDecision':'deny','permissionDecisionReason':'用户在 AI Passport 拒绝本次权限请求'}}
+                                'permissionDecision':'deny','permissionDecisionReason':dt('用户在 AI Passport 拒绝本次权限请求')}}
                         else:
                             req['result']={'hookSpecificOutput': {'hookEventName': 'PermissionRequest',
                                 'decision': {'behavior': req['choice']}}}
@@ -598,16 +603,16 @@ class Broker:
             for key in expired:self.desktop_deliveries.pop(key)
             if expired and self.state=='approval_sent':
                 self.set_state('working')
-                self.receipt='回执未确认 · 请在 PC 端查看'
+                self.receipt=dt('回执未确认 · 请在 PC 端查看')
             # Legacy relay/Hook outcomes can be absent. Never leave a sticky
             # approval_sent screen or manufacture a successful permission grant.
             if self.native_awaiting and time.monotonic()>=self.native_awaiting['until']:
                 self.native_awaiting=None
                 if self.state=='approval_sent':
-                    self.set_state('working');self.receipt='回执未确认 · 请在 PC 端查看'
+                    self.set_state('working');self.receipt=dt('回执未确认 · 请在 PC 端查看')
             if self.state == 'completed' and self.completed_until and time.monotonic() >= self.completed_until:
                 self.set_state('idle')
-                if self.receipt == '本轮响应已结束':self.receipt = ''
+                if self.receipt == dt('本轮响应已结束'):self.receipt = ''
             if self.notice and time.monotonic()>=self.notice['deadline']:self.notice=None
             self.input_notices=[n for n in self.input_notices if time.monotonic()<n['deadline']]
             self.seq += 1
@@ -629,9 +634,9 @@ class Broker:
                     'resets': usage.get('resets'), 'receipt': self.receipt, 'history':self.history[:8],
                     'usage_status':self.usage_status, 'provider':provider_snapshot, 'transport':self.transport, 'reset_status':self.reset_status,
                     'reset_id':self.offer_reset(usage), 'face':self.expression if time.monotonic()<self.expression_until else '',
-                    'hook_status':(('App 实体审批已接入' if any(time.monotonic()-r['at']<8 and r['sessions'] for r in self.desktop_relays.values()) else 'App 已连接 · 等待会话' if any(time.monotonic()-r['at']<8 for r in self.desktop_relays.values()) else 'App 审批尚未连接') if self.desktop_mode else
-                                  ('CLI 审批已接入' if self.native_connected else 'CLI 审批连接失败' if self.native_error else 'CLI 审批连接中') if self.native_session else
-                                   ('已收到事件 · '+str(int(time.monotonic()-self.last_hook))+'秒前') if self.hook_count else '未收到事件，请检查 Hooks')}
+                    'hook_status':((dt('App 实体审批已接入') if any(time.monotonic()-r['at']<8 and r['sessions'] for r in self.desktop_relays.values()) else dt('App 已连接 · 等待会话') if any(time.monotonic()-r['at']<8 for r in self.desktop_relays.values()) else dt('App 审批尚未连接')) if self.desktop_mode else
+                                  (dt('CLI 审批已接入') if self.native_connected else dt('CLI 审批连接失败') if self.native_error else dt('CLI 审批连接中')) if self.native_session else
+                                   (dt('已收到事件 · ')+str(int(time.monotonic()-self.last_hook))+dt('秒前')) if self.hook_count else dt('未收到事件，请检查 Hooks'))}
             usage_mode='token' if self.provider_info.get('billing')=='token' else 'credits'
             data.update(usage_mode=usage_mode,
                 token_usage=metering['usage'],
@@ -656,7 +661,7 @@ class Broker:
                     command=n['command'],project=excerpt(n['project'],90),scope=n['scope'],
                     request_kind='user_input',can_allow=False,can_deny=False)
                 self.add_review(data,n)
-            return data
+            return render(data, self.device_language)
 
     def offer_reset(self, usage):
         if not self.account_binding or not self.online() or self.request or self.notice or not usage.get('resets') or self.reset_busy:
@@ -673,18 +678,18 @@ class Broker:
             offer=self.reset_offer
             if not offer or self.reset_busy or not self.online() or self.request or time.monotonic()>offer['expires']:return False
             if message.get('boot')!=offer['boot'] or message.get('epoch')!=self.epoch or message.get('id')!=offer['id']:return False
-            self.reset_busy=True; self.reset_status='正在请求重置'; offer=dict(offer)
+            self.reset_busy=True; self.reset_status=dt('正在请求重置'); offer=dict(offer)
         def consume():
             client=None; journal=ROOT/'private/reset-journal.json'
             try:
                 client=AccountClient(); usage=client.read()
-                if client.account_binding!=offer['binding']:raise RuntimeError('账户已变更')
-                if not usage.get('resets'):raise RuntimeError('没有可用重置')
+                if client.account_binding!=offer['binding']:raise RuntimeError(dt('账户已变更'))
+                if not usage.get('resets'):raise RuntimeError(dt('没有可用重置'))
                 journal.parent.mkdir(exist_ok=True)
                 save_journal(journal,{'id':offer['id'],'binding':offer['binding'],'status':'pending'})
                 outcome=client.consume_once(offer['id']).get('outcome')
-                labels={'reset':'重置成功','alreadyRedeemed':'已完成该次重置','nothingToReset':'当前无需重置','noCredit':'没有可用重置'}
-                if outcome not in labels:raise RuntimeError('未知结果')
+                labels={'reset':dt('重置成功'),'alreadyRedeemed':dt('已完成该次重置'),'nothingToReset':dt('当前无需重置'),'noCredit':dt('没有可用重置')}
+                if outcome not in labels:raise RuntimeError(dt('未知结果'))
                 with self.lock:
                     self.reset_status=labels[outcome]; self.reset_offer=None
                     self.history.insert(0,self.reset_status)
@@ -692,7 +697,7 @@ class Broker:
                 updated=client.read()
                 with self.lock:self.usage=updated; self.usage_at=time.monotonic()
             except Exception:
-                with self.lock:self.reset_status='结果未确认，可重试同一次'
+                with self.lock:self.reset_status=dt('结果未确认，可重试同一次')
             finally:
                 if client:client.close()
                 with self.lock:self.reset_busy=False
@@ -723,6 +728,10 @@ class Broker:
                 if not self.online() or self.boot!=message['boot']:
                     print(tr('设备已握手：') + (tr('Wi-Fi 加密连接') if transport == 'wifi' else tr('USB 连接')) + tr('；固件 ') + str(message.get('firmware', tr('未知'))) + tr('；空闲堆 ') + str(message.get('free_heap', '—')) + tr(' / 最大连续块 ') + str(message.get('largest_heap', '—')), flush=True)
                 if self.boot!=message['boot']:
+                    # Installed firmware owns its language. The PC entry never
+                    # changes it, and an unversioned/legacy hello stays Chinese.
+                    protocol=message.get('ui_language_protocol')
+                    self.device_language='en' if type(protocol) is int and protocol==1 and message.get('ui_language')=='en' else 'zh-CN'
                     if self.request:self.request['cancelled']=True
                     for pending in self.hook_pending:pending['cancelled']=True
                     self.hook_results.clear()
@@ -833,7 +842,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                         broker.usage_at = time.monotonic()
                         broker.account_binding = provider.binding
                         broker.provider_info = {'id': provider.provider_id, 'name': provider.name, 'model': provider.model, 'billing': 'token'}
-                        broker.usage_status = '第三方 API 模式 · 按 Token 计费'
+                        broker.usage_status = dt('第三方 API 模式 · 按 Token 计费')
                     print('Custom provider mode: numeric usage and local model rates are handled by the token ledger.', flush=True)
                     stopping.wait(60)
                     continue
@@ -844,11 +853,11 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                     broker.usage_at = time.monotonic()
                     broker.account_binding=client.account_binding
                     broker.provider_info = {'id': 'chatgpt', 'name': 'ChatGPT', 'model': '', 'billing': 'subscription'}
-                    broker.usage_status='额度已同步'
+                    broker.usage_status=dt('额度已同步')
                 print('ChatGPT account verified; usage refreshed (no model task).', flush=True)
             except Exception as e:
                 print('Account unavailable:', type(e).__name__, flush=True)
-                with broker.lock:broker.usage_status='账户暂不可用，正在重试'
+                with broker.lock:broker.usage_status=dt('账户暂不可用，正在重试')
             finally:
                 if client:
                     client.close()

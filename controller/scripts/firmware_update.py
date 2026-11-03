@@ -10,7 +10,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'bridge'))
-from console_i18n import tr
+from console_i18n import language, tr
+from host_platform import WINDOWS
 
 
 def source_digest(root=ROOT):
@@ -26,7 +27,16 @@ def source_digest(root=ROOT):
     return digest.hexdigest()
 
 
-def validate_image(root=ROOT, require_assets=True):
+def image_language(image):
+    """Read installed language from the application rather than the PC env."""
+    found=[value for value in ('zh-CN','en')
+           if ('COMPANION_UI_LANGUAGE='+value+'\0').encode('ascii') in image]
+    if len(found)!=1:
+        raise ValueError(tr('固件缺少唯一的设备语言标记；请重新构建。'))
+    return found[0]
+
+
+def validate_image(root=ROOT, require_assets=True, expected_language=None):
     manifest = json.loads((root/'dist/manifest.json').read_text(encoding='utf-8'))
     image = (root/'dist/PassportController.bin').read_bytes()
     version = re.search(r'set\(PROJECT_VER "companion-([^"]+)"\)',
@@ -41,19 +51,29 @@ def validate_image(root=ROOT, require_assets=True):
         raise ValueError(tr('缺少 Apple 原版表情素材，拒绝刷入无表情固件。请从原 Mac 私有备份恢复 pet_assets.h 后重新构建。'))
     if manifest.get('bootloader_included') is not False or manifest.get('partition_table_included') is not False:
         raise ValueError(tr('只允许应用镜像。'))
+    installed=image_language(image)
+    if manifest.get('ui_language')!=installed:
+        raise ValueError(tr('固件语言与 manifest 不一致；请重新构建。'))
+    if installed!=(expected_language or language()):
+        raise ValueError(tr('固件语言与当前控制台入口不一致；请从此入口重新构建。'))
     return manifest
 
 
 def build():
     if not (ROOT/'firmware/main/pet_assets.h').is_file():
         raise RuntimeError(tr('缺少私有 firmware/main/pet_assets.h。请从原 Mac 私有备份恢复；不会替换表情或构建用于升级的无图固件。'))
+    if not WINDOWS:
+        subprocess.run(['bash',str(ROOT/'scripts/build.sh')],cwd=ROOT,check=True)
+        return validate_image()
     env = dict(os.environ)
+    selected_language=language()
+    define='-DCOMPANION_FIRMWARE_LANGUAGE='+selected_language
     idf = env.get('IDF_PATH')
     if idf and (Path(idf)/'tools/idf.py').is_file():
         version = subprocess.check_output([sys.executable, str(Path(idf)/'tools/idf.py'), '--version'], text=True)
         if not re.search(r'v5\.5\.3\b', version):
             raise RuntimeError(tr('需要 ESP-IDF 5.5.3；未使用未知版本构建。'))
-        subprocess.run([sys.executable, str(Path(idf)/'tools/idf.py'), '-B',
+        subprocess.run([sys.executable, str(Path(idf)/'tools/idf.py'), define, '-B',
                         str(ROOT/'private/build-windows'), 'build'], cwd=ROOT/'firmware', env=env, check=True)
         output = ROOT/'private/build-windows/PassportController.bin'
     else:
@@ -62,7 +82,7 @@ def build():
         script = ('set -eu; . "${IDF_PATH:-$HOME/esp/esp-idf-v5.5.3}/export.sh" >/dev/null; '
                   'python "$IDF_PATH/tools/idf.py" --version | grep -E "v5[.]5[.]3([^0-9]|$)"; '
                   'cd '+shlex.quote(linux_root+'/firmware')+'; '
-                  'python "$IDF_PATH/tools/idf.py" -B '+shlex.quote(linux_root+'/private/build')+' build')
+                  'python "$IDF_PATH/tools/idf.py" '+shlex.quote(define)+' -B '+shlex.quote(linux_root+'/private/build')+' build')
         subprocess.run(['wsl.exe', '-e', 'bash', '-c', script], check=True)
         output = ROOT/'private/build/PassportController.bin'
     dist = ROOT/'dist'
@@ -76,6 +96,10 @@ def build():
     manifest['source_sha256'] = source_digest()
     manifest_path.write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8')
     validate_image()
+    variant=dist/selected_language
+    variant.mkdir(exist_ok=True)
+    (variant/'PassportController.bin').write_bytes((dist/'PassportController.bin').read_bytes())
+    (variant/'manifest.json').write_bytes(manifest_path.read_bytes())
     print(tr('构建与源码绑定校验通过；尚未写入设备。'))
 
 
@@ -88,6 +112,9 @@ def flash_python():
 
 
 def setup_flash():
+    if not WINDOWS:
+        print(tr('macOS 请在 private/local-env.sh 配置 CONTROLLER_FLASH_PYTHON（esptool 4.x）。'))
+        return
     import venv
     from windows_security import secure_directory
     private = secure_directory(ROOT/'private', create=True, restrict_existing=True)
@@ -98,6 +125,9 @@ def setup_flash():
 
 
 def update():
+    if not WINDOWS:
+        validate_image()
+        return subprocess.run([str(ROOT/'维护工具/更新Token计量与清零固件.command')],cwd=ROOT,check=True).returncode
     from host_platform import usb_ports
     from connection_diagnostics import inspect
     from recover_bridge import stop_idle_bridge
@@ -122,7 +152,9 @@ def update():
 
 
 def main():
-    print(tr('1 构建最新固件（复用 ESP-IDF / WSL，需原版私有表情素材）\n2 检查镜像与当前源码\n3 USB 安全升级\n4 准备 Windows 刷写环境（下载 esptool 4.8.1）\nq 返回'))
+    print(tr('1 构建本入口语言的固件（需原版私有表情素材）\n2 检查镜像、语言与当前源码\n3 USB 安全升级'))
+    print(tr('4 准备 Windows 刷写环境（下载 esptool 4.8.1）') if WINDOWS else tr('4 查看 macOS 刷写环境要求'))
+    print(tr('q 返回'))
     choice = input(tr('选择：')).strip()
     if choice == '1':build()
     elif choice == '2':print(json.dumps(validate_image(), ensure_ascii=False, indent=2))

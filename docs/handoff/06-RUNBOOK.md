@@ -2,11 +2,11 @@
 
 简体中文（默认） · [English](06-RUNBOOK.en.md)
 
-适用源码：固件 `0.2.13`、Bridge `0.2.13-native-app`。当前部署与验收记录见[项目状态](01-PROJECT-STATE.md)，历史测试次数不作为本次运行结果。
+适用源码：固件 `0.2.14`、Bridge `0.2.14-native-app`。当前部署与验收记录见[项目状态](01-PROJECT-STATE.md)，历史测试次数不作为本次运行结果。
 
 ## 日常启动
 
-每平台每种语言一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。Windows 环境准备、只读检查及测试命令见 [双平台说明](11-HOST-PLATFORMS.md)；菜单 7 现已支持双平台安全固件维护。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](12-HOST-LANGUAGES.md)。设备语言留到第三阶段。
+每平台每种语言一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。Windows 环境准备、只读检查及测试命令见 [双平台说明](11-HOST-PLATFORMS.md)；菜单 7 现已支持双平台安全固件维护。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](12-HOST-LANGUAGES.md)。0.2.14 现按安装入口构建设备语言：英文入口安装英文固件，中文入口安装中文固件；之后的 PC 语言不改变设备。详见[设备语言说明](13-DEVICE-LANGUAGES.md)。
 
 | 菜单 | 操作 |
 |---|---|
@@ -78,7 +78,7 @@ bash controller/scripts/build.sh
 
 构建不刷机。macOS 镜像综合检查 `controller/scripts/check.sh` 额外需要 `CONTROLLER_FLASH_PYTHON`（esptool 4.x）。Bridge 与刷写解释器分别选择，维护入口在停服务前检查依赖。
 
-Windows 菜单 7→1 使用现有 ESP-IDF / WSL 构建，7→2 校验镜像与当前源码，7→4 准备独立 esptool 4.8.1，7→3 输入 `FLASH` 才开始安全 USB 更新。要求原版私有表情及匹配源码指纹，USB 始终由 Windows 访问。
+双平台菜单 7→1 构建入口语言的固件（Windows 使用现有 ESP-IDF / WSL），7→2 校验镜像、安装语言与当前源码。7→4 在 Windows 准备独立 esptool 4.8.1，在 macOS 说明刷写解释器配置；7→3 开始安全 USB 更新，Windows 需输入 `FLASH`，macOS 保留既有人工确认。要求原版私有表情及匹配源码指纹，USB 始终由 Windows 访问。
 
 设备更新通过菜单 7 及各平台原有受保护流程：测试与 manifest 校验、人工确认、停止 Bridge、双读完整备份、现场分区校验、仅应用更新及回读验证，再连接原 App。设备已报告目标版本时，不能为加载纯 Bridge 修复重复刷机。Windows 使用 256 KiB 读取块与有上限的只读重试；备份失败不进入写入。用户已确认修复后的 Windows 升级及基本目视检查，无需重复刷写。具体安全要求见[硬件与刷写](04-HARDWARE-AND-FLASH.md)。
 

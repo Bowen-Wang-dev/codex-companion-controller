@@ -14,6 +14,7 @@ import time
 import uuid
 from hook_policy import display as hook_display
 from approval_review import native_view
+from device_i18n import dt
 
 from websockets.exceptions import WebSocketException
 from websockets.sync.client import unix_connect
@@ -177,7 +178,7 @@ class NativeApprovals:
             with self.broker.lock:
                 self.broker.native_connected=False
                 if self.broker.request and self.broker.request.get('source')=='native':self.broker.request['cancelled']=True
-                self.broker.receipt='CLI 审批连接中断'
+                self.broker.receipt=dt('CLI 审批连接中断')
             for pending in self.pending.values():pending['resolved'].set()
 
     def message(self,client,message):
@@ -201,7 +202,7 @@ class NativeApprovals:
                 if pending:
                     pending['resolved'].set()
                     if not pending['sent']:
-                        with self.broker.lock:self.broker.receipt='请求已由 CLI 处理'
+                        with self.broker.lock:self.broker.receipt=dt('请求已由 CLI 处理')
             elif method=='turn/completed':
                 turn=params.get('turn',{})
                 for pending in self.pending.values():
@@ -210,7 +211,7 @@ class NativeApprovals:
                     status=turn.get('status')
                     if status in ('completed','failed','interrupted'):
                         self.broker.set_state({'completed':'completed','failed':'failed','interrupted':'idle'}[status])
-                        self.broker.receipt={'completed':'本轮响应已结束','failed':'任务失败 · 请在 CLI 查看','interrupted':'操作已中断'}[status]
+                        self.broker.receipt={'completed':dt('本轮响应已结束'),'failed':dt('任务失败 · 请在 CLI 查看'),'interrupted':dt('操作已中断')}[status]
                         self.broker.history.insert(0,self.broker.receipt);self.broker.history=self.broker.history[:20]
             elif method=='turn/started':
                 with self.broker.lock:self.broker.set_state('working');self.broker.active_session=self.thread_id
@@ -238,7 +239,7 @@ class NativeApprovals:
                     scope='范围过长或复杂 · CLI 审阅'
                     if method=='item/commandExecution/requestApproval':command='复杂命令 · 在 CLI 查看'
                 allow_result={'decision':'accept'};deny_result={'decision':'decline'}
-            view=native_view(method,params) if broker.review_protocol==1 else None
+            view=native_view(method,params,broker.device_language) if broker.review_protocol==1 else None
             if view:
                 command,project,scope,can_allow=(view[k] for k in ('command','project','scope','can_allow'))
                 allow_result=view['allow_result'];deny_result=view['deny_result']
@@ -261,22 +262,22 @@ class NativeApprovals:
                             broker.native_awaiting={'session':self.thread_id,'turn':params['turnId'],'item':params['itemId'],'until':time.monotonic()+120}
                         client.send({'id':message['id'],'result':allow_result if choice=='allow' else deny_result})
                         broker.set_state('approval_sent' if choice=='allow' else 'denied')
-                        broker.receipt='已提交'+('批准' if choice=='allow' else '拒绝')+'，等待 Codex 回执'
+                        broker.receipt=dt('已提交')+(dt('批准') if choice=='allow' else dt('拒绝'))+dt('，等待 Codex 回执')
                         broker.history.insert(0,broker.receipt);broker.history=broker.history[:20]
                         broker.expression='' if choice=='allow' else 'crying';broker.expression_until=time.monotonic()+2.5
                         break
                 if pending['resolved'].wait(.03):return
             else:
-                with broker.lock:broker.receipt='请求已过期 · 请在 CLI 处理'
+                with broker.lock:broker.receipt=dt('请求已过期 · 请在 CLI 处理')
                 return
             acknowledged=pending['resolved'].wait(max(0,min(5,req['deadline']-time.monotonic())))
             with broker.lock:
                 if broker.native_awaiting is not None or method!='item/permissions/requestApproval':
-                    broker.receipt='Codex 审批请求已结束' if acknowledged else '已提交，回执待确认'
+                    broker.receipt=dt('Codex 审批请求已结束') if acknowledged else dt('已提交，回执待确认')
                 # Resolution alone does not prove which client won a race or
                 # that a granted operation executed. Never fabricate success.
         except (OSError,ValueError,TypeError):
-            with broker.lock:broker.receipt='审批连接中断 · 请在 CLI 查看'
+            with broker.lock:broker.receipt=dt('审批连接中断 · 请在 CLI 查看')
         finally:
             with self.lock:self.pending.pop(json.dumps(message['id']),None)
             with broker.lock:

@@ -2,7 +2,7 @@
 
 [简体中文（默认）](12-HOST-LANGUAGES.md) · English
 
-Updated 2026-11-03 (Australia/Sydney). This is bilingual phase two: host user interaction. Phase-one documentation commit is `48603c8`; phase-three device firmware and other work have not been implemented.
+Updated 2026-11-03 (Australia/Sydney). This is bilingual phase two: host user interaction. Phase-one documentation commit is `48603c8`; phase three now adds 0.2.14 installed device languages and guards; see [device languages](13-DEVICE-LANGUAGES.en.md). Statements below about unchanged firmware retain the phase-two boundary.
 
 ## Choose an entry
 

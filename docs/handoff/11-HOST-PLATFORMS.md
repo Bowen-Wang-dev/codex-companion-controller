@@ -57,7 +57,7 @@ Windows Hooks 通过编码 PowerShell 调用当前独立解释器，保留路径
 - Git Bash 下 35 个 macOS shell 入口语法检查通过，不等于 macOS 运行或 C/Swift 编译验收；Windows `.cmd --check-only` 实际通过。
 - 新用例覆盖 Windows 鉴权、DACL 拒绝、单实例、COM 过滤、Hook stdin/中文引号路径、原生 relay 参数/退出码，包括中文、空格、引号、尾反斜杠和 shell 元字符。
 - 后续安全维护修复实际运行 274 项 Controller（16 skipped）；分块读取修复 280 项（16 skipped），补块间 `no_reset` 断言后 6 项局部复测通过。这些是既有结果，本次 Markdown 阶段不重新宣称运行。
-- 初次适配不重启 App、不启真实 Bridge、不刷机、配网、清零、改账户、注册 Hooks；后续用户确认 Windows 升级另记。后续第一阶段 Markdown 已提交/推送；当前第二阶段实现 PC 交互英文，固件语言仍待第三阶段。详见 [PC 端语言说明](12-HOST-LANGUAGES.md)。
+- 初次适配不重启 App、不启真实 Bridge、不刷机、配网、清零、改账户、注册 Hooks；后续用户确认 Windows 升级另记。后续第一阶段 Markdown 已提交/推送；第二阶段 PC 交互英文已于 `cc1bbfd` 提交/推送；当前第三阶段 0.2.14 按安装入口构建设备中英文版本，见 [设备语言](13-DEVICE-LANGUAGES.md)。详见 [PC 端语言说明](12-HOST-LANGUAGES.md)。
 - 下一步保存工作后从 `.cmd` 菜单 1 启动，确认“App 实体审批已接入”，在原聊天实测设备/电脑 Allow/Deny；再补 Windows 10、本轮 macOS 和休眠重连证据。
 
 [官方 App Server 参考](https://learn.chatgpt.com/docs/app-server)说明 stdio JSONL/审批；[Windows App 参考](https://learn.chatgpt.com/docs/windows/windows-app)说明产品环境。内部开关及本机摘要来自安装文件核查；协议存在不证明原 App 接入已实机通过。本阶段未重新核对这些外部参考。

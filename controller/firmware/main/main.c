@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "ui_language.h"
 #include "sound.h"
 #include "network.h"
 #include "battery.h"
@@ -59,7 +60,7 @@ static void send_json(cJSON *o) {
   // Single main task owns TX; bounded writes never block button/audio tasks indefinitely.
   const char *kind=text(o,"type");
   network_send(line,!strcmp(kind,"decision") || !strcmp(kind,"reset") || !strcmp(kind,"meter_reset") || !strcmp(kind,"review_page"));
-  char frame[512]; int len=snprintf(frame,sizeof(frame),"PC1 %s\n",line);
+  char frame[DEVICE_TX_BYTES+8]; int len=snprintf(frame,sizeof(frame),"PC1 %s\n",line);
   if(len>0 && len<sizeof(frame)) usb_serial_jtag_write_bytes(frame,len,pdMS_TO_TICKS(10));
   cJSON_free(line);
  }
@@ -67,7 +68,9 @@ static void send_json(cJSON *o) {
 }
 static void hello(void) {
  cJSON *o=cJSON_CreateObject(); cJSON_AddStringToObject(o,"type","hello");
- cJSON_AddStringToObject(o,"firmware","0.2.13"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddStringToObject(o,"firmware","0.2.14"); cJSON_AddBoolToObject(o,"assets",HAVE_PETS);
+ cJSON_AddNumberToObject(o,"ui_language_protocol",1);
+ cJSON_AddStringToObject(o,"ui_language",device_language());
  cJSON_AddBoolToObject(o,"readonly_notices",true);
  cJSON_AddBoolToObject(o,"prehook_review",true);
  cJSON_AddBoolToObject(o,"user_input_notices",true);
@@ -128,7 +131,7 @@ static void action(action_t a) {
  cJSON_AddStringToObject(o,"choice",a==ACTION_ALLOW?"allow":"deny");
  if(s.review_protocol==1)cJSON_AddNumberToObject(o,"review_page",s.review_page);
  send_json(o);
- snprintf(s.receipt,sizeof(s.receipt),"已发送，等待 PC 端");
+ snprintf(s.receipt,sizeof(s.receipt),"%s",device_text(s.english,"已发送，等待 PC 端"));
 }
 static void snapshot(cJSON *o) {
  if(strcmp(text(o,"type"),"snapshot") || strcmp(text(o,"boot"),boot)) return;
@@ -257,6 +260,10 @@ static lv_obj_t *label(lv_obj_t *root,int x,int y,int w,const char *str,int colo
  lv_obj_t *l=lv_label_create(root); lv_obj_set_pos(l,x,y); lv_obj_set_width(l,w);
  lv_label_set_text(l,str); lv_obj_set_style_text_color(l,lv_color_hex(color),0);
  lv_obj_set_style_text_font(l,&ui_font,0);
+ if(s.english) {
+  bool ascii=true;for(const unsigned char *p=(const unsigned char *)str;*p;p++)if(*p>=128) { ascii=false;break; }
+  if(ascii)lv_obj_set_style_text_font(l,size>=18?&lv_font_montserrat_20:size>=14?&lv_font_montserrat_14:&lv_font_montserrat_12,0);
+ }
  return l;
 }
 static void battery_indicator(lv_obj_t *root) {
@@ -292,9 +299,9 @@ static void bar(lv_obj_t *r,int y,int remaining) {
 }
 static void quota(lv_obj_t *r,int index,int y) {
  char b[64]; int value=index?s.secondary:s.primary;
- const char *window=s.minutes[index]==300?"5 小时":s.minutes[index]==10080?"7 天":"额度窗口";
- if(value<0)snprintf(b,sizeof(b),"%s：等待同步",window);
- else snprintf(b,sizeof(b),"%s  剩余 %d%%",window,value);
+ const char *window=s.minutes[index]==300?device_text(s.english,"5 小时"):s.minutes[index]==10080?device_text(s.english,"7 天"):device_text(s.english,"额度窗口");
+ if(value<0)snprintf(b,sizeof(b),device_text(s.english,"%s：等待同步"),window);
+ else snprintf(b,sizeof(b),device_text(s.english,"%s  剩余 %d%%"),window,value);
  label(r,16,y,210,b,0xc7d7e5,12); bar(r,y+20,value);
 }
 static void token_count(char *out,size_t size,uint64_t value) {
@@ -307,12 +314,12 @@ static void token_count(char *out,size_t size,uint64_t value) {
 }
 static const char *token_cost_hint(bool total) {
  const char *status=total?s.token_total_status:s.token_cost_status;
- if(!strcmp(status,"waiting_usage"))return "费率已配置 · 等待用量";
- if(!strcmp(status,"model_unknown"))return "模型未识别 · 费用待确认";
- if(!strcmp(status,"request_boundaries_missing"))return "旧记录缺少请求明细";
- if(!strcmp(status,"cache_write_rate_missing"))return "缓存写入费率未配置";
- if(!strcmp(status,"model_rate_missing"))return "此模型费率未配置";
- return s.token_priced?"费率已配置 · 等待用量":"请在 PC 端检查费率";
+ if(!strcmp(status,"waiting_usage"))return device_text(s.english,"费率已配置 · 等待用量");
+ if(!strcmp(status,"model_unknown"))return device_text(s.english,"模型未识别 · 费用待确认");
+ if(!strcmp(status,"request_boundaries_missing"))return device_text(s.english,"旧记录缺少请求明细");
+ if(!strcmp(status,"cache_write_rate_missing"))return device_text(s.english,"缓存写入费率未配置");
+ if(!strcmp(status,"model_rate_missing"))return device_text(s.english,"此模型费率未配置");
+ return s.token_priced?device_text(s.english,"费率已配置 · 等待用量"):device_text(s.english,"请在 PC 端检查费率");
 }
 static void token_cost_text(char *out,size_t size,const char *prefix,double value) {
  if(!strcmp(s.token_cost_currency,"USD"))snprintf(out,size,"%s$%.4f",prefix,value);
@@ -321,8 +328,8 @@ static void token_cost_text(char *out,size_t size,const char *prefix,double valu
 static void token_component_row(lv_obj_t *root,int y,const char *name,uint64_t count,double cost,bool priced) {
  char amount[32],money[40];
  token_count(amount,sizeof(amount),count);
- label(root,16,y,54,name,0xffffff,12);
- label(root,70,y,74,amount,0xc7d7e5,12);
+ label(root,16,y,s.english?62:54,name,0xffffff,12);
+ label(root,s.english?78:70,y,s.english?65:74,amount,0xc7d7e5,12);
  if(priced && cost>=0)token_cost_text(money,sizeof(money),"",cost);else snprintf(money,sizeof(money),"—");
  lv_obj_t *value=label(root,143,y,83,money,priced&&cost>=0?0x8bf0cd:0x92a6b9,12);
  lv_obj_set_style_text_align(value,LV_TEXT_ALIGN_RIGHT,0);
@@ -341,10 +348,10 @@ static const char *pet_state(void) {
 }
 #endif
 static void reset_countdown(char *out,size_t size,int index) {
- if(!s.utc || !s.resets_at[index]) { snprintf(out,size,"等待同步"); return; }
+ if(!s.utc || !s.resets_at[index]) { snprintf(out,size,"%s",device_text(s.english,"等待同步")); return; }
  int64_t left=s.resets_at[index]-s.utc-(now_ms()-s.clock_at)/1000;
- if(left<=0) { snprintf(out,size,"等待额度更新"); return; }
- if(left>=86400)snprintf(out,size,"%lld天 %02lld:%02lld",(long long)(left/86400),(long long)(left%86400/3600),(long long)(left%3600/60));
+ if(left<=0) { snprintf(out,size,"%s",device_text(s.english,"等待额度更新")); return; }
+ if(left>=86400)snprintf(out,size,device_text(s.english,"%lld天 %02lld:%02lld"),(long long)(left/86400),(long long)(left%86400/3600),(long long)(left%3600/60));
  else snprintf(out,size,"%02lld:%02lld:%02lld",(long long)(left/3600),(long long)(left%3600/60),(long long)(left%60));
 }
 static void render(void) {
@@ -358,41 +365,41 @@ static void render(void) {
   gmtime_r(&t,&local); strftime(b,sizeof(b),"%H:%M",&local);
  } else snprintf(b,sizeof(b),"--:--");
  label(r,16,12,72,b,0xffffff,14);
- label(r,96,12,48,s.online?(!strcmp(s.transport,"wifi")?"Wi-Fi":"USB"):"离线",s.online?0x8bf0cd:0xffbf5c,12);
+ label(r,96,12,48,s.online?(!strcmp(s.transport,"wifi")?"Wi-Fi":"USB"):device_text(s.english,"离线"),s.online?0x8bf0cd:0xffbf5c,12);
  battery_indicator(r);
  if(s.request_visible) {
-  label(r,16,42,144,s.user_input?"等待你回复":s.review_protocol==1?s.command:"权限请求",0xffbf5c,14);
+  label(r,16,42,s.english?128:144,s.user_input?device_text(s.english,"等待你回复"):s.review_protocol==1?s.command:device_text(s.english,"权限请求"),0xffbf5c,14);
 #if HAVE_PETS
   lv_obj_t *face=lv_image_create(r); lv_image_set_src(face,pet_asset("permission"));
   lv_image_set_scale(face,128); lv_obj_set_pos(face,144,20);
 #endif
   if(s.stage==1) {
-   label(r,16,106,210,s.selected==0?(s.mac_confirm?"在 PC 端确认本次权限？":"确认批准本次请求？"):"确认拒绝本次请求？",0xffffff,14);
-   label(r,16,150,210,"释放按键后，\n长按确认 1 秒提交。",0xffbf5c,14);
+   label(r,16,106,210,s.selected==0?(s.mac_confirm?device_text(s.english,"在 PC 端确认本次权限？"):device_text(s.english,"确认批准本次请求？")):device_text(s.english,"确认拒绝本次请求？"),0xffffff,14);
+   label(r,16,150,210,device_text(s.english,"释放按键后，\n长按确认 1 秒提交。"),0xffbf5c,14);
    label(r,16,212,210,s.command,0xffffff,12);
-   label(r,16,277,210,s.review_protocol==1?"长按上/下：取消并回首/末页\n长按确认：提交当前选择":"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
+   label(r,16,277,210,s.review_protocol==1?device_text(s.english,"长按上/下：取消并回首/末页\n长按确认：提交当前选择"):device_text(s.english,"上键取消 · 下键静音\n长按方向键离开"),0x92a6b9,12);
   } else if(s.review_protocol==1) {
    bool ready=s.review_loaded==s.review_page;
    if(!controller_review_final(&s)) {
-    if(s.review_page==s.review_total)snprintf(b,sizeof(b),"正在读取确认页");
-    else snprintf(b,sizeof(b),"请求详情 %d / %d",s.review_page+1,s.review_total);
+    if(s.review_page==s.review_total)snprintf(b,sizeof(b),"%s",device_text(s.english,"正在读取确认页"));
+    else snprintf(b,sizeof(b),device_text(s.english,"请求详情 %d / %d"),s.review_page+1,s.review_total);
     label(r,16,94,210,b,0x8bf0cd,14);
-    lv_obj_t *body=label(r,16,120,210,ready?s.review_text:"正在读取本页…",0xffffff,16);
+    lv_obj_t *body=label(r,16,120,210,ready?s.review_text:device_text(s.english,"正在读取本页…"),0xffffff,16);
     lv_obj_set_style_text_line_space(body,2,0);lv_obj_set_height(body,160);
-    label(r,16,277,210,"长按上/下：首/末页\n可在 PC 端查看详情",0x92a6b9,12);
+    label(r,16,277,210,device_text(s.english,"长按上/下：首/末页\n可在 PC 端查看详情"),0x92a6b9,12);
    } else {
-    label(r,16,94,210,s.user_input?"请在 PC 端回复此问题":"请选择本次操作",0x8bf0cd,16);
+    label(r,16,94,210,s.user_input?device_text(s.english,"请在 PC 端回复此问题"):device_text(s.english,"请选择本次操作"),0x8bf0cd,16);
     label(r,16,131,210,s.scope,0x92a6b9,14);
-    label(r,16,190,210,"可在 PC 端查看详情",0xffbf5c,14);
-    label(r,16,247,210,s.stage==2?"已发送，等待回执":s.user_input?"按确认：标记已读":s.selected==0?"> 允许 · 按确认继续":s.selected==1?"> 拒绝 · 按确认继续":s.can_allow?"上键允许 · 下键拒绝":"请在 PC 端审阅 · 下键拒绝",0xffffff,14);
-    label(r,16,291,210,s.user_input?"已读不会代替你的回复":"长按上键：返回详情开头",0x92a6b9,12);
+    label(r,16,190,210,device_text(s.english,"可在 PC 端查看详情"),0xffbf5c,14);
+    label(r,16,247,210,s.stage==2?device_text(s.english,"已发送，等待回执"):s.user_input?device_text(s.english,"按确认：标记已读"):s.selected==0?device_text(s.english,"> 允许 · 按确认继续"):s.selected==1?device_text(s.english,"> 拒绝 · 按确认继续"):s.can_allow?device_text(s.english,"上键允许 · 下键拒绝"):device_text(s.english,"请在 PC 端审阅 · 下键拒绝"),0xffffff,14);
+    label(r,16,291,210,s.user_input?device_text(s.english,"已读不会代替你的回复"):device_text(s.english,"长按上键：返回详情开头"),0x92a6b9,12);
    }
   } else {
    lv_obj_t *command=label(r,16,94,210,s.command,0xffffff,12); lv_obj_set_height(command,36);
    lv_obj_t *project=label(r,16,130,210,s.project,0x92a6b9,12); lv_obj_set_height(project,120);
    lv_obj_t *scope=label(r,16,254,210,s.scope,0x92a6b9,12); lv_obj_set_height(scope,36);
-   if(s.stage==2) label(r,16,294,210,"已发送，等待处理",0xffbf5c,12);
-   else label(r,16,294,210,s.user_input?"在 PC 端回复 · 确认已读":!s.can_deny?"在 PC 端确认 · 按确认静音":s.selected==1?"> 拒绝 · 确认继续":s.selected==0?(s.mac_confirm?"> 在 PC 端确认":"> 批准 · 确认继续"):s.mac_confirm?"上到 PC 端 · 下拒绝":s.can_allow?"上批准 · 下拒绝":"需 PC 端审阅 · 下键拒绝",0xffffff,14);
+   if(s.stage==2) label(r,16,294,210,device_text(s.english,"已发送，等待处理"),0xffbf5c,12);
+   else label(r,16,294,210,s.user_input?device_text(s.english,"在 PC 端回复 · 确认已读"):!s.can_deny?device_text(s.english,"在 PC 端确认 · 按确认静音"):s.selected==1?device_text(s.english,"> 拒绝 · 确认继续"):s.selected==0?(s.mac_confirm?device_text(s.english,"> 在 PC 端确认"):device_text(s.english,"> 批准 · 确认继续")):s.mac_confirm?device_text(s.english,"上到 PC 端 · 下拒绝"):s.can_allow?device_text(s.english,"上批准 · 下拒绝"):device_text(s.english,"需 PC 端审阅 · 下键拒绝"),0xffffff,14);
   }
 
  } else if(s.page==0) {
@@ -400,109 +407,109 @@ static void render(void) {
   const lv_image_dsc_t *pet=pet_asset(pet_state());
   if(pet) { lv_obj_t *im=lv_image_create(r); lv_image_set_src(im,pet); lv_obj_set_pos(im,72,44); }
 #else
-  label(r,34,60,180,"宠物图片未导入",0x92a6b9,20);
+  label(r,34,60,180,device_text(s.english,"宠物图片未导入"),0x92a6b9,20);
 #endif
-  const char *state=!s.online?"连接已断开":!strcmp(s.state,"working")?"正在思考 / 工作":!strcmp(s.state,"approval_sent")?"批准待回执":!strcmp(s.state,"denied")?"权限已拒绝":!strcmp(s.state,"failed")?"任务失败":!strcmp(s.state,"completed")?"本轮已结束":!strcmp(s.state,"exhausted")?"额度已耗尽":"待机 · 等待事件";
-  label(r,16,148,210,!strcmp(s.face,"delight")?s.receipt:state,0xffffff,18);
+  const char *state=!s.online?device_text(s.english,"连接已断开"):!strcmp(s.state,"working")?device_text(s.english,"正在思考 / 工作"):!strcmp(s.state,"approval_sent")?device_text(s.english,"批准待回执"):!strcmp(s.state,"denied")?device_text(s.english,"权限已拒绝"):!strcmp(s.state,"failed")?device_text(s.english,"任务失败"):!strcmp(s.state,"completed")?device_text(s.english,"本轮已结束"):!strcmp(s.state,"exhausted")?device_text(s.english,"额度已耗尽"):device_text(s.english,"待机 · 等待事件");
+  label(r,16,!s.english&&!strcmp(s.face,"delight")?140:148,210,!strcmp(s.face,"delight")?s.receipt:state,0xffffff,s.english&&!strcmp(s.face,"delight")?12:18);
   if(!strcmp(s.billing,"token")) {
    if(s.token_updated) {
-    char count[32];token_count(count,sizeof(count),s.token_last[5]);snprintf(b,sizeof(b),"本轮  %s",count);label(r,16,181,210,b,0x8bf0cd,13);
-    token_count(count,sizeof(count),s.token_total[5]);snprintf(b,sizeof(b),"累计  %s",count);label(r,16,203,210,b,0xffffff,13);
-   } else label(r,16,181,210,"等待 Token 用量",0x92a6b9,13);
-   snprintf(b,sizeof(b),"模型 · %.35s%s",*s.token_model?s.token_model:"等待同步",!strcmp(s.model_source,"manual")?" · 手动":"");
+    char count[32];token_count(count,sizeof(count),s.token_last[5]);snprintf(b,sizeof(b),device_text(s.english,"本轮  %s"),count);label(r,16,181,210,b,0x8bf0cd,13);
+    token_count(count,sizeof(count),s.token_total[5]);snprintf(b,sizeof(b),device_text(s.english,"累计  %s"),count);label(r,16,203,210,b,0xffffff,13);
+   } else label(r,16,181,210,device_text(s.english,"等待 Token 用量"),0x92a6b9,13);
+   snprintf(b,sizeof(b),device_text(s.english,"模型 · %.35s%s"),*s.token_model?s.token_model:device_text(s.english,"等待同步"),!strcmp(s.model_source,"manual")?device_text(s.english," · 手动"):"");
    label(r,16,225,210,b,0x92a6b9,10);
-   if(s.token_cost_last>=0)token_cost_text(b,sizeof(b),"约 ",s.token_cost_last);
+   if(s.token_cost_last>=0)token_cost_text(b,sizeof(b),device_text(s.english,"约 "),s.token_cost_last);
    else snprintf(b,sizeof(b),"%s",token_cost_hint(false));
    label(r,16,245,210,b,0x92a6b9,12);
   } else {
    quota(r,0,183); quota(r,1,221);
    char countdown[64]; reset_countdown(countdown,sizeof(countdown),0);
    label(r,16,253,140,countdown,0x92a6b9,12);
-   if(s.resets>=0)snprintf(b,sizeof(b),"额外%d次",s.resets); else snprintf(b,sizeof(b),"额外—");
+   if(s.resets>=0)snprintf(b,sizeof(b),device_text(s.english,"额外%d次"),s.resets); else snprintf(b,sizeof(b),"%s",device_text(s.english,"额外—"));
    label(r,164,253,62,b,0x8bf0cd,12);
   }
-  if(strcmp(s.billing,"token") && (s.primary==0 || s.secondary==0 || !strcmp(s.state,"exhausted"))) label(r,16,277,210,"上键：前往重置 · 或等待",0xffbf5c,12);
-  else label(r,16,277,210,s.request?"长按确认：返回权限请求":"确认：摸摸宠物",0x92a6b9,12);
+  if(strcmp(s.billing,"token") && (s.primary==0 || s.secondary==0 || !strcmp(s.state,"exhausted"))) label(r,16,277,210,device_text(s.english,"上键：前往重置 · 或等待"),0xffbf5c,12);
+  else label(r,16,277,210,s.request?device_text(s.english,"长按确认：返回权限请求"):device_text(s.english,"确认：摸摸宠物"),0x92a6b9,12);
  } else if(s.page==1 && !strcmp(s.billing,"token")) {
-  label(r,16,42,210,"累计 Token · 自清零",0xffffff,18);
+  label(r,16,42,210,device_text(s.english,"累计 Token · 自清零"),0xffffff,18);
   if(s.meter_stage) {
-   label(r,16,84,210,s.meter_stage==2?"已发送 · 等待回执":"确认清零 Token？",0xffbf5c,16);
-   label(r,16,126,210,"仅清除控制器计数与估价\n保留 Codex 聊天和账单",0xffffff,13);
-   label(r,16,212,210,s.meter_stage==2?"请等待 Bridge 确认":"松开后长按确认 1 秒\n方向键取消",0x92a6b9,13);
+   label(r,16,84,210,s.meter_stage==2?device_text(s.english,"已发送 · 等待回执"):device_text(s.english,"确认清零 Token？"),0xffbf5c,16);
+   label(r,16,126,210,device_text(s.english,"仅清除控制器计数与估价\n保留 Codex 聊天和账单"),0xffffff,13);
+   label(r,16,212,210,s.meter_stage==2?device_text(s.english,"请等待 Bridge 确认"):device_text(s.english,"松开后长按确认 1 秒\n方向键取消"),0x92a6b9,13);
   } else {
-  if(!s.token_total_updated) label(r,16,78,210,"等待 Codex 用量事件",0xffbf5c,13);
+  if(!s.token_total_updated) label(r,16,78,210,device_text(s.english,"等待 Codex 用量事件"),0xffbf5c,13);
   else {
    uint64_t input=s.token_total[0]>=s.token_total[1]+s.token_total[2]?s.token_total[0]-s.token_total[1]-s.token_total[2]:0;
    uint64_t output=s.token_total[3]>=s.token_total[4]?s.token_total[3]-s.token_total[4]:0;
-   token_component_row(r,88,"输入",input,s.token_cost_total_parts[0],s.token_cost_total_parts_valid);
-   token_component_row(r,116,"缓存读",s.token_total[1],s.token_cost_total_parts[1],s.token_cost_total_parts_valid);
-   token_component_row(r,144,"缓存写",s.token_total[2],s.token_cost_total_parts[2],s.token_cost_total_parts_valid);
-   token_component_row(r,172,"输出",output,s.token_cost_total_parts[3],s.token_cost_total_parts_valid);
-   token_component_row(r,200,"推理",s.token_total[4],s.token_cost_total_parts[4],s.token_cost_total_parts_valid);
-   { char total[32];token_count(total,sizeof(total),s.token_total[5]);snprintf(b,sizeof(b),"Token 总计  %s",total);label(r,16,230,210,b,0xc7d7e5,12); }
+   token_component_row(r,88,device_text(s.english,"输入"),input,s.token_cost_total_parts[0],s.token_cost_total_parts_valid);
+   token_component_row(r,116,device_text(s.english,"缓存读"),s.token_total[1],s.token_cost_total_parts[1],s.token_cost_total_parts_valid);
+   token_component_row(r,144,device_text(s.english,"缓存写"),s.token_total[2],s.token_cost_total_parts[2],s.token_cost_total_parts_valid);
+   token_component_row(r,172,device_text(s.english,"输出"),output,s.token_cost_total_parts[3],s.token_cost_total_parts_valid);
+   token_component_row(r,200,device_text(s.english,"推理"),s.token_total[4],s.token_cost_total_parts[4],s.token_cost_total_parts_valid);
+   { char total[32];token_count(total,sizeof(total),s.token_total[5]);snprintf(b,sizeof(b),device_text(s.english,"Token 总计  %s"),total);label(r,16,230,210,b,0xc7d7e5,12); }
   }
-  if(s.token_cost_total>=0) { token_cost_text(b,sizeof(b),"合计估价  ",s.token_cost_total);label(r,16,252,210,b,0x8bf0cd,12); }
+  if(s.token_cost_total>=0) { token_cost_text(b,sizeof(b),device_text(s.english,"合计估价  "),s.token_cost_total);label(r,16,252,210,b,0x8bf0cd,12); }
   else label(r,16,252,210,token_cost_hint(true),0x92a6b9,11);
-  label(r,16,280,210,s.request?"请先处理权限请求":"确认：打开清零确认",0x92a6b9,11);
+  label(r,16,280,210,s.request?device_text(s.english,"请先处理权限请求"):device_text(s.english,"确认：打开清零确认"),0x92a6b9,11);
   }
  } else if(s.page==1) {
-  label(r,16,45,210,"额度窗口",0xffffff,20); quota(r,0,90); quota(r,1,180);
+  label(r,16,45,210,device_text(s.english,"额度窗口"),0xffffff,20); quota(r,0,90); quota(r,1,180);
   reset_countdown(b,sizeof(b),0); label(r,16,128,210,b,0x92a6b9,12);
   reset_countdown(b,sizeof(b),1); label(r,16,218,210,b,0x92a6b9,12);
   label(r,16,260,210,s.usage_status,0x92a6b9,12);
 
  } else if(s.page==2 && !strcmp(s.billing,"token")) {
-  label(r,16,42,210,"最近一轮 Token",0xffffff,18);
-  if(!s.token_updated) label(r,16,78,210,"等待 Codex 用量事件",0xffbf5c,13);
+  label(r,16,42,210,device_text(s.english,"最近一轮 Token"),0xffffff,18);
+  if(!s.token_updated) label(r,16,78,210,device_text(s.english,"等待 Codex 用量事件"),0xffbf5c,13);
   else {
    uint64_t input=s.token_last[0]>=s.token_last[1]+s.token_last[2]?s.token_last[0]-s.token_last[1]-s.token_last[2]:0;
    uint64_t output=s.token_last[3]>=s.token_last[4]?s.token_last[3]-s.token_last[4]:0;
-   token_component_row(r,88,"输入",input,s.token_cost_last_parts[0],s.token_cost_last_parts_valid);
-   token_component_row(r,116,"缓存读",s.token_last[1],s.token_cost_last_parts[1],s.token_cost_last_parts_valid);
-   token_component_row(r,144,"缓存写",s.token_last[2],s.token_cost_last_parts[2],s.token_cost_last_parts_valid);
-   token_component_row(r,172,"输出",output,s.token_cost_last_parts[3],s.token_cost_last_parts_valid);
-   token_component_row(r,200,"推理",s.token_last[4],s.token_cost_last_parts[4],s.token_cost_last_parts_valid);
-   { char total[32];token_count(total,sizeof(total),s.token_last[5]);snprintf(b,sizeof(b),"Token 总计  %s",total);label(r,16,230,210,b,0xc7d7e5,12); }
+   token_component_row(r,88,device_text(s.english,"输入"),input,s.token_cost_last_parts[0],s.token_cost_last_parts_valid);
+   token_component_row(r,116,device_text(s.english,"缓存读"),s.token_last[1],s.token_cost_last_parts[1],s.token_cost_last_parts_valid);
+   token_component_row(r,144,device_text(s.english,"缓存写"),s.token_last[2],s.token_cost_last_parts[2],s.token_cost_last_parts_valid);
+   token_component_row(r,172,device_text(s.english,"输出"),output,s.token_cost_last_parts[3],s.token_cost_last_parts_valid);
+   token_component_row(r,200,device_text(s.english,"推理"),s.token_last[4],s.token_cost_last_parts[4],s.token_cost_last_parts_valid);
+   { char total[32];token_count(total,sizeof(total),s.token_last[5]);snprintf(b,sizeof(b),device_text(s.english,"Token 总计  %s"),total);label(r,16,230,210,b,0xc7d7e5,12); }
   }
-  if(s.token_cost_last>=0) { token_cost_text(b,sizeof(b),"合计估价  ",s.token_cost_last);label(r,16,252,210,b,0x8bf0cd,12); }
+  if(s.token_cost_last>=0) { token_cost_text(b,sizeof(b),device_text(s.english,"合计估价  "),s.token_cost_last);label(r,16,252,210,b,0x8bf0cd,12); }
   else label(r,16,252,210,token_cost_hint(false),0x92a6b9,11);
-  label(r,16,280,210,"数量 | 分项估价 · 本机估算",0x92a6b9,11);
+  label(r,16,280,210,device_text(s.english,"数量 | 分项估价 · 本机估算"),0x92a6b9,11);
  } else if(s.page==2) {
-  label(r,16,45,210,"额外额度重置",0xffffff,20);
-  if(s.resets>=0)snprintf(b,sizeof(b),"%d 次可用",s.resets); else snprintf(b,sizeof(b),"等待账户同步");
+  label(r,16,45,210,device_text(s.english,"额外额度重置"),0xffffff,20);
+  if(s.resets>=0)snprintf(b,sizeof(b),device_text(s.english,"%d 次可用"),s.resets); else snprintf(b,sizeof(b),"%s",device_text(s.english,"等待账户同步"));
   label(r,16,90,210,b,0x8bf0cd,20);
-  const char *hint=s.reset_stage==1?"将消耗 1 次额外重置。\n短按确认继续。\n方向键取消。":s.reset_stage==2?"最终确认：消耗 1 次\n释放按键后，\n长按确认 1 秒提交。":s.reset_stage==3?"已提交，等待官方结果":s.resets==0?"没有额外次数，\n可等待额度自动重置。":!s.online?"连接 Bridge 后操作":!*s.reset_id?"正在校验账户和次数":"确认：打开重置确认页\n也可以等待自然重置。";
+  const char *hint=s.reset_stage==1?device_text(s.english,"将消耗 1 次额外重置。\n短按确认继续。\n方向键取消。"):s.reset_stage==2?device_text(s.english,"最终确认：消耗 1 次\n释放按键后，\n长按确认 1 秒提交。"):s.reset_stage==3?device_text(s.english,"已提交，等待官方结果"):s.resets==0?device_text(s.english,"没有额外次数，\n可等待额度自动重置。"):!s.online?device_text(s.english,"连接 Bridge 后操作"):!*s.reset_id?device_text(s.english,"正在校验账户和次数"):device_text(s.english,"确认：打开重置确认页\n也可以等待自然重置。");
   label(r,16,140,210,hint,0xffffff,14);
   label(r,16,243,210,s.reset_status,0xffbf5c,12);
  } else if(s.page==3) {
-  label(r,16,42,210,"声音设置",0xffffff,20);
-  snprintf(b,sizeof(b),"%c 提示音：%s\n%c 试听提示音\n%c 静音当前请求\n%c 音量：%d%%%s\n%c 提醒间隔：%d秒\n%c 返回主页",s.option==0?'>':' ',s.sound?"开":"关",s.option==1?'>':' ',s.option==2?'>':' ',s.option==3?'>':' ',s.volume,s.volume_edit?" · 调节中":"",s.option==4?'>':' ',s.interval,s.option==5?'>':' ');
+  label(r,16,42,210,device_text(s.english,"声音设置"),0xffffff,20);
+  snprintf(b,sizeof(b),device_text(s.english,"%c 提示音：%s\n%c 试听提示音\n%c 静音当前请求\n%c 音量：%d%%%s\n%c 提醒间隔：%d秒\n%c 返回主页"),s.option==0?'>':' ',s.sound?device_text(s.english,"开"):device_text(s.english,"关"),s.option==1?'>':' ',s.option==2?'>':' ',s.option==3?'>':' ',s.volume,s.volume_edit?device_text(s.english," · 调节中"):"",s.option==4?'>':' ',s.interval,s.option==5?'>':' ');
   label(r,16,72,210,b,0xffffff,14);
   sound_health_t audio=sound_health();
-  if(audio.state==SOUND_ERROR)snprintf(b,sizeof(b),"音频故障 0x%x",audio.error);
-  else snprintf(b,sizeof(b),"%s",audio.state==SOUND_READY?"音频就绪":"音频初始化中");
+  if(audio.state==SOUND_ERROR)snprintf(b,sizeof(b),device_text(s.english,"音频故障 0x%x"),audio.error);
+  else snprintf(b,sizeof(b),"%s",audio.state==SOUND_READY?device_text(s.english,"音频就绪"):device_text(s.english,"音频初始化中"));
   label(r,16,217,210,b,audio.state==SOUND_ERROR?0xffbf5c:0x92a6b9,12);
-  label(r,16,253,210,s.volume_edit?"上加下减 10% · 确认退出\n范围 0%—100% · 长按换页":"短按方向键选择 · 确认修改\n长按方向键切换页面",0x92a6b9,12);
+  label(r,16,253,210,s.volume_edit?device_text(s.english,"上加下减 10% · 确认退出\n范围 0%—100% · 长按换页"):device_text(s.english,"短按方向键选择 · 确认修改\n长按方向键切换页面"),0x92a6b9,12);
  } else if(s.page==4) {
-  label(r,16,42,210,"事件记录",0xffffff,20);
+  label(r,16,42,210,device_text(s.english,"事件记录"),0xffffff,20);
   snprintf(b,sizeof(b),"%d / %d",s.history_count?s.option+1:0,s.history_count); label(r,16,76,210,b,0x8bf0cd,12);
-  label(r,16,104,210,s.history_count?s.history[s.option]:"等待会话事件\n请在 Codex 信任项目 Hooks",0xffffff,14);
-  label(r,16,253,210,"短按方向键浏览事件\n长按方向键切换页面",0x92a6b9,12);
+  label(r,16,104,210,s.history_count?s.history[s.option]:device_text(s.english,"等待会话事件\n请在 Codex 信任项目 Hooks"),0xffffff,14);
+  label(r,16,253,210,device_text(s.english,"短按方向键浏览事件\n长按方向键切换页面"),0x92a6b9,12);
  } else {
-  label(r,16,42,210,"连接与配网",0xffffff,20);
+  label(r,16,42,210,device_text(s.english,"连接与配网"),0xffffff,20);
   // Validated snapshots (matching boot/epoch/sequence) are the evidence that
   // Bridge is connected; the HTTP worker's transient phase is not UI status.
-  label(r,16,78,210,s.online&&!network_pairing_armed()?(!strcmp(s.transport,"wifi")?"无线同步正常":"USB 同步正常"):network_status(),0x8bf0cd,14);
+  label(r,16,78,210,s.online&&!network_pairing_armed()?(!strcmp(s.transport,"wifi")?device_text(s.english,"无线同步正常"):device_text(s.english,"USB 同步正常")):device_text(s.english,network_status()),0x8bf0cd,14);
   if(s.online) {
    if(!strcmp(s.billing,"token")) {
-    label(r,16,112,210,"第三方 API · Token 计费",0x92a6b9,12);
-    snprintf(b,sizeof(b),"模型：%.28s",*s.token_model?s.token_model:"等待同步");
+    label(r,16,112,210,device_text(s.english,"第三方 API · Token 计费"),0x92a6b9,12);
+    snprintf(b,sizeof(b),device_text(s.english,"模型：%.28s"),*s.token_model?s.token_model:device_text(s.english,"等待同步"));
     label(r,16,141,210,b,0x92a6b9,11);
    } else label(r,16,112,210,s.usage_status,0x92a6b9,12);
-   label(r,16,174,210,*s.hook_status?s.hook_status:"等待 Bridge 更新事件状态",0xffbf5c,12);
-   label(r,16,224,210,"短按确认：允许 USB 重配\n配对窗口有效期为 60 秒",0x92a6b9,12);
+   label(r,16,174,210,*s.hook_status?s.hook_status:device_text(s.english,"等待 Bridge 更新事件状态"),0xffbf5c,12);
+   label(r,16,224,210,device_text(s.english,"短按确认：允许 USB 重配\n配对窗口有效期为 60 秒"),0x92a6b9,12);
   } else {
-   label(r,16,136,210,"首次用 USB 安全配对。\n在 PC 端运行无线配置，\n随后即可拔掉数据线。\n\n短按确认：允许配对 60 秒",0x92a6b9,14);
+   label(r,16,136,210,device_text(s.english,"首次用 USB 安全配对。\n在 PC 端运行无线配置，\n随后即可拔掉数据线。\n\n短按确认：允许配对 60 秒"),0x92a6b9,14);
    label(r,16,254,210,s.usage_status,0x92a6b9,12);
   }
  }

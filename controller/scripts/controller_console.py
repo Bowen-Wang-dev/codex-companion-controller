@@ -82,9 +82,7 @@ def hooks_menu():
 
 
 def firmware_menu():
-    if WINDOWS:
-        return run(ROOT/'scripts/firmware_update.py')
-    return subprocess.run([str(ROOT/'维护工具'/'更新Token计量与清零固件.command')],cwd=ROOT).returncode
+    return run(ROOT/'scripts/firmware_update.py')
 
 
 def main():

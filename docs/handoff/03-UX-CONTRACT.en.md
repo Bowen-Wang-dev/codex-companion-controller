@@ -41,4 +41,4 @@ Permissions take priority and open automatically. Pager-style alert: three rough
 
 240×320, no touch; host-synchronized time and battery at top right. No SIM / cellular; remove misleading SIM wording. Main-page dots share a common vertical position.
 
-Original Apple images must not be AI-generated, redrawn or replaced with Noto / Twemoji / other platform artwork. Compose 😐 and 🤲 from their separate originals. Public source excludes Apple assets and firmware containing them. Firmware language changes are phase three; the Markdown translation does not change device text.
+Original Apple images must not be AI-generated, redrawn or replaced with Noto / Twemoji / other platform artwork. Compose 😐 and 🤲 from their separate originals. Public source excludes Apple assets and firmware containing them. Phase-three 0.2.14 compiles device language from its installation entry: English installs English startup / offline text; Chinese installs Chinese. Later PC console language does not change the device. Buttons, emoji, full content and real submitted receipts remain; see [device languages](13-DEVICE-LANGUAGES.en.md). This round did not flash or add hardware acceptance.

@@ -110,7 +110,7 @@ def app_is_running():
 
 def main():
     print(tr('PC 端 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。'),flush=True)
-    print(tr('Controller 0.2.13 · 原 App 原生审批与设备同步 · 双端直接允许或拒绝。'),flush=True)
+    print(tr('Controller 0.2.14 · 原 App 原生审批与设备同步 · 双端直接允许或拒绝。'),flush=True)
     print(tr('程序目录：')+str(ROOT),flush=True)
     from usage_meter import load_rates
     rates=load_rates(ROOT/'private'/'token_rates.json')

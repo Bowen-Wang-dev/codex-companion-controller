@@ -93,7 +93,7 @@ static void worker(void *arg) {
  // This is a latency-sensitive controller. Modem sleep adds burst latency to
  // small LAN requests; battery optimization can be a separate explicit mode.
  esp_wifi_set_ps(WIFI_PS_NONE);
- char *tx=malloc(512), *rx=malloc(4096); if(!tx || !rx)goto failed;
+ char *tx=malloc(DEVICE_TX_BYTES), *rx=malloc(4096); if(!tx || !rx)goto failed;
  response_t response={.data=rx};
  esp_http_client_config_t http={.url=config.url,.cert_pem=config.cert,.timeout_ms=2000,.keep_alive_enable=true,
   .buffer_size=1024,.buffer_size_tx=1024,.event_handler=http_event,.user_data=&response,
@@ -149,14 +149,14 @@ void network_start(void) {
  nvs_handle_t nvs; if(nvs_open("pcc_wifi",NVS_READONLY,&nvs)!=ESP_OK)return;
  size_t size=sizeof(config); esp_err_t e=nvs_get_blob(nvs,"config",&config,&size); nvs_close(nvs);
  if(e!=ESP_OK || size!=sizeof(config))return;
- incoming=xQueueCreate(1,4096); outgoing=xQueueCreate(4,512);
+ incoming=xQueueCreate(1,4096); outgoing=xQueueCreate(4,DEVICE_TX_BYTES);
  if(!incoming||!outgoing) { atomic_store(&status,5); return; }
  xTaskCreate(worker,"wifi",7168,NULL,4,NULL);
 }
 bool network_receive(char *out,unsigned size) { return size>=4096 && incoming && xQueueReceive(incoming,out,0)==pdTRUE; }
 bool network_send(const char *frame,bool urgent) {
- if(!outgoing || strlen(frame)>=512)return false;
- char packet[512]={0}; strcpy(packet,frame);
+ if(!outgoing || strlen(frame)>=DEVICE_TX_BYTES)return false;
+ char packet[DEVICE_TX_BYTES]={0}; strcpy(packet,frame);
  if(!urgent && uxQueueMessagesWaiting(outgoing)>0)return false;
  return (urgent?xQueueSendToFront(outgoing,packet,0):xQueueSend(outgoing,packet,0))==pdTRUE;
 }

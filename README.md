@@ -10,10 +10,10 @@ FoloToy AI Passport 的 Codex 实体控制器、状态显示器与 Emoji 交互�
 
 | 项目 | 状态 |
 |---|---|
-| 源码 | 固件 `0.2.13`；Bridge `0.2.13-native-app`；PC 端 Demo `0.4.0` |
+| 源码 | 固件 `0.2.14`；Bridge `0.2.14-native-app`；PC 端 Demo `0.4.0` |
 | 已有发布基线 | Git 标签 `v0.2.12`；五项原生双端实机验收见[发布记录](docs/releases/v0.2.12.md) |
 | 设备最近记录 | 后续运行日志已报告固件 `0.2.13`；用户随后确认完成 Windows 升级及基本目视检查，新版完整验收仍未完成 |
-| 本次维护 | 第二阶段新增独立英文 PC 控制台及子工具；中文默认保留，固件语言尚未改动 |
+| 本次维护 | 第三阶段新增 0.2.14 中英文设备构建，由安装入口决定语言；未代用户刷写 |
 | 后续工作 | Windows 10、macOS 本轮执行及 Windows 原 App/设备实机矩阵待验证；见[项目状态](docs/handoff/01-PROJECT-STATE.md) |
 
 固件版本、Bridge 源码修订号、当前进程已加载的代码与实机验收是不同状态。最近一次日志或单次操作反馈不能替代完整验收。
@@ -31,7 +31,7 @@ PC 端 App 适配仅支持源码登记的精确版本和文件摘要，当前登
 
 ## 日常入口
 
-macOS 使用 `controller/Codex Companion 控制台.command`；Windows 使用同名 `.cmd`。两者调用同一控制台；Windows 首次运行会准备独立 Python 环境。检查和环境要求见[双平台说明](docs/handoff/11-HOST-PLATFORMS.md)。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](docs/handoff/12-HOST-LANGUAGES.md)。设备语言留到第三阶段。
+macOS 使用 `controller/Codex Companion 控制台.command`；Windows 使用同名 `.cmd`。两者调用同一控制台；Windows 首次运行会准备独立 Python 环境。检查和环境要求见[双平台说明](docs/handoff/11-HOST-PLATFORMS.md)。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](docs/handoff/12-HOST-LANGUAGES.md)。0.2.14 现按安装入口构建设备语言：英文入口安装英文固件，中文入口安装中文固件；之后的 PC 语言不改变设备。详见[设备语言说明](docs/handoff/13-DEVICE-LANGUAGES.md)。
 
 | 菜单 | 用途 |
 |---|---|

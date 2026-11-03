@@ -4,6 +4,17 @@
 
 Developer-maintained version plans, implementation changes, verification evidence and history, without chat transcripts or secrets.
 
+## 2026-11-03: phase-three device English and installation-language guards
+
+- User clarified: English `.command` / `.cmd` installation makes device firmware English from startup; Chinese entry installs Chinese, and later PC console language does not change the device. Implemented compile option `COMPANION_FIRMWARE_LANGUAGE`, default Chinese, rather than runtime following of PC language.
+- Firmware source `0.2.14`, Bridge `0.2.14-native-app`, with 126 static device messages and system approval / notice / state / history / receipt text. Versioned hello declares installed language, old devices fall back to Chinese and same-boot language changes are ignored. Original user data and authorization protocol are not translated.
+- Compiled image marker determines manifest language. Missing / ambiguous markers or manifest / image / entry disagreements reject early. Windows / macOS menu 7 builds the target language, validates, then uses existing safe updating; Mac retains dual backups / live partitions / application-only maintenance.
+- Full Windows Controller: 310 tests OK (18 skipped); Chinese / English C defaults / navigation / approvals / reset, tones and eight mock audio groups passed, plus five isolated WSL Mac-entry cases. One new case initially matched Chinese error text while running English; its expectation was corrected and the full suite passed, without deleting the failed case. GCC exposed an existing misleading-indentation warning in an audio fixture; split the line without changing audio behavior.
+- Both ESP-IDF 5.5.3 artwork images are 2,403,392 bytes. Source / language / digest and esptool checksum / Validation Hash passed; all seven original RGB565 arrays match inside each image. Independent SHA-256 / evidence are in [0.2.14](../releases/v0.2.14.en.md); images and assets stay local.
+- New hello uses a bounded 768-byte transmit buffer so language fields plus diagnostic counters fit beyond the former 512-byte limit. The maximum-frame regression passed; approval-detail receive capacity remains 4096 bytes. Forty offline Chinese / English LVGL screens have zero label overlap / out-of-bounds findings.
+
+- Offline LVGL previews reuse real render / fonts with mocked hardware; English title and long Chinese receipt overlaps were repaired. Host previews do not accept real hardware or ESP32 memory behavior. No serial open, flash, pairing, reset, Hook registration, account change or real App / Bridge restart. New hardware matrix and native macOS execution remain pending; see [device languages](13-DEVICE-LANGUAGES.en.md) for installation / limits.
+
 ## 2026-11-03: phase-two English host interaction
 
 - Phase-one Markdown was independently committed / pushed as `48603c8`. The user now authorizes English host interaction: add `Codex Companion Console.command` / `Codex Companion Console.cmd`, retain Chinese entries, one entry per platform and language without other top-level launchers.

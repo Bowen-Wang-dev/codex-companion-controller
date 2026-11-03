@@ -21,7 +21,8 @@ QueueHandle_t xQueueCreate(unsigned count,size_t size) { assert(count==1 && size
 int xQueuePeek(QueueHandle_t queue,void *item,uint32_t wait) {
  (void)queue;
  if(!occupied && wait==portMAX_DELAY)longjmp(idle,1);
- if(occupied)memcpy(item,&queued,sizeof(queued));return occupied;
+ if(occupied)memcpy(item,&queued,sizeof(queued));
+ return occupied;
 }
 int xQueueReceive(QueueHandle_t queue,void *item,uint32_t wait) {
  int result=xQueuePeek(queue,item,wait);occupied=0;return result;

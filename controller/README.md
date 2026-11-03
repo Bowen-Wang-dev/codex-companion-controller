@@ -2,11 +2,11 @@
 
 简体中文（默认） · [English](README.en.md)
 
-适用源码：固件 `0.2.13`、Bridge `0.2.13-native-app`。文档维护日期：2026-11-03（Australia/Sydney）。部署与实机验收以[项目状态](../docs/handoff/01-PROJECT-STATE.md)为准，不能仅凭源码版本判断运行状态。
+适用源码：固件 `0.2.14`、Bridge `0.2.14-native-app`。文档维护日期：2026-11-03（Australia/Sydney）。部署与实机验收以[项目状态](../docs/handoff/01-PROJECT-STATE.md)为准，不能仅凭源码版本判断运行状态。
 
 ## 日常操作
 
-macOS 双击 `Codex Companion 控制台.command`；Windows 双击同名 `.cmd`，每平台每种语言一个日常入口。共用控制台与审批逻辑，Mac 原实现保留。具体菜单及接入条件见[运行手册](../docs/handoff/06-RUNBOOK.md)，Windows 安装、当前测试与限制见[双平台说明](../docs/handoff/11-HOST-PLATFORMS.md)。历史 macOS 脚本集中在 `维护工具/`。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](../docs/handoff/12-HOST-LANGUAGES.md)。设备语言留到第三阶段。
+macOS 双击 `Codex Companion 控制台.command`；Windows 双击同名 `.cmd`，每平台每种语言一个日常入口。共用控制台与审批逻辑，Mac 原实现保留。具体菜单及接入条件见[运行手册](../docs/handoff/06-RUNBOOK.md)，Windows 安装、当前测试与限制见[双平台说明](../docs/handoff/11-HOST-PLATFORMS.md)。历史 macOS 脚本集中在 `维护工具/`。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](../docs/handoff/12-HOST-LANGUAGES.md)。0.2.14 现按安装入口构建设备语言：英文入口安装英文固件，中文入口安装中文固件；之后的 PC 语言不改变设备。详见[设备语言说明](../docs/handoff/13-DEVICE-LANGUAGES.md)。
 
 审批可在设备或原 App 原生卡片操作，首个有效答复生效。详情页长按交接已在 v0.2.13 移除；二次确认页的长按提交保留。设备拒绝或失败直接显示 😭，批准反馈必须对应实际提交回执。表情、三键及分页规范见[交互契约](../docs/handoff/03-UX-CONTRACT.md)。
 

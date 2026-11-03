@@ -4,6 +4,10 @@
 
 Updated 2026-11-03 (Australia/Sydney). Windows 10/11 adaptation is authorized with macOS retained. The user has now split bilingual work into three separately committed / pushed phases: Markdown first; `.command` / `.cmd` and console second; firmware / other parts third. This phase changes only Markdown. Other features and device operations still require an explicit task.
 
+## Phase-three device language
+
+- 0.2.14 Chinese / English installation builds and Bridge system text are implemented. Installation entry determines startup / offline language; later PC language does not override it. Real new-version screens, reboot, offline, pairing, full dual approvals and native macOS execution await acceptance; see [device languages](13-DEVICE-LANGUAGES.en.md).
+
 ## Platform follow-up
 
 - Windows 11 has a host layer, isolated environment, version / digest protection and synthetic transport regressions. Verify original-App / device Allow / Deny, GUI, sleep reconnect and firewall reachability next.

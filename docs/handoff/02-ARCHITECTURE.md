@@ -15,7 +15,7 @@ App 适配使用已安装版本的内部启动开关，并非稳定公开设置�
 ## 主机源码
 
 以上原有 Python 模块由 macOS 与 Windows 共用。平台差异集中在 `bridge/host_platform.py`、`bridge/ipc_path.py`、`bridge/windows_security.py` 与 `bridge/private_permissions.py`；Windows 使用 `.cmd` → `scripts/setup_windows.py` → 同一 `controller_console.py`，App 使用生成的私有 `app-relay.exe` → `scripts/app_relay.py` → 同一 `stdio_relay.py`。macOS 继续使用现有 `.command` 和 Unix IPC。细节及待验收项见 [11-HOST-PLATFORMS.md](11-HOST-PLATFORMS.md)。
-- `controller/scripts/controller_console.py`：共用菜单；`Codex Companion 控制台.command` 与同名 `.cmd` 是现行日常入口。现已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，通过 `COMPANION_LANGUAGE` 传递语言；PC 翻译模块为 `bridge/console_i18n.py` 及 `locale_en.json`，不翻译设备载荷。
+- `controller/scripts/controller_console.py`：共用菜单；`Codex Companion 控制台.command` 与同名 `.cmd` 是现行日常入口。现已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，通过 `COMPANION_LANGUAGE` 传递语言；PC 翻译模块为 `bridge/console_i18n.py` 及 `locale_en.json`，不泛化翻译设备载荷。第三阶段由 `bridge/device_i18n.py` 仅标记并渲染系统文案，按固件 hello 的安装语言生成审批/状态；用户内容保持原文，见 [设备语言](13-DEVICE-LANGUAGES.md)。
 - `scripts/launch_desktop.py`：精确 App 版本/摘要、环境与 relay 启动、Bridge 生命周期。
 - `scripts/app_relay.command` + `bridge/stdio_relay.py`：透明 JSONL 转发、硬件/原 App 审批竞争及唯一回执。
 - `bridge/service.py`：Broker 状态、请求/事件管理、设备 snapshot、账户/数值更新、私有 IPC。
@@ -33,6 +33,7 @@ App 适配使用已安装版本的内部启动开关，并非稳定公开设置�
 
 ## 固件与 Demo
 - `controller/firmware/main/controller.c/.h`：三键状态机与请求/确认流程。
+- `ui_language.c/.h`：安装语言默认值及 126 条设备静态文案，编译选项来自所选入口；不运行时跟随 PC 语言切换。
 - `main.c`：显示、snapshot 解码与提示；`network.c`：Wi-Fi/HTTPS/配网。
 - `sound.c`、`sound_model.c`：非阻塞音频调度；`battery.c`：电量。
 - `firmware/components/bsp/`：显示、三键 ADC、音频、I2C、电量驱动。

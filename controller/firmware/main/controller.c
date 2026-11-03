@@ -1,4 +1,5 @@
 #include "controller.h"
+#include "ui_language.h"
 #include "sound_model.h"
 #include <string.h>
 #include <stdio.h>
@@ -15,7 +16,7 @@ uint32_t controller_view_hash(const controller_t *s) {
  for(int i=0;i<s->history_count && i<8;i++)
   for(const unsigned char *p=(const unsigned char *)s->history[i];*p;p++)h=(h^*p)*16777619u;
  const int values[]={s->page,s->option,s->stage,s->selected,s->online,s->request_visible,
-  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->sound,s->muted,s->volume,s->volume_edit,
+  s->can_allow,s->can_deny,s->mac_confirm,s->user_input,s->sound,s->muted,s->volume,s->volume_edit,s->english,
   s->interval,s->reset_stage,s->primary,s->secondary,s->resets,s->history_count,
   s->review_protocol,s->review_page,s->review_loaded,s->review_total,s->meter_stage,s->token_updated,s->token_total_updated,s->token_priced};
  for(unsigned i=0;i<sizeof(values)/sizeof(values[0]);i++)h=(h^(uint32_t)values[i])*16777619u;
@@ -34,6 +35,7 @@ uint32_t controller_view_hash(const controller_t *s) {
 
 void controller_init(controller_t *s) {
  memset(s, 0, sizeof(*s)); s->key=-1; s->selected=-1;
+ s->english=COMPANION_DEFAULT_ENGLISH;
  s->primary=s->secondary=s->resets=-1; s->sound=true; s->volume=20; s->interval=30; s->can_deny=true;
  strcpy(s->state,"idle");
 }
@@ -89,7 +91,7 @@ action_t controller_tick(controller_t *s,int64_t now) {
  if(s->online && now-s->last_rx>5000) { s->online=false; controller_cancel_input(s); }
  if(s->request && now>=s->expires) { controller_request(s,""); }
  if(s->meter_stage==2 && now-s->meter_sent_at>10000) {
-  s->meter_stage=0;snprintf(s->receipt,sizeof(s->receipt),"计数回执未确认");
+  s->meter_stage=0;snprintf(s->receipt,sizeof(s->receipt),"%s",device_text(s->english,"计数回执未确认"));
  }
  if(s->key<0 || s->consumed) return ACTION_NONE;
  int threshold=(s->key==2 && (s->stage==1 || s->reset_stage==2 || s->meter_stage==1))?1000:650;

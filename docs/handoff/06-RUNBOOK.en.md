@@ -2,11 +2,11 @@
 
 [简体中文（默认）](06-RUNBOOK.md) · English
 
-Source: firmware `0.2.13`, Bridge `0.2.13-native-app`. Current deployment and acceptance are in [project state](01-PROJECT-STATE.en.md); historical test counts are not results from this phase.
+Source: firmware `0.2.14`, Bridge `0.2.14-native-app`. Current deployment and acceptance are in [project state](01-PROJECT-STATE.en.md); historical test counts are not results from this phase.
 
 ## Daily startup
 
-One entry per platform and language: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows. See the [platform guide](11-HOST-PLATFORMS.en.md) for Windows preparation, read-only checks and test commands. Menu 7 now supports safe firmware maintenance on both platforms. Phase two adds separate English `Codex Companion Console.command` / `Codex Companion Console.cmd` entries covering menus, subtools, rate editor and host logs. Existing Chinese entries remain and pin Chinese. See [host languages](12-HOST-LANGUAGES.en.md) for usage and verification boundaries. Device language remains phase three.
+One entry per platform and language: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows. See the [platform guide](11-HOST-PLATFORMS.en.md) for Windows preparation, read-only checks and test commands. Menu 7 now supports safe firmware maintenance on both platforms. Phase two adds separate English `Codex Companion Console.command` / `Codex Companion Console.cmd` entries covering menus, subtools, rate editor and host logs. Existing Chinese entries remain and pin Chinese. See [host languages](12-HOST-LANGUAGES.en.md) for usage and verification boundaries. Version 0.2.14 builds device language from the installation entry: English installs English firmware, Chinese installs Chinese. Later PC language does not change the device. See [device languages](13-DEVICE-LANGUAGES.en.md).
 
 | Menu | Operation |
 |---|---|
@@ -78,7 +78,7 @@ bash controller/scripts/build.sh
 
 Building does not flash. macOS comprehensive image check `controller/scripts/check.sh` additionally needs `CONTROLLER_FLASH_PYTHON` with esptool 4.x. Bridge and flash interpreters are separate; dependencies are checked before stopping service.
 
-On Windows, menu 7 → 1 builds using existing ESP-IDF / WSL; 7 → 2 validates the image against current source; 7 → 4 prepares isolated esptool 4.8.1; 7 → 3 requires typing `FLASH` before safe USB update. Original private emoji assets and a matching source fingerprint are mandatory. USB access remains on Windows.
+On both platforms, 7 → 1 builds the entry-language firmware (Windows reuses ESP-IDF / WSL); 7 → 2 checks image, installed language and current source. 7 → 4 prepares isolated Windows esptool 4.8.1 or explains macOS interpreter configuration. 7 → 3 performs safe updating; Windows requires `FLASH`, while macOS retains existing manual confirmation. Original private emoji assets and a matching source fingerprint are mandatory. USB access remains on Windows.
 
 Updates use menu 7 and the platform's existing protected path: tests / manifest checks, manual confirmation, Bridge stop, two complete matching backups, live partition checks, application-only write and readback verification, then reconnect the original App. Windows uses 256 KiB read blocks and bounded read-only retries; failed backups never trigger a write. If the device already reports the target version, do not reflash just to load a Bridge-only patch. The user confirmed the repaired Windows update and a basic visual check; no repeat flash is required. See [hardware and flashing](04-HARDWARE-AND-FLASH.en.md).
 
