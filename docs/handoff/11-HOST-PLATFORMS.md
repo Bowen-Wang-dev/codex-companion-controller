@@ -2,6 +2,12 @@
 
 维护日期：2026-11-03（Australia/Sydney）。本次授权新增 Windows 10/11 主机适配，同时保留 macOS；不迁移或替换 Mac 产品，也不删除原入口、固件和 Swift Demo。
 
+## 后续更新：Windows 固件菜单已接入（尚未实机刷写）
+
+以下表格及证据章节保留初次适配阶段的记录。后续修复已将菜单 7 接到 `scripts/firmware_update.py`：1 构建，2 检查镜像，3 USB 安全升级，4 准备独立 esptool 4.8.1。使用已有 ESP-IDF 环境或 WSL 中的 ESP-IDF 5.5.3，USB 始终由 Windows 访问；没有另加顶层启动脚本。升级不是下载 GitHub 最新固件，而是校验本机构建镜像与当前源码一致。
+
+当前 Windows 缺少私有 `controller/firmware/main/pet_assets.h`。先从原 Mac 私有备份恢复这个文件，保留 Apple 原版表情；不上传。再从菜单 7→1 构建、7→2 校验、7→4 准备刷写环境、7→3 输入 FLASH。缺素材或镜像过期时提前拒绝，不停止 Bridge。实际升级双读完整备份、核对设备/live 分区，仅写应用并验证；完成后菜单 2 恢复 Bridge。需要 USB 数据线及唯一目标设备。未实机验证这套 Windows 升级流程。
+
 ## 平台与验证范围
 
 | 能力 | macOS | Windows 10/11 |

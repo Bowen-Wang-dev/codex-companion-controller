@@ -4,6 +4,11 @@
 
 ## 当前工作：2026-11-03 新增 Windows、保留 macOS
 
+- 后续修复：Windows 控制台菜单 7 已接入 `firmware_update.py`，提供构建、校验、USB 安全升级及独立 esptool 4.8.1 环境准备；不再只是不可用提示。镜像须匹配当前源码摘要、版本、芯片及文件摘要，并包含原版私有表情素材；旧镜像拒绝升级。固件 manifest 生成器对 macOS 构建同样记录源码摘要。
+- 当前阻塞：Windows 本机缺少 `firmware/main/pet_assets.h`，现有 dist 是不含表情且未绑定当前源码的旧镜像。需从原 Mac 私有备份恢复该文件后，通过菜单 7→1 构建，再 7→2 校验、7→3 输入 FLASH 升级。未创建新固件或写入设备；不能称为刷机实机验收。发现已有 Ubuntu 22.04 / ESP-IDF 5.5.3 构建环境，Windows 负责 COM 刷写，WSL 仅负责构建。
+- 本次修复 Controller 回归实际运行 274 项，OK（16 项跳过）。覆盖镜像损坏、源码/配置/素材变化、旧 manifest、缺素材、取消和刷写异常释放锁；既有分区/备份测试保留。备份目录补 Windows 私有 ACL，独立刷写环境不进入归档。
+- Windows 独立 esptool 4.8.1 已准备且对现有镜像 image_info 的 checksum/Validation Hash 解析通过；工具回归 19 项 OK（4 skipped）。尚未打开串口或验证实机写入。
+
 - 2026-11-03 用户反馈通知基本可用，要求统一跨平台措辞。固件、Bridge、控制台与维护提示改用“PC 端 / PC 端 App”，保留平台路径、MAC 地址字段及历史验收事实。源码修改尚未构建或刷入设备，运行中的 Bridge 也未重启。回归发现 Windows 默认编码导致审批字库读取失败，改为显式 UTF-8。
 - 本轮 Windows Controller 回归实际运行 265 项，OK（16 项跳过）；字库清单确认包含“端”。未验证新文案的实机排版。
 

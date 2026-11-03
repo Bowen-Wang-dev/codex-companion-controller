@@ -14,7 +14,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'controller/bridge'))
 from private_permissions import set_private
-SKIP_DIRS = {'bridge-venv', 'bridge-venv-homebrew', 'bridge-venv-windows', 'pycache', 'checks', 'component-cache', '__pycache__'}
+SKIP_DIRS = {'bridge-venv', 'bridge-venv-homebrew', 'bridge-venv-windows', 'flash-venv-windows', 'pycache', 'checks', 'component-cache', '__pycache__'}
 
 
 def private_files(root):

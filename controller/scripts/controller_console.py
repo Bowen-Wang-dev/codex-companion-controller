@@ -82,9 +82,7 @@ def hooks_menu():
 
 def firmware_menu():
     if WINDOWS:
-        print('Windows 固件构建/菜单更新流程尚未验收；本阶段保留现有固件。')
-        print('macOS 原有双备份/live 分区安全更新流程继续保留，详见 docs/handoff/04-HARDWARE-AND-FLASH.md。')
-        return
+        return run(ROOT/'scripts/firmware_update.py')
     return subprocess.run([str(ROOT/'维护工具'/'更新Token计量与清零固件.command')],cwd=ROOT).returncode
 
 

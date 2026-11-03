@@ -11,6 +11,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'bridge'))
+from private_permissions import set_private
+
 SIZE = 8 * 1024 * 1024
 SECTOR = 4096
 ROOT = Path(__file__).resolve().parents[1]
@@ -125,6 +128,7 @@ def backup(tool):
     mac = tool.identity()
     folder = ROOT/'private'/'backups'/(time.strftime('%Y%m%d-%H%M%S')+'-'+mac.replace(':', ''))
     folder.mkdir(parents=True, mode=0o700, exist_ok=False)
+    set_private(folder, 0o700)
     image_path, verify_path = folder/'flash.bin', folder/'verify.bin'
     print('备份 1/2：读取 8 MB Flash（只读，不擦除、不写入）…', flush=True)
     tool.run('read_flash', '0', hex(SIZE), str(image_path))
