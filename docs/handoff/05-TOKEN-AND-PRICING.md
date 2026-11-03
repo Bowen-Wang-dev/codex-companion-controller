@@ -1,5 +1,7 @@
 # Token 与计费模型
 
+简体中文（默认） · [English](05-TOKEN-AND-PRICING.en.md)
+
 ## 不重叠的显示行
 - 未缓存输入 = API 输入总数 − 缓存读取 − 缓存写入。
 - 缓存读取、缓存写入分别列行和费率。
@@ -31,4 +33,4 @@ API 没有提供细分时必须明确未知；目前 provider CSV 没有 reasoni
 ## 先前实际对账结论
 曾用用户私有导出逐笔核对：普通与长档混合时单档估价会偏低；逐笔双档后与账单仅有逐笔舍入差异。真实行、IP、API Key 标签与总额未放入交接公开文档。
 
-参考（未来价格变更需重新查）：https://developers.openai.com/api/docs/models/gpt-6.1-sol 、https://developers.openai.com/api/docs/guides/reasoning 、https://developers.openai.com/api/docs/guides/prompt-caching 。
+历史来源参考（未来价格变更需重新查）：[模型文档](https://developers.openai.com/api/docs/models/gpt-6.1-sol)、[推理](https://developers.openai.com/api/docs/guides/reasoning)、[提示缓存](https://developers.openai.com/api/docs/guides/prompt-caching)。本次纯文档阶段未重新核对实时价格。

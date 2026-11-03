@@ -1,5 +1,7 @@
 # 硬件与刷写边界
 
+简体中文（默认） · [English](04-HARDWARE-AND-FLASH.en.md)
+
 目标为 FoloToy AI Passport，ESP32-C3、8MB Flash、约 400KB 片上 SRAM、无 PSRAM，240×320 ST7789 屏、2.4GHz Wi-Fi/BLE。实际板卡以 BSP 与设备探测为准。没有 SIM/蜂窝；被动 NTAG213 不当作 MCU 外设。
 
 引脚唯一事实源：`controller/firmware/components/bsp/include/bsp_pins.h`。本文记录当前代码值，换板必须重新验证：
@@ -19,6 +21,14 @@
 仓库 `controller/firmware/partitions.csv` 是构建期容量上限，不是设备现场布局；不能直接据它刷分区表。不要执行 `idf.py flash` 或构建输出的通用多地址 write_flash 指令。
 
 此前 Hello World 只有单 factory，用户允许替换测试应用，但不等于允许永久删除原始备份/整片清零。
+
+## Windows 读取恢复
+
+Windows 菜单 7 使用 `scripts/firmware_update.py` 与共用安全更新器。要求原版私有表情素材及匹配的源码指纹、版本、芯片、镜像大小和 SHA-256；旧镜像或无图镜像在停止 Bridge 前拒绝。
+
+完整备份以 115200、256 KiB 分块读取，关闭每帧进度。只读最多三次尝试，末次 ROM 回退；失败块输出丢弃，不拼接残片。块间用 `no_reset` 保持应用停止，避免 NVS 变化；双份完整备份仍须摘要一致。写入不自动重试，失败备份目录保留。
+
+首轮 Windows 升级在第一份备份 36% 因 `Corrupt data` 短帧失败，当时未进入第二份备份、写入或回读。修复后用户已确认升级及基本目视检查完成，不扩展为完整权限矩阵、Windows 10 或长期稳定性验收。
 
 ## 工具限制
 沙箱曾在授予串口路径访问后仍拒绝 termios 配置。发生这种情况，记录具体错误，通过唯一控制台在普通 Terminal 执行获准操作；不绕过沙箱，也不将未执行的刷写记录为成功。备份读取可能数分钟，须显示进度，不把“Reading flash twice”误判为已经开始写 Flash。

@@ -1,12 +1,14 @@
 # 待办与未验证项
 
-维护日期：2026-11-03（Australia/Sydney）。当前授权新增 Windows 10/11 适配并保留 macOS；其他功能及设备操作仍需明确安排。
+简体中文（默认） · [English](09-BACKLOG.en.md)
+
+维护日期：2026-11-03（Australia/Sydney）。当前授权新增 Windows 10/11 适配并保留 macOS；用户现将双语工作分三次独立提交及推送：Markdown 文档、`.command` / `.cmd` 与控制台、固件及其他部分。本阶段只改 Markdown；其他功能及设备操作仍需明确安排。
 
 ## 双平台后续验证
 
 - Windows 11 已补主机层、独立环境、版本摘要保护与合成传输回归；下一步在原 App/设备补双端 Allow/Deny、GUI、睡眠重连与防火墙可达性验收。
 - Windows 10 和 macOS 本轮实际执行；新增双平台 CI 尚未运行，不能替代真实目标系统验收。
-- Windows ESP-IDF 构建及整套双备份/live 分区应用更新尚未移植验收；保留 macOS 安全维护入口，Windows 菜单明确拒绝调用 Mac 脚本。
+- Windows ESP-IDF / WSL 构建及双备份/live 分区应用更新已实现，私有素材已恢复，用户已确认升级及基本目视检查。完整升级故障覆盖、Windows 10 及长期稳定性仍待验证；保留 macOS 安全维护入口，Windows 不调用 Mac 更新脚本。
 
 ## 已确认与本次已修复
 
