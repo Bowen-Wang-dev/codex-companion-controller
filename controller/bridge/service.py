@@ -20,6 +20,7 @@ from wireless import start_https
 from hook_policy import display as hook_display, permission_tool, permission_summary
 from approval_review import native_view, hook_text, pages as review_pages
 
+from console_i18n import tr
 ROOT = Path(__file__).resolve().parents[1]
 
 def excerpt(value,limit):
@@ -299,7 +300,7 @@ class Broker:
 
     def note_hook(self, event):
         if not self.hook_count:
-            print('Codex 会话事件已接入：'+str(event.get('hook_event_name','事件')),flush=True)
+            print(tr('Codex 会话事件已接入：') + str(event.get('hook_event_name', tr('事件'))), flush=True)
         self.hook_count += 1
         self.last_hook = time.monotonic()
         name = str(event.get('hook_event_name',''))[:40]
@@ -360,7 +361,7 @@ class Broker:
                      'deadline':time.monotonic()+110,'command':heading+' · 在 PC 端确认',
                      'project':details,'scope':'详情与授权范围请在 PC 端查看',
                      'digest':hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest()}
-        print('检测到'+heading+'：设备提醒，授权在 PC 端完成。',flush=True)
+        print(tr('检测到') + tr(heading) + tr('：设备提醒，授权在 PC 端完成。'), flush=True)
 
     def online(self):
         return bool(self.boot) and time.monotonic() - self.last_seen < 5
@@ -713,14 +714,14 @@ class Broker:
                         health.update(zip(('http_error','http_status','http_duration_ms'),details))
                     if self.network_health and (any(health.get(k)!=self.network_health.get(k) for k in ('wifi_disconnects','http_failures')) or reconnect):
                         stamp=datetime.datetime.now().astimezone().isoformat(timespec='seconds')
-                        print(f'[{stamp}] 无线诊断: gap={gap:.1f}s reconnect={self.reconnect_count} wifi_drops={raw[0]} reason={raw[1]} http_errors={raw[2]} phase={raw[3]} code={health.get("http_status","—")} error={health.get("http_error","—")} rtt_ms={health.get("http_duration_ms","—")}',flush=True)
+                        print(f"[{stamp}{tr('] 无线诊断: gap=')}{gap:.1f}s reconnect={self.reconnect_count} wifi_drops={raw[0]} reason={raw[1]} http_errors={raw[2]} phase={raw[3]} code={health.get('http_status', '—')} error={health.get('http_error', '—')} rtt_ms={health.get('http_duration_ms', '—')}", flush=True)
                     self.network_health=health
                 if reconnect:
                     stamp=datetime.datetime.now().astimezone().isoformat(timespec='seconds')
                     rebooted=self.boot!=message['boot']
-                    print(f'[{stamp}] 设备恢复同步：间隔 {gap:.1f}s；设备重启={rebooted}',flush=True)
+                    print(f"[{stamp}{tr('] 设备恢复同步：间隔 ')}{gap:.1f}{tr('s；设备重启=')}{rebooted}", flush=True)
                 if not self.online() or self.boot!=message['boot']:
-                    print('设备已握手：'+('Wi-Fi 加密连接' if transport=='wifi' else 'USB 连接')+'；固件 '+str(message.get('firmware','未知'))+'；空闲堆 '+str(message.get('free_heap','—'))+' / 最大连续块 '+str(message.get('largest_heap','—')),flush=True)
+                    print(tr('设备已握手：') + (tr('Wi-Fi 加密连接') if transport == 'wifi' else tr('USB 连接')) + tr('；固件 ') + str(message.get('firmware', tr('未知'))) + tr('；空闲堆 ') + str(message.get('free_heap', '—')) + tr(' / 最大连续块 ') + str(message.get('largest_heap', '—')), flush=True)
                 if self.boot!=message['boot']:
                     if self.request:self.request['cancelled']=True
                     for pending in self.hook_pending:pending['cancelled']=True
@@ -894,9 +895,8 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             stopping.wait(1)
     threading.Thread(target=response_usage_worker, daemon=True).start()
     https=start_https(broker)
-    print('PC 端 App 实体审批模式：等待启动适配接入实际 App 会话。' if desktop else 'CLI 实体审批模式：原生请求由设备或 CLI 处理。' if native_socket else
-          '权限接入 v3：Hook 支持设备审批；原生网络 / 目录请求可在调用前拒绝，批准仍在 PC 端。',flush=True)
-    print('Bridge 已启动，等待设备连接。Control+C 停止。',flush=True)
+    print(tr('PC 端 App 实体审批模式：等待启动适配接入实际 App 会话。') if desktop else tr('CLI 实体审批模式：原生请求由设备或 CLI 处理。') if native_socket else tr('权限接入 v3：Hook 支持设备审批；原生网络 / 目录请求可在调用前拒绝，批准仍在 PC 端。'), flush=True)
+    print(tr('Bridge 已启动，等待设备连接。Control+C 停止。'), flush=True)
     try:
         while not stopping.is_set():
             if not port:
@@ -921,7 +921,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                                 continue
                             first=not broker.online()
                             broker.device_message(message,'usb')
-                            if first and broker.online():print('设备已握手，正在同步数据。',flush=True)
+                            if first and broker.online():print(tr('设备已握手，正在同步数据。'), flush=True)
                         if broker.online() and time.monotonic()-sent >= .5:
                             frame = b'PC1 ' + json.dumps(broker.snapshot(), separators=(',', ':')).encode() + b'\n'
                             device.write(frame)
@@ -934,7 +934,7 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
                         broker.last_seen = 0
                         if broker.request:broker.request['cancelled'] = True
                 if isinstance(error, PermissionError) or getattr(error, 'errno', None) in (1, 13):
-                    print('USB 串口配置被系统限制。请在普通 Terminal 运行「恢复Bridge连接.command」；不会刷机。', flush=True)
+                    print(tr('USB 串口配置被系统限制。请在普通 Terminal 运行「恢复Bridge连接.command」；不会刷机。'), flush=True)
                     port = ''
                 stopping.wait(2)
     finally:

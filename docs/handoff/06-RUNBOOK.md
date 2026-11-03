@@ -6,7 +6,7 @@
 
 ## 日常启动
 
-每平台一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。Windows 环境准备、只读检查及测试命令见 [双平台说明](11-HOST-PLATFORMS.md)；菜单 7 现已支持双平台安全固件维护。独立英文入口属于第二阶段，本次文档提交不创建新入口。
+每平台每种语言一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。Windows 环境准备、只读检查及测试命令见 [双平台说明](11-HOST-PLATFORMS.md)；菜单 7 现已支持双平台安全固件维护。第二阶段已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，覆盖菜单、子工具、费率窗口及 PC 日志；中文入口保留并固定中文。运行方式及验证边界见[PC 端语言说明](12-HOST-LANGUAGES.md)。设备语言留到第三阶段。
 
 | 菜单 | 操作 |
 |---|---|

@@ -20,6 +20,7 @@ PENDING = ROOT / 'private/runtime-migration.json'
 
 
 sys.path.insert(0, str(ROOT/'bridge'))
+from console_i18n import tr
 from private_permissions import set_private
 
 def endpoint_at(root):
@@ -61,7 +62,7 @@ def wait_stopped(root):
                 return
             except BlockingIOError:
                 time.sleep(.1)
-    raise RuntimeError('旧 Bridge 尚未退出；未复制账本。')
+    raise RuntimeError(tr('旧 Bridge 尚未退出；未复制账本。'))
 
 
 def migrate_hooks(data, old_root, new_root):
@@ -113,7 +114,7 @@ def copy_ledger(old_root, new_root, backup):
 
 
 def activate(old_root, new_root=ROOT):
-    if fcntl is None:raise RuntimeError('macOS 运行目录迁移仅在 macOS 执行；Windows 不复制旧账户或激活旧配对。')
+    if fcntl is None:raise RuntimeError(tr('macOS 运行目录迁移仅在 macOS 执行；Windows 不复制旧账户或激活旧配对。'))
     from launch_desktop import verify_build
     from install_hooks import save
     version = verify_build()
@@ -123,12 +124,12 @@ def activate(old_root, new_root=ROOT):
         raise ValueError('Invalid old runtime directory')
     running = subprocess.run(['/usr/bin/pgrep', '-f', '^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'], capture_output=True)
     if running.returncode != 1:
-        raise RuntimeError('App 仍在运行或无法检查。请先手动 Command+Q；未停止 Bridge。')
+        raise RuntimeError(tr('App 仍在运行或无法检查。请先手动 Command+Q；未停止 Bridge。'))
     if request_at(new_root, {'type': 'status'}) is not None:
-        raise RuntimeError('新目录 Bridge 已运行；拒绝覆盖运行中的账本。')
+        raise RuntimeError(tr('新目录 Bridge 已运行；拒绝覆盖运行中的账本。'))
     for name in ('wireless.json', 'bridge-cert.pem', 'bridge-key.pem', 'token_rates.json'):
         if (old_root / 'private' / name).read_bytes() != (new_root / 'private' / name).read_bytes():
-            raise RuntimeError('迁移后配对或费率发生变化，请先核对：' + name)
+            raise RuntimeError(tr('迁移后配对或费率发生变化，请先核对：') + name)
     hooks = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'hooks.json'
     before = json.loads(hooks.read_text()) if hooks.exists() else {}
     # Validate the full transform before stopping the old service.
@@ -136,11 +137,11 @@ def activate(old_root, new_root=ROOT):
     status = request_at(old_root, {'type': 'status'})
     if status:
         if status.get('project_root') != str(old_root):
-            raise RuntimeError('旧 Bridge 路径不匹配；未停止服务。')
+            raise RuntimeError(tr('旧 Bridge 路径不匹配；未停止服务。'))
         if status.get('permission_pending') or status.get('hook_pending'):
-            raise RuntimeError('旧 Bridge 有待处理审批；未停止服务。')
+            raise RuntimeError(tr('旧 Bridge 有待处理审批；未停止服务。'))
         if request_at(old_root, {'type': 'shutdown'}) != {'stopping': True}:
-            raise RuntimeError('旧 Bridge 未确认停止。')
+            raise RuntimeError(tr('旧 Bridge 未确认停止。'))
     # The lifetime lock is released only after HTTPS and usage workers stop.
     wait_stopped(old_root)
     backup = new_root / 'private' / ('activation-backup-' + str(time.time_ns()))
@@ -154,18 +155,18 @@ def activate(old_root, new_root=ROOT):
     path = new_root / 'private/runtime-activation.json'
     path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n')
     path.chmod(0o600)
-    print('旧 Bridge 已停止；最新账本与 Hooks 已切换到新目录，备份已保留。', flush=True)
+    print(tr('旧 Bridge 已停止；最新账本与 Hooks 已切换到新目录，备份已保留。'), flush=True)
 
 
 def main():
     config = json.loads(PENDING.read_text())
-    print('切换到新工程：' + str(ROOT), flush=True)
-    print('请保存当前工作，手动 Command+Q 退出 PC 端 App，再回到这个 Terminal。', flush=True)
-    if input('App 已退出后按回车继续；输入 q 取消：').strip().lower() == 'q':
+    print(tr('切换到新工程：') + str(ROOT), flush=True)
+    print(tr('请保存当前工作，手动 Command+Q 退出 PC 端 App，再回到这个 Terminal。'), flush=True)
+    if input(tr('App 已退出后按回车继续；输入 q 取消：')).strip().lower() == 'q':
         return
     activate(Path(config['old_root']))
     PENDING.unlink()
-    print('新路径 Hooks 需要在 Codex 中重新审阅信任；请打开原聊天验证设备审批。', flush=True)
+    print(tr('新路径 Hooks 需要在 Codex 中重新审阅信任；请打开原聊天验证设备审批。'), flush=True)
     os.execv(sys.executable, [sys.executable, str(ROOT / 'scripts/launch_desktop.py')])
 
 
@@ -174,6 +175,6 @@ if __name__ == '__main__':
     try:
         main()
     except (OSError, ValueError, RuntimeError) as error:
-        sys.exit('运行目录切换未完成：' + str(error))
+        sys.exit(tr('运行目录切换未完成：') + str(error))
     except (EOFError, KeyboardInterrupt):
-        sys.exit('已取消；没有自动关闭 App。')
+        sys.exit(tr('已取消；没有自动关闭 App。'))

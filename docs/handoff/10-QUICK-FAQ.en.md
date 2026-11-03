@@ -24,4 +24,4 @@
 
 **Is Windows firmware maintenance still unavailable?** It is now implemented. Menu 7 provides build / image validation / safe USB update / isolated flash setup. Private assets were restored and the user confirmed completing the repaired update and a basic visual check. Complete functionality, Windows 10 and long-term stability still need separate evidence.
 
-**Does English Markdown mean the console and device are English?** No. Phase one is documentation only. Separate Chinese / English `.command` / `.cmd` consoles are phase two; firmware and other localization are phase three. Current entries remain Chinese until their own implementation and checks are committed.
+**Does English Markdown mean the console and device are English?** No. Phase one was documentation only. Phase two now provides separate Chinese / English `.command` / `.cmd` consoles plus English subtools, rate editor and host logs. Device text remains unchanged for phase three; third-party raw output and user data are not replaced. See [host languages](12-HOST-LANGUAGES.en.md).

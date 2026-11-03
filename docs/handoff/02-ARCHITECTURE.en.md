@@ -16,7 +16,7 @@ App integration uses internal launch switches from the installed version, not st
 
 The Python modules below are shared by macOS and Windows. Platform differences are concentrated in `bridge/host_platform.py`, `bridge/ipc_path.py`, `bridge/windows_security.py` and `bridge/private_permissions.py`. Windows follows `.cmd` → `scripts/setup_windows.py` → shared `controller_console.py`; the App follows private generated `app-relay.exe` → `scripts/app_relay.py` → shared `stdio_relay.py`. macOS retains `.command` and Unix IPC. See [platform details and pending acceptance](11-HOST-PLATFORMS.en.md).
 
-- `controller/scripts/controller_console.py`: shared menu; `Codex Companion 控制台.command` and same-name `.cmd` are the current daily entries. Separate language entries are phase two.
+- `controller/scripts/controller_console.py`: shared menu; `Codex Companion 控制台.command` and same-name `.cmd` are the current daily entries. Separate English `Codex Companion Console.command` / `Codex Companion Console.cmd` entries now pass `COMPANION_LANGUAGE`. Host translation uses `bridge/console_i18n.py` and `locale_en.json` without translating device payloads.
 - `scripts/launch_desktop.py`: exact App version / digest checks, environment and relay launch, Bridge lifecycle.
 - `scripts/app_relay.command` + `bridge/stdio_relay.py`: transparent JSONL forwarding, device / original-App approval race and a single submission receipt.
 - `bridge/service.py`: Broker state, request / event management, device snapshots, account / numeric updates and private IPC.

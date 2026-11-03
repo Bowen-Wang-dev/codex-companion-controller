@@ -22,6 +22,7 @@ Updated 2026-11-03 (Australia/Sydney). Chinese is the default. English documents
 | Version evolution / decisions | [08](handoff/08-CHANGE-AND-DECISIONS.md) | [08](handoff/08-CHANGE-AND-DECISIONS.en.md) |
 | Backlog / unaccepted scope | [09](handoff/09-BACKLOG.md) | [09](handoff/09-BACKLOG.en.md) |
 | FAQ | [10](handoff/10-QUICK-FAQ.md) | [10](handoff/10-QUICK-FAQ.en.md) |
+| Host languages / separate entries | [12](handoff/12-HOST-LANGUAGES.md) | [12](handoff/12-HOST-LANGUAGES.en.md) |
 | macOS / Windows | [11](handoff/11-HOST-PLATFORMS.md) | [11](handoff/11-HOST-PLATFORMS.en.md) |
 | Third-party API compatibility | [Roadmap](API_COMPATIBILITY.md) | [Compatibility](API_COMPATIBILITY.en.md) |
 | v0.2.12 release / five hardware cases | [Release](releases/v0.2.12.md) | [Release record](releases/v0.2.12.en.md) |
@@ -39,6 +40,6 @@ See [third-party notices](../THIRD_PARTY_NOTICES.md) for full Chinese / English 
 ## Maintenance and phases
 
 - Update current English with Chinese, preserving equal detail. Commands, paths, versions, money, thresholds, digests, test counts and accepted / pending conclusions must agree. Existing interface wording may remain quoted to identify real device prompts; never translate filenames or commands speculatively.
-- Phase one is Markdown only, separately committed / pushed. Phase two implements separate Chinese / English `.command` / `.cmd` consoles. Phase three handles firmware / other parts. Describing future plans does not mean those features are delivered.
+- Phase-one Markdown is separately committed / pushed. Phase two now implements separate Chinese / English `.command` / `.cmd` consoles and host subtools, with its own commit / push. Phase three handles firmware / other parts. Describing future plans does not mean those features are delivered.
 - Record source, image, loaded runtime and hardware acceptance separately. This documentation phase does not rerun services or touch devices and does not claim old tests as fresh execution.
 - Never put private configuration, bills, pairing, backups, Apple artwork or artwork-containing firmware in public docs / Git.

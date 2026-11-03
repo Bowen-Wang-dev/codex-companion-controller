@@ -8,6 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'bridge'))
+from console_i18n import tr
 from meter_client import request
 from host_platform import WINDOWS, powershell
 
@@ -39,7 +40,7 @@ def inspect(root=ROOT):
         paired = json.loads((root/'private/wireless.json').read_text()).get('ip')
         if not isinstance(paired, str): paired = None
     except FileNotFoundError: pass
-    except (OSError, ValueError, AttributeError): problem = '本机无线配对记录无法读取；保留原文件，勿删除。'
+    except (OSError, ValueError, AttributeError): problem = tr('本机无线配对记录无法读取；保留原文件，勿删除。')
     addresses = local_ipv4()
     try:
         status = request({'type':'status'})
@@ -54,14 +55,14 @@ def inspect(root=ROOT):
 
 def show(report):
     status = report['status']
-    print('Bridge：'+('运行中' if status else '未运行或本机接口不可达（'+report['bridge_error']+'）'), flush=True)
+    print('Bridge：'+(tr('运行中') if status else tr('未运行或本机接口不可达（')+report['bridge_error']+'）'), flush=True)
     if status:
-        print('设备：'+('在线 / '+str(status.get('transport','')) if status.get('online') else '离线'), flush=True)
-        print('App 实体审批：'+('已接入' if status.get('desktop',{}).get('connected') else '尚未接入；设备链路与 App 审批是两项检查'), flush=True)
-    print('PC 端当前 IPv4：'+(', '.join(report['local_ips']) or '未检测到'), flush=True)
-    print('设备配对的 PC 端 IPv4：'+str(report['paired_ip'] or '未配置'), flush=True)
+        print(tr('设备：')+(tr('在线 / ')+str(status.get('transport','')) if status.get('online') else tr('离线')), flush=True)
+        print(tr('App 实体审批：')+(tr('已接入') if status.get('desktop',{}).get('connected') else tr('尚未接入；设备链路与 App 审批是两项检查')), flush=True)
+    print(tr('PC 端当前 IPv4：')+(', '.join(report['local_ips']) or tr('未检测到')), flush=True)
+    print(tr('设备配对的 PC 端 IPv4：')+str(report['paired_ip'] or tr('未配置')), flush=True)
     if report['address_changed']:
-        print('配对地址已不属于当前 PC 端。重配无线需更新设备地址和证书；只重启 Bridge 无法修正。USB 可先恢复使用。', flush=True)
+        print(tr('配对地址已不属于当前 PC 端。重配无线需更新设备地址和证书；只重启 Bridge 无法修正。USB 可先恢复使用。'), flush=True)
     if report['pairing_problem']: print(report['pairing_problem'], flush=True)
 
 

@@ -15,7 +15,7 @@ App 适配使用已安装版本的内部启动开关，并非稳定公开设置�
 ## 主机源码
 
 以上原有 Python 模块由 macOS 与 Windows 共用。平台差异集中在 `bridge/host_platform.py`、`bridge/ipc_path.py`、`bridge/windows_security.py` 与 `bridge/private_permissions.py`；Windows 使用 `.cmd` → `scripts/setup_windows.py` → 同一 `controller_console.py`，App 使用生成的私有 `app-relay.exe` → `scripts/app_relay.py` → 同一 `stdio_relay.py`。macOS 继续使用现有 `.command` 和 Unix IPC。细节及待验收项见 [11-HOST-PLATFORMS.md](11-HOST-PLATFORMS.md)。
-- `controller/scripts/controller_console.py`：共用菜单；`Codex Companion 控制台.command` 与同名 `.cmd` 是现行日常入口。分语言入口属于第二阶段。
+- `controller/scripts/controller_console.py`：共用菜单；`Codex Companion 控制台.command` 与同名 `.cmd` 是现行日常入口。现已新增独立英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`，通过 `COMPANION_LANGUAGE` 传递语言；PC 翻译模块为 `bridge/console_i18n.py` 及 `locale_en.json`，不翻译设备载荷。
 - `scripts/launch_desktop.py`：精确 App 版本/摘要、环境与 relay 启动、Bridge 生命周期。
 - `scripts/app_relay.command` + `bridge/stdio_relay.py`：透明 JSONL 转发、硬件/原 App 审批竞争及唯一回执。
 - `bridge/service.py`：Broker 状态、请求/事件管理、设备 snapshot、账户/数值更新、私有 IPC。

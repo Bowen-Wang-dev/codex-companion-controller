@@ -4,7 +4,15 @@
 
 Updated 2026-11-03 (Australia/Sydney). Source, recent runtime evidence and hardware acceptance are separate. Later sections preserve facts from their respective stages.
 
-## Current work: staged bilingual documentation
+## Current work: phase-two English host interaction
+
+- Phase-one Markdown was independently committed / pushed as `48603c8`. The user now authorizes English host interaction: add `Codex Companion Console.command` / `Codex Companion Console.cmd`, retain Chinese entries, one entry per platform and language without other top-level launchers.
+- Shared `COMPANION_LANGUAGE` and 341 English messages cover console, diagnosis / recovery, pairing, metering / rate editor, Hooks, maintenance and host Bridge logs. Chinese is default; entries pin language and pass it to children. Windows CMD uses CRLF / UTF-8, shell uses LF; macOS private configuration cannot override entry language.
+- The English rate editor gains vertical scrolling and screen-height adaptation; rate / model override and audit CSV reads specify UTF-8. Model names, paths, protocol IDs, `YES` / `RESET` / `FLASH` and user data are not translated. Device snapshots / requests / receipts remain Chinese, without firmware or original-App package changes.
+- Final Windows Controller regression: 295 tests, OK (18 skipped), including 13 host-language cases with real CMD / hidden Tk and temporary settings. Five isolated WSL shell cases passed, along with actual English CMD `--check-only`, Python 3.11 syntax for 48 files, all shell / command syntax and local links across 60 Markdown files. Native macOS execution, real App / device workflows and complete manual GUI acceptance remain uncovered.
+- See [host languages](12-HOST-LANGUAGES.en.md) for checks and unverified scope. No real App / Bridge launch, flash, pairing, reset, Hook registration or account change; existing App digest, single-instance, dual-backup and live-partition protections remain. This adds no real App / device functional acceptance; phase-three firmware English is not implemented.
+
+## Completed phase one: staged bilingual documentation
 
 - The user requires three separate commit / push phases: Markdown bilingual documentation; Chinese / English `.command` / `.cmd` console entries; firmware and other parts. This phase changes only Markdown, with Chinese default and full-detail English counterparts. It does not deploy code, change console language or flash firmware.
 - Console localization started before this clarification was saved locally in ignored `controller/private/stage2-console.patch` and companion files, then removed from the worktree. It is not part of the documentation index / commit and is not validated as phase-two completion.

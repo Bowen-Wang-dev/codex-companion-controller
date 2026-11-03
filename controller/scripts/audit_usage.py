@@ -9,6 +9,7 @@ import time
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'bridge'))
+from console_i18n import tr
 from meter_client import request
 from response_usage import ResponseUsageReader
 from usage_meter import UsageLedger, load_rates, plus, zero
@@ -16,7 +17,7 @@ from usage_meter import UsageLedger, load_rates, plus, zero
 
 def timestamp(value):
     parsed=datetime.datetime.fromisoformat(value.replace('Z','+00:00'))
-    if parsed.tzinfo is None:raise argparse.ArgumentTypeError('时间必须包含时区，例如 +11:00')
+    if parsed.tzinfo is None:raise argparse.ArgumentTypeError(tr('时间必须包含时区，例如 +11:00'))
     return parsed.timestamp()
 
 
@@ -29,9 +30,9 @@ def main():
     args=parser.parse_args()
     end=args.until if args.until is not None else time.time()
     start=args.since if args.since is not None else end-3600
-    if start>=end:parser.error('统计起点必须早于终点')
+    if start>=end:parser.error(tr('统计起点必须早于终点'))
     ledger=UsageLedger(ROOT/'private/token-ledger.json')
-    if ledger.blocked:raise ValueError('本地计量文件不可读；没有修改文件')
+    if ledger.blocked:raise ValueError(tr('本地计量文件不可读；没有修改文件'))
     threads=set(ledger.threads)
     try:
         status=request({'type':'status'})
@@ -70,27 +71,27 @@ def main():
         'limitation':'Provider charges without a completed local usage record are not visible.'}
     if args.provider_log:
         from provider_billing import parse_export, reconcile
-        provider=[r for r in parse_export(args.provider_log.read_text()) if start<=r['at']<end]
+        provider=[r for r in parse_export(args.provider_log.read_text(encoding='utf-8-sig')) if start<=r['at']<end]
         result['provider_comparison']=reconcile(provider,[r for r in records if start<=r['at']<end],book)
     if args.json:print(json.dumps(result,ensure_ascii=False,indent=2));return
-    print('统计时间：'+result['since']+' → '+result['until'])
-    print('范围：本项目已知聊天的本机完成请求；含压缩，不是账户账单。')
-    print('完成请求：',len(seen),'扫描完整：',complete)
-    print('非缓存输入：',result['uncached_input'],'缓存读取：',totals['cachedInputTokens'],
-          '缓存写入：',totals['cacheWriteInputTokens'],'输出（含推理）：',totals['outputTokens'])
-    print('总计：',totals['totalTokens'],'估价：',('$' if book['currency']=='USD' else book['currency']+' ')+format(cost,'.6f') if cost is not None else reason)
+    print(tr('统计时间：')+result['since']+' → '+result['until'])
+    print(tr('范围：本项目已知聊天的本机完成请求；含压缩，不是账户账单。'))
+    print(tr('完成请求：'),len(seen),tr('扫描完整：'),complete)
+    print(tr('非缓存输入：'),result['uncached_input'],tr('缓存读取：'),totals['cachedInputTokens'],
+          tr('缓存写入：'),totals['cacheWriteInputTokens'],tr('输出（含推理）：'),totals['outputTokens'])
+    print(tr('总计：'),totals['totalTokens'],tr('估价：'),('$' if book['currency']=='USD' else book['currency']+' ')+format(cost,'.6f') if cost is not None else reason)
     for index,turn in enumerate(result['turns'],1):
-        print('轮次',index,turn['first'],'→',turn['last'],'请求',turn['responses'],'Token',turn['usage']['totalTokens'])
-    if reader.issue:print('读取提示：'+reader.issue)
+        print(tr('轮次'),index,turn['first'],'→',turn['last'],tr('请求'),turn['responses'],'Token',turn['usage']['totalTokens'])
+    if reader.issue:print(tr('读取提示：')+reader.issue)
     if args.provider_log:
         comparison=result['provider_comparison']
-        print('后台请求：',comparison['provider_rows'],'本机匹配：',comparison['matched_rows'])
-        print('后台 Token：',comparison['provider_total']['totalTokens'],'后台已折扣费用：$'+comparison['provider_billed_cost'])
+        print(tr('后台请求：'),comparison['provider_rows'],tr('本机匹配：'),comparison['matched_rows'])
+        print(tr('后台 Token：'),comparison['provider_total']['totalTokens'],tr('后台已折扣费用：$')+comparison['provider_billed_cost'])
         for row in comparison['missing_local']:
-            print('后台存在、本机缺少：',local(row['at']),row['model'],'Token',row['usage']['totalTokens'],'费用 $'+row['billed_cost'])
-    print('后台重试／未返回完成用量的收费请求可能无法在此核对。')
+            print(tr('后台存在、本机缺少：'),local(row['at']),row['model'],'Token',row['usage']['totalTokens'],tr('费用 $')+row['billed_cost'])
+    print(tr('后台重试／未返回完成用量的收费请求可能无法在此核对。'))
 
 
 if __name__=='__main__':
     try:main()
-    except (OSError,ValueError) as error:sys.exit('核对未完成：'+str(error))
+    except (OSError,ValueError) as error:sys.exit(tr('核对未完成：')+tr(str(error)))

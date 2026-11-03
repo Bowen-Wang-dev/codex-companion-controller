@@ -10,6 +10,7 @@ import secrets
 import sys
 import tempfile
 
+from console_i18n import tr
 WINDOWS = sys.platform == 'win32'
 if WINDOWS:
     import msvcrt
@@ -52,7 +53,7 @@ def acquire_endpoint():
                 # byte already locked by the first Bridge before trying lock.
                 msvcrt.locking(lease.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError as error:
-                raise RuntimeError('另一份 Bridge 正在运行；未启动第二份服务。') from error
+                raise RuntimeError(tr('另一份 Bridge 正在运行；未启动第二份服务。')) from error
             if SOCKET.exists():private_file(SOCKET);SOCKET.unlink()
             return lease
         except BaseException:
@@ -64,7 +65,7 @@ def acquire_endpoint():
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise RuntimeError('另一份 Bridge 正在运行。请先在旧终端按 Control+C 停止，再启动。')
+            raise RuntimeError(tr('另一份 Bridge 正在运行。请先在旧终端按 Control+C 停止，再启动。'))
         try:
             info = SOCKET.lstat()
         except FileNotFoundError:
@@ -79,9 +80,9 @@ def acquire_endpoint():
                 if error.errno not in (errno.ECONNREFUSED, errno.ENOENT):
                     raise
             else:
-                raise RuntimeError('已有旧版 Bridge 在监听。请先在旧终端按 Control+C 停止。')
+                raise RuntimeError(tr('已有旧版 Bridge 在监听。请先在旧终端按 Control+C 停止。'))
         SOCKET.unlink(missing_ok=True)
-        print('已清理上次退出遗留的 IPC socket。', flush=True)
+        print(tr('已清理上次退出遗留的 IPC socket。'), flush=True)
         return lease
     except BaseException:
         lease.close()

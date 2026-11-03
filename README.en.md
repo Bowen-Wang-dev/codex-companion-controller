@@ -13,7 +13,7 @@ As of 2026-11-03 (Australia/Sydney):
 | Source | Firmware `0.2.13`; Bridge `0.2.13-native-app`; host Demo `0.4.0` |
 | Existing release baseline | Git tag `v0.2.12`; five native dual-side hardware acceptance cases in the [release notes](docs/releases/v0.2.12.en.md) |
 | Latest device evidence | Later logs report firmware `0.2.13`; the user subsequently confirmed completing the Windows update and a basic visual check. Complete acceptance of the new version remains pending |
-| This phase | Markdown documentation only; console launchers and firmware localization belong to separate later commits |
+| This phase | Phase two adds independent English host console / subtools while preserving Chinese default; firmware language is unchanged |
 | Follow-up | Windows 10, this round's macOS execution and the Windows original-App/device approval matrix remain unverified; see [project state](docs/handoff/01-PROJECT-STATE.en.md) |
 
 Firmware versions, Bridge source revisions, code loaded by running processes and hardware acceptance are distinct states. One log or one successful operation does not replace complete acceptance.
@@ -31,7 +31,7 @@ Desktop App integration accepts only exact versions and file digests registered 
 
 ## Daily entry
 
-On macOS use `controller/Codex Companion 控制台.command`; on Windows use the same-name `.cmd`. Both invoke the shared console; the first Windows run prepares an isolated Python environment. Requirements and checks are in the [platform guide](docs/handoff/11-HOST-PLATFORMS.en.md). These existing entries are Chinese; separate English entries are planned for phase two and are not delivered by this documentation commit.
+On macOS use `controller/Codex Companion 控制台.command`; on Windows use the same-name `.cmd`. Both invoke the shared console; the first Windows run prepares an isolated Python environment. Requirements and checks are in the [platform guide](docs/handoff/11-HOST-PLATFORMS.en.md). Phase two adds separate English `Codex Companion Console.command` / `Codex Companion Console.cmd` entries covering menus, subtools, rate editor and host logs. Existing Chinese entries remain and pin Chinese. See [host languages](docs/handoff/12-HOST-LANGUAGES.en.md) for usage and verification boundaries. Device language remains phase three.
 
 | Menu | Purpose |
 |---|---|

@@ -12,6 +12,7 @@ import sys
 import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'bridge'))
+from console_i18n import tr
 from private_permissions import set_private
 
 SIZE = 8 * 1024 * 1024
@@ -114,11 +115,11 @@ class Tool:
                         break
                     except (RuntimeError, OSError) as error:
                         if attempt == 2:
-                            raise RuntimeError('USB 备份读取失败，未写入设备；请更换数据线或直连 USB 后重试。') from error
-                        print('读取块校验失败；仅重试当前只读块，不写入 Flash。', flush=True)
+                            raise RuntimeError(tr('USB 备份读取失败，未写入设备；请更换数据线或直连 USB 后重试。')) from error
+                        print(tr('读取块校验失败；仅重试当前只读块，不写入 Flash。'), flush=True)
                 output.write(data)
                 output.flush()
-                print(f'只读备份进度：{position+length}/{size} 字节', flush=True)
+                print(f"{tr('只读备份进度：')}{position + length}/{size}{tr(' 字节')}", flush=True)
         chunk_path.unlink(missing_ok=True)
 
     def run(self, *args):
@@ -154,7 +155,7 @@ class Tool:
             except RuntimeError as error:
                 errors.append(f'{baud}/{before}: {error}')
         if info is None:
-            raise RuntimeError('ESP32-C3 USB 握手失败。请停止所有 Bridge，拔插数据线后重试；若仍失败，请让设备进入下载模式再运行。\n' + errors[-1])
+            raise RuntimeError(tr('ESP32-C3 USB 握手失败。请停止所有 Bridge，拔插数据线后重试；若仍失败，请让设备进入下载模式再运行。\n') + errors[-1])
         mac = re.search(r'MAC:\s*([0-9a-f:]{17})', info, re.I)
         if not mac or 'Detected flash size: 8MB' not in info:
             raise ValueError('Could not positively identify an 8 MB ESP32-C3')
@@ -170,9 +171,9 @@ def backup(tool):
     folder.mkdir(parents=True, mode=0o700, exist_ok=False)
     set_private(folder, 0o700)
     image_path, verify_path = folder/'flash.bin', folder/'verify.bin'
-    print('备份 1/2：读取 8 MB Flash（只读，不擦除、不写入）…', flush=True)
+    print(tr('备份 1/2：读取 8 MB Flash（只读，不擦除、不写入）…'), flush=True)
     tool.read_range(0, SIZE, image_path)
-    print('备份 2/2：再次读取 8 MB，用于独立校验…', flush=True)
+    print(tr('备份 2/2：再次读取 8 MB，用于独立校验…'), flush=True)
     tool.read_range(0, SIZE, verify_path)
     image = image_path.read_bytes()
     if sha(image) != sha(verify_path.read_bytes()) or len(image) != SIZE:

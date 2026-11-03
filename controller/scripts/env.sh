@@ -9,9 +9,12 @@ else
   return 1
 fi
 CONTROLLER_ROOT="$(cd "$(dirname "$CONTROLLER_ENV_PATH")/.." && pwd)"
+CONTROLLER_UI_LANGUAGE="${COMPANION_LANGUAGE:-zh-CN}"
 if [[ -f "$CONTROLLER_ROOT/private/local-env.sh" ]]; then
   source "$CONTROLLER_ROOT/private/local-env.sh"
 fi
+export COMPANION_LANGUAGE="$CONTROLLER_UI_LANGUAGE"
+source "$CONTROLLER_ROOT/scripts/console_i18n.sh"
 export CONTROLLER_BRIDGE_PYTHON="${CONTROLLER_BRIDGE_PYTHON:-$CONTROLLER_ROOT/private/bridge-venv/bin/python}"
 # Prefer the environment produced by ESP-IDF's export.sh. The optional bundled
 # tool root keeps the original offline-layout workflow available without a

@@ -4,7 +4,15 @@
 
 维护日期：2026-11-03（Australia/Sydney）。以下摘要区分源码、最近运行记录与实机验收；后续章节保留各阶段的历史事实。
 
-## 当前工作：分阶段双语文档
+## 当前工作：第二阶段 PC 交互英文
+
+- 第一阶段 Markdown 已于 `48603c8` 单独提交/推送。用户现授权第二阶段 PC 用户交互英文；增加 `Codex Companion Console.command` / `Codex Companion Console.cmd`，原中文入口保留。每平台每语言一个入口，不再增加其他顶层启动器。
+- 共用 `COMPANION_LANGUAGE` 与 341 条英文文案，覆盖控制台、诊断/恢复、配对、计量/费率窗口、Hooks、维护菜单及 PC Bridge 日志；中文默认，入口固定语言并传递给子进程。Windows CMD 固定 CRLF/UTF-8，shell 固定 LF；macOS 私有配置不能覆盖入口语言。
+- 英文费率窗口增加纵向滚动和屏幕高度适配；费率/模型校准及对账 CSV 显式 UTF-8 读取。模型名、路径、协议标识、确认词 `YES`/`RESET`/`FLASH` 和用户数据不翻译；设备 snapshot/请求/回执仍沿用中文，不修改固件或原 App 安装包。
+- 本阶段最终 Windows Controller 回归：295 项，OK（18 skipped）；其中 13 项 PC 语言回归通过，包含真实 CMD/隐藏 Tk 临时配置检查。WSL 五项隔离 shell 回归通过；英文 CMD 真实 `--check-only`、48 个 Python 文件的 3.11 语法兼容、全部 shell/command 语法及 60 个 Markdown 本地链接检查通过。macOS 本机运行、真实 App/设备全流程及人工 GUI 验收仍未覆盖。
+- 验证及未覆盖范围见 [PC 端语言说明](12-HOST-LANGUAGES.md)。本阶段不启动真实 App/Bridge，不刷机、配网、清零、注册 Hooks 或改账户；原有 App 版本摘要、单实例、双备份及 live 分区保护保留。没有据此新增真 App/设备功能验收；第三阶段固件英文未实施。
+
+## 已完成阶段一：分阶段双语文档
 
 - 用户明确要求三次独立 commit/push：Markdown 双语文档；中英文 `.command` / `.cmd` 控制台；固件及其他部分。本阶段只改 Markdown，中文默认，英文为同等细节的独立译本；不部署代码、不改控制台语言、不刷写固件。
 - 澄清前已开始的控制台改动已保存至 ignored 的 `controller/private/stage2-console.patch` 及配套文件，并移出当前工作区；不进入文档提交，也不作为第二阶段完成或已验证的证据。

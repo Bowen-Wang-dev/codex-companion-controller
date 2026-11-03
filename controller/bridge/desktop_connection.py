@@ -10,6 +10,7 @@ from native_approvals import NativeClient
 
 from private_permissions import set_private
 
+from console_i18n import tr
 def control_socket(codex_home=None):
     home=Path(codex_home or os.environ.get('CODEX_HOME') or Path.home()/'.codex')
     return home/'app-server-control'/'app-server-control.sock'
@@ -21,9 +22,9 @@ def validate_socket(address):
     target=address.resolve(strict=True)
     info=target.stat();parent=target.parent.stat()
     if not stat.S_ISSOCK(info.st_mode) or info.st_uid!=os.getuid():
-        raise ValueError('控制接口不是当前用户拥有的 Unix socket')
+        raise ValueError(tr('控制接口不是当前用户拥有的 Unix socket'))
     if parent.st_uid!=os.getuid() or stat.S_IMODE(parent.st_mode)&0o022:
-        raise ValueError('控制接口目录权限过宽，拒绝连接')
+        raise ValueError(tr('控制接口目录权限过宽，拒绝连接'))
     return address
 
 
@@ -50,7 +51,7 @@ def probe(address=None,expected_thread=None):
         loaded=client.rpc('thread/loaded/list',{'limit':100},timeout=8)
         ids=loaded.get('data')
         if not isinstance(ids,list) or any(not isinstance(value,str) for value in ids):
-            raise ValueError('已加载会话列表格式不匹配')
+            raise ValueError(tr('已加载会话列表格式不匹配'))
         report.update(connected=True,thread_ids=ids,
             expected_loaded=bool(expected_thread and expected_thread in ids),
             server_version=str(initialized.get('userAgent',''))[:160])

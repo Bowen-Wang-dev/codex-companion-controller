@@ -10,6 +10,7 @@ from host_platform import openssl_binary
 # DER SubjectPublicKeyInfo: id-ecPublicKey + prime256v1 OIDs, followed by
 # the BIT STRING containing an uncompressed P-256 point. This checks only
 # the bridge's one supported key format, not a general certificate parser.
+from console_i18n import tr
 P256_SPKI_PREFIX = bytes.fromhex('3059301306072a8648ce3d020106082a8648ce3d03010703420004')
 
 
@@ -46,7 +47,7 @@ def create_certificate(private, ip):
                         '-out', str(cert), '-config', str(cfg)],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if not certificate_is_named_p256(cert):
-            raise ValueError('新证书不是设备支持的命名曲线 P-256 格式，未替换原证书。')
+            raise ValueError(tr('新证书不是设备支持的命名曲线 P-256 格式，未替换原证书。'))
         for source in (key, cert, cfg):
             set_private(source, 0o600)
             os.replace(source, private / source.name)

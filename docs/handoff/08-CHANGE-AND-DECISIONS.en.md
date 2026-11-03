@@ -4,6 +4,14 @@
 
 Developer-maintained version plans, implementation changes, verification evidence and history, without chat transcripts or secrets.
 
+## 2026-11-03: phase-two English host interaction
+
+- Phase-one Markdown was independently committed / pushed as `48603c8`. The user now authorizes English host interaction: add `Codex Companion Console.command` / `Codex Companion Console.cmd`, retain Chinese entries, one entry per platform and language without other top-level launchers.
+- Shared `COMPANION_LANGUAGE` and 341 English messages cover console, diagnosis / recovery, pairing, metering / rate editor, Hooks, maintenance and host Bridge logs. Chinese is default; entries pin language and pass it to children. Windows CMD uses CRLF / UTF-8, shell uses LF; macOS private configuration cannot override entry language.
+- The English rate editor gains vertical scrolling and screen-height adaptation; rate / model override and audit CSV reads specify UTF-8. Model names, paths, protocol IDs, `YES` / `RESET` / `FLASH` and user data are not translated. Device snapshots / requests / receipts remain Chinese, without firmware or original-App package changes.
+- Final Windows Controller regression: 295 tests, OK (18 skipped), including 13 host-language cases with real CMD / hidden Tk and temporary settings. Five isolated WSL shell cases passed, along with actual English CMD `--check-only`, Python 3.11 syntax for 48 files, all shell / command syntax and local links across 60 Markdown files. Native macOS execution, real App / device workflows and complete manual GUI acceptance remain uncovered.
+- See [host languages](12-HOST-LANGUAGES.en.md) for checks and unverified scope. No real App / Bridge launch, flash, pairing, reset, Hook registration or account change; existing App digest, single-instance, dual-backup and live-partition protections remain. This adds no real App / device functional acceptance; phase-three firmware English is not implemented.
+
 ## 2026-11-03: three separately committed bilingual phases
 
 - User clarified order: Markdown bilingual documentation first; `.command` / `.cmd` and independent Chinese / English consoles second; firmware and other work third. Each phase is committed / pushed separately.

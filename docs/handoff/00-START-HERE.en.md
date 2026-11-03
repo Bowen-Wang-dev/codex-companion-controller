@@ -2,7 +2,7 @@
 
 [简体中文（默认）](00-START-HERE.md) · English
 
-Updated 2026-11-03 (Australia/Sydney). Windows 10/11 host support is authorized with macOS retained. The user now requires three separate commit / push phases: Markdown bilingual documentation first, Chinese / English `.command` / `.cmd` consoles second, firmware and other work third. This phase changes only Markdown; it does not authorize flashing, pairing, resetting or account changes. The 2026-11-02 review records remain historical evidence.
+Updated 2026-11-03 (Australia/Sydney). Windows 10/11 host support is authorized with macOS retained. The user now requires three separate commit / push phases: Markdown bilingual documentation first, Chinese / English `.command` / `.cmd` consoles second, firmware and other work third. Phase-one Markdown is committed / pushed; this phase implements English host interaction. It does not authorize flashing, pairing, resetting or account changes. The 2026-11-02 review records remain historical evidence.
 
 ## Current summary
 
@@ -26,7 +26,7 @@ Updated 2026-11-03 (Australia/Sydney). Windows 10/11 host support is authorized 
 
 ## Entries and source priority
 
-Currently one daily entry per platform: `controller/Codex Companion 控制台.command` on macOS, same-name `.cmd` on Windows; historical entries live in `controller/维护工具/`. Independent English entries are phase two, not part of this Markdown commit. The original desktop App chat is the primary delivery target; Windows must not fall back to old Unix CLI mode.
+One daily entry per platform and language: `controller/Codex Companion 控制台.command` on macOS, same-name `.cmd` on Windows; historical entries live in `controller/维护工具/`. Phase two adds English `Codex Companion Console.command` / `Codex Companion Console.cmd`; see [host languages](12-HOST-LANGUAGES.en.md). The original desktop App chat is the primary delivery target; Windows must not fall back to old Unix CLI mode.
 
 `docs/STATUS.md`, `docs/CHANGELOG.md`, `controller/docs/` and the [pre-review Controller README snapshot](../history/controller-readme-before-2026-11-02-review.md) are historical references. “Current” / “this round” mean their recorded stage. Resolve conflicts using source and evidence, update present summaries, and neither delete historical acceptance nor extend it to later versions.
 

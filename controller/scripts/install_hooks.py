@@ -13,6 +13,7 @@ import base64
 ROOT = Path(__file__).resolve().parents[1]
 EVENTS = ['UserPromptSubmit', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'Stop', 'Interrupt', 'SessionEnd']
 sys.path.insert(0, str(ROOT/'bridge'))
+from console_i18n import tr
 from private_permissions import set_private
 
 def hook_command(root=ROOT, interpreter=None):
@@ -105,9 +106,9 @@ def main():
                 try:
                     save(local, remove_ours, backups)
                 except PermissionError:
-                    print('用户级注册已完成；项目副本受目录权限保护，未清理：',local)
-    print('注册已完成，但尚未授予 Hook 信任。请在 Codex 审阅并信任这些 Hook；CLI 使用 /hooks。')
-    print('常规 Hook 审批支持设备批准 / 拒绝；原生目录 / 网络请求可先在设备拒绝，或选择到 PC 端继续授权。')
+                    print(tr('用户级注册已完成；项目副本受目录权限保护，未清理：'),local)
+    print(tr('注册已完成，但尚未授予 Hook 信任。请在 Codex 审阅并信任这些 Hook；CLI 使用 /hooks。'))
+    print(tr('常规 Hook 审批支持设备批准 / 拒绝；原生目录 / 网络请求可先在设备拒绝，或选择到 PC 端继续授权。'))
 
 
 if __name__ == '__main__':

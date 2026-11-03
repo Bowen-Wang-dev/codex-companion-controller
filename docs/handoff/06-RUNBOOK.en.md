@@ -6,7 +6,7 @@ Source: firmware `0.2.13`, Bridge `0.2.13-native-app`. Current deployment and ac
 
 ## Daily startup
 
-Currently one entry per platform: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows. See the [platform guide](11-HOST-PLATFORMS.en.md) for Windows preparation, read-only checks and test commands. Menu 7 now supports safe firmware maintenance on both platforms. Separate English entries are phase two; the documentation commit does not create them.
+One entry per platform and language: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows. See the [platform guide](11-HOST-PLATFORMS.en.md) for Windows preparation, read-only checks and test commands. Menu 7 now supports safe firmware maintenance on both platforms. Phase two adds separate English `Codex Companion Console.command` / `Codex Companion Console.cmd` entries covering menus, subtools, rate editor and host logs. Existing Chinese entries remain and pin Chinese. See [host languages](12-HOST-LANGUAGES.en.md) for usage and verification boundaries. Device language remains phase three.
 
 | Menu | Operation |
 |---|---|

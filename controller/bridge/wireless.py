@@ -7,6 +7,7 @@ import ssl
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 
+from console_i18n import tr
 PRIVATE = Path(__file__).resolve().parents[1] / 'private'
 DEVICE_RESPONSE_BYTES = 4096
 
@@ -47,13 +48,13 @@ class DeviceHTTPServer(ThreadingHTTPServer):
 
     def handle_error(self, request, client_address):
         # HTTP bodies/headers and credentials must never appear in tracebacks.
-        print('无线 HTTP 请求未完成；等待设备重连。', flush=True)
+        print(tr('无线 HTTP 请求未完成；等待设备重连。'), flush=True)
 
 
 def start_https(broker, port=8765):
     config_path = PRIVATE / 'wireless.json'
     if not config_path.exists():
-        print('无线未配对：运行「配置无线连接.command」。USB 仍可使用。', flush=True)
+        print(tr('无线未配对：运行「配置无线连接.command」。USB 仍可使用。'), flush=True)
         return None
     config = json.loads(config_path.read_text())
 
@@ -94,7 +95,7 @@ def start_https(broker, port=8765):
             try:
                 response = encode_snapshot(snapshot)
             except ValueError:
-                print('无线快照超出设备缓冲区；未发送不完整审批详情。', flush=True)
+                print(tr('无线快照超出设备缓冲区；未发送不完整审批详情。'), flush=True)
                 self.send_error(503)
                 self.close_connection = True
                 return
@@ -113,5 +114,5 @@ def start_https(broker, port=8765):
     server = DeviceHTTPServer(('0.0.0.0', port), Handler)
     server.tls_context = ctx
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    print(f'加密无线 Bridge 已启动：HTTPS {port}，需要已配对设备。', flush=True)
+    print(f"{tr('加密无线 Bridge 已启动：HTTPS ')}{port}{tr('，需要已配对设备。')}", flush=True)
     return server

@@ -10,18 +10,19 @@ import venv
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'bridge'))
+from console_i18n import tr
 
 
 def prepare():
-    if sys.platform != 'win32':raise RuntimeError('此入口用于 Windows；macOS 请使用 .command 入口。')
-    if sys.version_info < (3, 11):raise RuntimeError('请安装 Python 3.11 或更新版本（含 pip 和 Tcl/Tk）。')
+    if sys.platform != 'win32':raise RuntimeError(tr('此入口用于 Windows；macOS 请使用 .command 入口。'))
+    if sys.version_info < (3, 11):raise RuntimeError(tr('请安装 Python 3.11 或更新版本（含 pip 和 Tcl/Tk）。'))
     import ssl
-    if ssl.OPENSSL_VERSION_INFO < (3,):raise RuntimeError('Bridge 需要 OpenSSL 3。')
+    if ssl.OPENSSL_VERSION_INFO < (3,):raise RuntimeError(tr('Bridge 需要 OpenSSL 3。'))
     from windows_security import secure_directory
     private = secure_directory(ROOT/'private', create=True, restrict_existing=True)
     interpreter = private/'bridge-venv-windows/Scripts/python.exe'
     if not interpreter.exists():
-        print('正在准备 Windows 独立 Python 环境…', flush=True)
+        print(tr('正在准备 Windows 独立 Python 环境…'), flush=True)
         venv.EnvBuilder(with_pip=True).create(interpreter.parents[1])
     env = dict(os.environ, PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
                CONTROLLER_BRIDGE_PYTHON=str(interpreter))
@@ -68,7 +69,7 @@ def main():
     parser.add_argument('--setup-only', action='store_true')
     parser.add_argument('--check-only', action='store_true')
     args, extra = parser.parse_known_args()
-    if (args.setup_only or args.check_only) and extra:parser.error('检查/准备模式不接受额外参数')
+    if (args.setup_only or args.check_only) and extra:parser.error(tr('检查/准备模式不接受额外参数'))
     interpreter, env = prepare()
     if args.check_only:
         return subprocess.run([str(interpreter), str(ROOT/'scripts/check_windows.py')], env=env).returncode
@@ -78,4 +79,4 @@ def main():
 
 if __name__ == '__main__':
     try:sys.exit(main())
-    except (OSError, RuntimeError, subprocess.SubprocessError) as error:sys.exit('Windows 环境准备未完成：'+str(error))
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:sys.exit(tr('Windows 环境准备未完成：')+str(error))

@@ -19,6 +19,7 @@ from host_platform import WINDOWS, usb_ports
 
 
 sys.path.insert(0, str(ROOT/'bridge'))
+from console_i18n import tr
 from private_permissions import set_private
 
 class PairingError(Exception):
@@ -31,20 +32,20 @@ def encode_config(message):
                                 ('url', 1, 159), ('cert', 1, 2047)]:
         value = message.get(field)
         if not isinstance(value, str) or '\0' in value or not lower <= len(value.encode('utf-8')) <= upper:
-            names = {'ssid': 'Wi-Fi 名称', 'password': 'Wi-Fi 密码', 'url': 'Bridge 地址', 'cert': '配对证书'}
-            raise PairingError(f'{names[field]}格式或字节长度不符合设备限制；尚未发送。')
+            names = {'ssid': tr('Wi-Fi 名称'), 'password': tr('Wi-Fi 密码'), 'url': tr('Bridge 地址'), 'cert': tr('配对证书')}
+            raise PairingError(f"{names[field]}{tr('格式或字节长度不符合设备限制；尚未发送。')}")
     if not message['url'].startswith('https://'):
-        raise PairingError('Bridge 必须使用 HTTPS；尚未发送。')
+        raise PairingError(tr('Bridge 必须使用 HTTPS；尚未发送。'))
     if '-----BEGIN CERTIFICATE-----' not in message['cert'] or '-----END CERTIFICATE-----' not in message['cert']:
-        raise PairingError('配对证书格式无效；尚未发送。')
+        raise PairingError(tr('配对证书格式无效；尚未发送。'))
     token = message.get('token', '')
     if not isinstance(token, str) or len(token) != 64 or any(c not in '0123456789abcdef' for c in token):
-        raise PairingError('本机配对密钥格式无效；尚未发送。')
+        raise PairingError(tr('本机配对密钥格式无效；尚未发送。'))
     if message.get('type') != 'provision' or not isinstance(message.get('utc'), int) or message['utc'] < 1700000000:
-        raise PairingError('配置类型或 PC 端系统时间无效；尚未发送。')
+        raise PairingError(tr('配置类型或 PC 端系统时间无效；尚未发送。'))
     frame = b'PC1 ' + json.dumps(message, ensure_ascii=False, separators=(',', ':')).encode('utf-8') + b'\n'
     if len(frame) > 4096:
-        raise PairingError('配置超过设备接收缓冲区；尚未发送。')
+        raise PairingError(tr('配置超过设备接收缓冲区；尚未发送。'))
     return frame
 
 
@@ -99,12 +100,12 @@ def wait_hello(reader, timeout=15):
             except (ValueError, AttributeError):
                 compatible = False
             if not compatible:
-                raise PairingError('设备报告的固件不支持本次无线配置（需要 V0.2 或更新版）。')
+                raise PairingError(tr('设备报告的固件不支持本次无线配置（需要 V0.2 或更新版）。'))
             # Two consecutive hellos avoid prompting during a port-open reboot.
             if previous == message['boot']:
                 return message
             previous = message['boot']
-    raise PairingError('USB 未收到稳定的固件握手。请检查数据线、设备是否开机，以及其他串口工具是否已关闭。')
+    raise PairingError(tr('USB 未收到稳定的固件握手。请检查数据线、设备是否开机，以及其他串口工具是否已关闭。'))
 
 
 def provision(device, message, ask=None, say=None, attempts=3):
@@ -113,14 +114,14 @@ def provision(device, message, ask=None, say=None, attempts=3):
     reader = Reader(device)
     hello = wait_hello(reader)
     boot = hello['boot']
-    say(f'USB 已连接，固件 {hello["firmware"]}。现在还没有连接 Wi-Fi，这是正常的。')
+    say(f"{tr('USB 已连接，固件 ')}{hello['firmware']}{tr('。现在还没有连接 Wi-Fi，这是正常的。')}")
     for attempt in range(attempts):
-        say('在设备用方向键找到第六页「连接与配网」。')
-        say('短按并松开确认键（不要长按，也不要按电源键）。')
-        say('屏幕应变为「请在 PC 端运行无线配对」；从此时起 60 秒内回到终端。')
-        answer = ask('看到上述提示后按回车发送；输入 q 取消：').strip().lower()
+        say(tr('在设备用方向键找到第六页「连接与配网」。'))
+        say(tr('短按并松开确认键（不要长按，也不要按电源键）。'))
+        say(tr('屏幕应变为「请在 PC 端运行无线配对」；从此时起 60 秒内回到终端。'))
+        answer = ask(tr('看到上述提示后按回车发送；输入 q 取消：')).strip().lower()
         if answer == 'q':
-            raise PairingError('已取消，没有发送本次配置。')
+            raise PairingError(tr('已取消，没有发送本次配置。'))
         # Clear old frames without closing/reopening USB or resetting consent.
         deadline = time.monotonic() + .3
         restarted = False
@@ -131,39 +132,39 @@ def provision(device, message, ask=None, say=None, attempts=3):
                         restarted = True
                         boot = received['boot']
         if restarted:
-            say('检测到设备刚刚重启，之前的配对许可已失效。USB 保持连接，请重新短按设备确认。')
+            say(tr('检测到设备刚刚重启，之前的配对许可已失效。USB 保持连接，请重新短按设备确认。'))
             continue
         message = dict(message, utc=int(time.time()))
         frame = encode_config(message)
         if device.write(frame) != len(frame):
-            raise PairingError('USB 未完整发送配置，未确认保存；请保持 USB 连接后重新运行配置。')
+            raise PairingError(tr('USB 未完整发送配置，未确认保存；请保持 USB 连接后重新运行配置。'))
         deadline = time.monotonic() + 10
         rejected = False
         while time.monotonic() < deadline:
             for reply in reader.poll():
                 if reply.get('type') == 'hello' and reply.get('boot') != boot:
-                    raise PairingError('发送后设备重启，但未收到保存回执；无法确认是否完成。请重新运行无线配置。')
+                    raise PairingError(tr('发送后设备重启，但未收到保存回执；无法确认是否完成。请重新运行无线配置。'))
                 if reply.get('type') != 'provisioned':
                     continue
                 if reply.get('boot') != boot:
                     boot = reply.get('boot', boot)
-                    say('设备重启使配对许可失效。请重新短按设备确认，再按终端回车。')
+                    say(tr('设备重启使配对许可失效。请重新短按设备确认，再按终端回车。'))
                     rejected = True
                     break
                 if reply.get('ok') is True:
                     return
-                say('设备未接受配置。请确认已短按并松开确认键，屏幕出现配对提示，且未超过 60 秒。')
-                say('配置长度已在 PC 端检查通过；V0.2.0 回执不能区分未授权与设备存储失败。')
+                say(tr('设备未接受配置。请确认已短按并松开确认键，屏幕出现配对提示，且未超过 60 秒。'))
+                say(tr('配置长度已在 PC 端检查通过；V0.2.0 回执不能区分未授权与设备存储失败。'))
                 rejected = True
                 break
             if rejected:
                 break
         if not rejected:
             # No automatic resend after a lost ACK: the device may have saved.
-            raise PairingError('未收到保存回执，不能确认配对成功。请重新运行无线配置；本次配对密钥已保留在本机。')
+            raise PairingError(tr('未收到保存回执，不能确认配对成功。请重新运行无线配置；本次配对密钥已保留在本机。'))
         if attempt + 1 < attempts:
-            say('无需重新输入 Wi-Fi 密码；USB 保持打开，重新确认后重试。')
-    raise PairingError('本次未完成配对。若屏幕已出现许可提示仍被拒绝，请保留终端结果继续排查，不要反复重刷。')
+            say(tr('无需重新输入 Wi-Fi 密码；USB 保持打开，重新确认后重试。'))
+    raise PairingError(tr('本次未完成配对。若屏幕已出现许可提示仍被拒绝，请保留终端结果继续排查，不要反复重刷。'))
 
 
 def write_private_json(path, value):
@@ -187,10 +188,10 @@ def main():
         set_private(private, 0o700)
     ports = usb_ports()
     if len(ports) != 1:
-        raise PairingError('请用数据线连接一台 AI Passport，并停止其他 Bridge / 串口工具。')
-    print('本操作只配置无线，不刷固件，也不消费 Codex 额度。')
-    ssid = input('2.4 GHz Wi-Fi 名称：')
-    password = getpass.getpass('Wi-Fi 密码（不显示）：')
+        raise PairingError(tr('请用数据线连接一台 AI Passport，并停止其他 Bridge / 串口工具。'))
+    print(tr('本操作只配置无线，不刷固件，也不消费 Codex 额度。'))
+    ssid = input(tr('2.4 GHz Wi-Fi 名称：'))
+    password = getpass.getpass(tr('Wi-Fi 密码（不显示）：'))
     default_ip = ''
     if not WINDOWS:
         try:
@@ -200,13 +201,13 @@ def main():
         from connection_diagnostics import local_ipv4
         candidates = local_ipv4()
         default_ip = candidates[0] if len(candidates) == 1 else ''
-    ip = input(f'PC 端局域网 IPv4 地址 [{default_ip}]：').strip() or default_ip
+    ip = input(f"{tr('PC 端局域网 IPv4 地址 [')}{default_ip}]：").strip() or default_ip
     try:
         address = ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError:
-        raise PairingError('PC 端地址需要是局域网 IPv4 地址，例如 192.168.1.110。') from None
+        raise PairingError(tr('PC 端地址需要是局域网 IPv4 地址，例如 192.168.1.110。')) from None
     if address.is_loopback or address.is_unspecified or address.is_multicast or address.is_reserved:
-        raise PairingError('请填写设备可访问的 PC 端局域网地址。')
+        raise PairingError(tr('请填写设备可访问的 PC 端局域网地址。'))
     ip = str(address)
     config_path = private / 'wireless.json'
     pending_path = private / 'wireless-pending.json'
@@ -214,12 +215,12 @@ def main():
     try:
         old = json.loads(old_path.read_text()) if old_path.exists() else {}
     except (ValueError, OSError):
-        raise PairingError('本机配对记录无法读取，请保留文件继续排查。') from None
+        raise PairingError(tr('本机配对记录无法读取，请保留文件继续排查。')) from None
     if not isinstance(old, dict):
-        raise PairingError('本机配对记录格式无效，请保留文件继续排查。')
+        raise PairingError(tr('本机配对记录格式无效，请保留文件继续排查。'))
     compatible = certificate_is_named_p256(private / 'bridge-cert.pem')
     if not compatible and (private / 'bridge-cert.pem').exists():
-        print('检测到旧证书编码不兼容，将生成设备可解析的新证书；本次 USB 配对会更新设备证书。')
+        print(tr('检测到旧证书编码不兼容，将生成设备可解析的新证书；本次 USB 配对会更新设备证书。'))
     if old.get('ip') != ip or not compatible or not (private / 'bridge-key.pem').exists():
         try:
             create_certificate(private, ip)
@@ -231,11 +232,11 @@ def main():
     # Keep only non-password pairing data if a successful save ACK is lost.
     # Activate the Bridge config only after a positive device ACK.
     write_private_json(pending_path, config)
-    print('正在打开 USB 并等待设备握手，随后再按设备确认…', flush=True)
+    print(tr('正在打开 USB 并等待设备握手，随后再按设备确认…'), flush=True)
     with open_device(ports[0]) as device:
         provision(device, message)
     os.replace(pending_path, config_path)
-    print('设备已确认保存，正在重启连接 Wi-Fi。接下来启动 Bridge；看到 Wi-Fi 握手成功后再拔 USB。')
+    print(tr('设备已确认保存，正在重启连接 Wi-Fi。接下来启动 Bridge；看到 Wi-Fi 握手成功后再拔 USB。'))
 
 
 if __name__ == '__main__':
@@ -243,6 +244,6 @@ if __name__ == '__main__':
         main()
     except (PairingError, serial.SerialException, OSError, subprocess.CalledProcessError) as error:
         # OS errors contain port paths, never the password or provisioning frame.
-        sys.exit(f'无线配置未完成：{error}')
+        sys.exit(f"{tr('无线配置未完成：')}{error}")
     except (KeyboardInterrupt, EOFError):
-        sys.exit('\n已停止无线配置。')
+        sys.exit(tr('\n已停止无线配置。'))

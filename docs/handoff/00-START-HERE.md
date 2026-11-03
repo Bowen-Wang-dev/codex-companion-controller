@@ -2,7 +2,7 @@
 
 简体中文（默认） · [English](00-START-HERE.en.md)
 
-维护日期：2026-11-03（Australia/Sydney）。Windows 10/11 主机支持已获授权，同时保留 macOS。用户现要求分三次独立 commit/push：先 Markdown 双语、再中英文 `.command` / `.cmd` 控制台、最后固件及其他部分。本阶段只改 Markdown；不授权刷机、配网、清零或账户调整。2026-11-02 的审查阶段记录继续保留。
+维护日期：2026-11-03（Australia/Sydney）。Windows 10/11 主机支持已获授权，同时保留 macOS。用户现要求分三次独立 commit/push：先 Markdown 双语、再中英文 `.command` / `.cmd` 控制台、最后固件及其他部分。第一阶段 Markdown 已提交/推送，当前为第二阶段 PC 用户交互英文；不授权刷机、配网、清零或账户调整。2026-11-02 的审查阶段记录继续保留。
 
 ## 当前摘要
 
@@ -27,7 +27,7 @@
 
 ## 操作入口与资料优先级
 
-日常每平台一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`；历史入口在 `controller/维护工具/`。独立英文入口属于第二阶段，不包含在本次 Markdown 提交。桌面 App 原聊天是主要交付对象；Windows 不切换到旧 Unix CLI 模式。
+日常每平台每种语言一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`；历史入口在 `controller/维护工具/`。第二阶段已新增英文 `Codex Companion Console.command` / `Codex Companion Console.cmd`；详见 [PC 端语言说明](12-HOST-LANGUAGES.md)。桌面 App 原聊天是主要交付对象；Windows 不切换到旧 Unix CLI 模式。
 
 `docs/STATUS.md`、`docs/CHANGELOG.md`、`controller/docs/` 和 [Controller README 历史快照](../history/controller-readme-before-2026-11-02-review.md)属于历史资料。文中的“当前”“本次”均指各自记录阶段。冲突时核对源码和证据，更新现行摘要，不删除历史验收或将其扩展到新版本。
 

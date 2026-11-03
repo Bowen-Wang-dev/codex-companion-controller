@@ -7,7 +7,7 @@ Read `docs/handoff/00-START-HERE.md` and `01-PROJECT-STATE.md` first, then follo
 ## Boundaries
 
 - On 2026-11-03 the user authorized Windows 10/11 adaptation while explicitly retaining macOS. Other features remain paused. Without an explicit task, do not flash, re-pair, reset or change accounts.
-- Current daily entries: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows. Historical entries are in `controller/维护工具/`; do not recreate many top-level launchers. The newly authorized localization sequence is Markdown first, independent Chinese / English console entries second, firmware / other parts third, with separate commits / pushes.
+- Daily entries, one per platform and language: `controller/Codex Companion 控制台.command` on macOS and the same-name `.cmd` on Windows; English uses `Codex Companion Console.command` / `.cmd`. Historical entries are in `controller/维护工具/`; do not recreate many top-level launchers. The newly authorized localization sequence is Markdown first, independent Chinese / English console entries second, firmware / other parts third, with separate commits / pushes.
 - Prioritize device Allow / Deny in the actual desktop App's original chat; do not substitute CLI or a new session. Exact App versions and file digests are mandatory.
 - The real device has only three buttons. Button, emoji and approval-receipt constraints are in `03-UX-CONTRACT.md`. Denial / failure goes directly to 😭 without 😶.
 - Original Apple emoji must not be restyled or redrawn with AI. Never publish private assets or firmware containing artwork.
