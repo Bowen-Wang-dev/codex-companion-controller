@@ -109,7 +109,10 @@ class UsageMeterTests(unittest.TestCase):
             saved=json.loads(path.read_text())
             self.assertEqual(saved['models']['gpt-6-astra']['output'], 11.4)
             self.assertEqual(saved['currency'],'USD')
-            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+            if sys.platform == 'win32':
+                from windows_security import private_file
+                private_file(path)
+            else:self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
 
 
 if __name__ == '__main__':

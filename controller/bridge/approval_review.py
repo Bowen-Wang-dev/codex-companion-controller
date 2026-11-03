@@ -20,7 +20,7 @@ PAGE_BYTES = 512
 def glyphs():
     path = Path(__file__).resolve().parents[1] / 'docs/ui-font.json'
     try:
-        return set(json.loads(path.read_text())['characters'])
+        return set(json.loads(path.read_text(encoding='utf-8'))['characters'])
     except (OSError, ValueError, KeyError):
         return set()
 
@@ -128,7 +128,7 @@ def native_text(method,params,scope):
         lines.extend(['请求执行以下命令',str(params.get('command') or '未提供命令')])
         if params.get('kind')=='writeStdin':lines.append('操作：向运行中的终端输入内容')
     else:
-        lines.extend(['请求修改文件','未提供修改明细，请在 Mac 审阅。'])
+        lines.extend(['请求修改文件','未提供修改明细，请在 Mac审阅。'])
     if params.get('reason'):lines.extend(['申请原因：',str(params['reason'])])
     if params.get('cwd'):lines.extend(['工作目录：',str(params['cwd'])])
     if params.get('environmentId') is not None:lines.extend(describe(params['environmentId'],'执行环境'))

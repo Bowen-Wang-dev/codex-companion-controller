@@ -1,0 +1,46 @@
+name: Host tests (macOS and Windows)
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare Windows host environment (offline wheels)
+        if: runner.os == 'Windows'
+        run: python controller/scripts/setup_windows.py --setup-only
+      - name: Windows Python regressions
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & controller/private/bridge-venv-windows/Scripts/python.exe -m unittest discover -s controller/tests -v
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & controller/private/bridge-venv-windows/Scripts/python.exe -m unittest discover -s tools -p 'test_*.py' -v
+          exit $LASTEXITCODE
+      - name: Prepare macOS host environment (offline wheels)
+        if: runner.os == 'macOS'
+        run: |
+          python -m venv controller/private/bridge-venv
+          controller/private/bridge-venv/bin/python controller/scripts/setup_bridge_deps.py
+      - name: macOS Python and C regressions
+        if: runner.os == 'macOS'
+        run: |
+          controller/private/bridge-venv/bin/python -m unittest discover -s controller/tests -v
+          python -m unittest discover -s tools -p 'test_*.py' -v
+          bash tools/check-host.sh

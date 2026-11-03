@@ -2,6 +2,14 @@
 
 记录开发者的功能版本规划、实现变更、验证证据与历史沿革；不抄录聊天，不包含秘密。
 
+## 2026-11-03：新增 Windows 主机支持，同时保留 macOS
+
+- 用户授权 Windows 10/11 适配，明确要求与 macOS 并存。本轮实现主机运行层和共用逻辑的平台适配，不移除 Mac 入口、固件维护或 Swift Demo，不恢复其他 backlog。
+- 新增 `.cmd`、独立 Windows 环境准备、原生 `.exe` relay；共用原聊天双端审批、首答竞争、submitted 回执、计量和价格逻辑。Windows App 单独登记精确版本和四项摘要，不套用 macOS 登记，不改安装包。
+- Windows 使用仅回环随机端口 + 随机鉴权、当前用户 DACL 与 Windows 文件锁；macOS 保留 Unix socket/0700/0600/flock。补 Windows 串口 VID/PID 过滤、IP/OpenSSL 发现、Hook 命令、进程探测和参数/退出码转发。修复 Windows execv 丢失带空格参数和退出码的问题。
+- 归档、迁移使用平台文件权限；排除 Windows venv 和机器专属 relay，继续排除 auth.json。共用传输测试改为隔离的真实平台 IPC；macOS 专用测试保留，按当前环境跳过，新增双平台 CI 配置。
+- 当前测试结果和验收边界统一见 [双平台适配](11-HOST-PLATFORMS.md)。本轮不重启 App/真实 Bridge，不刷机、配网、清零、改账户、注册真实 Hooks、提交或推送。Windows 10 与 macOS 本轮运行、真实 App/设备矩阵尚待验收；Windows 整套固件维护流程尚未移植，菜单不执行 Mac 更新脚本。
+
 ## 2026-11-02：授权提交审查成果并同步 GitHub
 - 用户明确要求提交 GitHub。本次授权覆盖上一阶段审查后的代码、测试、正式文档和审查报告；私有数据、日志、Apple 图像及含图固件不随源码上传。
 - 提交前获取远端状态、核对分支关系、检查差异与最终索引，沿用上一阶段已执行的完整回归及编译证据。使用普通提交和 fast-forward 推送，不强制覆盖远端，不创建发布标签。

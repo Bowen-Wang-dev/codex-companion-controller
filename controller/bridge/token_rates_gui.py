@@ -14,6 +14,8 @@ FIELDS = (('input', '未缓存输入'), ('cached_input', '缓存输入'),
           ('output', '输出（含推理 Token）'), ('cache_write', '缓存写入（可留空）'))
 
 
+from private_permissions import set_private
+
 class RateEditor:
     def __init__(self, root):
         self.root = root
@@ -116,7 +118,7 @@ class RateEditor:
         try:
             path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
             temp=path.with_suffix('.json.tmp');temp.write_text(json.dumps({'model_id':model},ensure_ascii=False)+'\n',encoding='utf-8')
-            os.chmod(temp,0o600);temp.replace(path);os.chmod(path,0o600)
+            set_private(temp,0o600);temp.replace(path);set_private(path,0o600)
             self.status.set('已保存模型校准；Bridge 下次同步时生效。留空即恢复自动监听。')
         except OSError as error:self.status.set(f'保存失败：{error}')
 
@@ -175,7 +177,7 @@ class RateEditor:
         RATE_FILE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         data = json.dumps({'currency': self.currency.get().strip().upper(), 'models': self.rates}, ensure_ascii=False, indent=2) + '\n'
         temp = RATE_FILE.with_suffix('.json.tmp')
-        temp.write_text(data, encoding='utf-8'); os.chmod(temp, 0o600); temp.replace(RATE_FILE); os.chmod(RATE_FILE, 0o600)
+        temp.write_text(data, encoding='utf-8'); set_private(temp, 0o600); temp.replace(RATE_FILE); set_private(RATE_FILE, 0o600)
 
     def _save(self):
         model = self.model.get().strip()

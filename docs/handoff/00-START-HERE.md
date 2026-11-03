@@ -1,8 +1,10 @@
 # 项目交接入口
 
-维护日期：2026-11-02（Australia/Sydney）。本次授权范围为代码审查、必要修复及文档整理；新功能、部署、刷机、配网、清零和账户调整不在本次范围内。
+维护日期：2026-11-03（Australia/Sydney）。当前授权为新增 Windows 10/11 主机适配，同时保留 macOS，整理双平台入口与文档；未授权刷机、配网、清零或账户调整。2026-11-02 的审查阶段记录继续保留。
 
 ## 当前摘要
+
+- 2026-11-03 已新增 Windows 主机入口、鉴权 IPC、平台发现与文件权限处理；当前开发机为 Windows 11 Pro。macOS 原入口、Unix 通信、维护流程和 Demo 保留。运行方式与未验收范围见 [双平台适配](11-HOST-PLATFORMS.md)。
 
 - 源码：固件 `0.2.13`，Bridge `0.2.13-native-app`；已移除详情页长按交接，保留双端直接审批。
 - 已有发布基线：`v0.2.12`，五项原生双端实机验收记录完整保留。
@@ -18,10 +20,11 @@
 4. 按任务阅读 [硬件与刷写](04-HARDWARE-AND-FLASH.md)、[计量](05-TOKEN-AND-PRICING.md)、[运行手册](06-RUNBOOK.md)、[迁移与隐私](07-MIGRATION-AND-PRIVACY.md)。
 5. [变更记录](08-CHANGE-AND-DECISIONS.md)、[待办](09-BACKLOG.md)、[常见问题](10-QUICK-FAQ.md)。
 6. 本次维护的范围、发现、修复和验证见[审查报告](../reviews/2026-11-02-code-and-docs.md)。
+7. Windows / macOS 主机工作先读 [双平台适配与验证范围](11-HOST-PLATFORMS.md)。
 
 ## 操作入口与资料优先级
 
-日常唯一入口为 `controller/Codex Companion 控制台.command`；历史入口在 `controller/维护工具/`。桌面 App 原聊天是主要交付对象，CLI 为备选。
+日常每平台一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`；历史入口在 `controller/维护工具/`。桌面 App 原聊天是主要交付对象；Windows 不切换到旧 Unix CLI 模式。
 
 `docs/STATUS.md`、`docs/CHANGELOG.md`、`controller/docs/` 和 [Controller README 历史快照](../history/controller-readme-before-2026-11-02-review.md)属于历史资料。文中的“当前”“本次”均指各自记录阶段。冲突时核对源码和证据，更新现行摘要，不删除历史验收或将其扩展到新版本。
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Activate a copied runtime after the user has closed the desktop App."""
 import copy
-import fcntl
+try:import fcntl
+except ImportError:fcntl = None
 import hashlib
 import json
 import os
@@ -17,6 +18,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 PENDING = ROOT / 'private/runtime-migration.json'
 
+
+sys.path.insert(0, str(ROOT/'bridge'))
+from private_permissions import set_private
 
 def endpoint_at(root):
     key = hashlib.sha256(os.fsencode(root.resolve())).hexdigest()[:16]
@@ -98,7 +102,7 @@ def copy_ledger(old_root, new_root, backup):
         shutil.copy2(target, backup / 'token-ledger.before.json')
     temporary = target.with_suffix('.migration-tmp')
     with temporary.open('xb') as stream:
-        os.chmod(temporary, 0o600)
+        set_private(temporary, 0o600)
         stream.write(data)
         stream.flush()
         os.fsync(stream.fileno())
@@ -109,6 +113,7 @@ def copy_ledger(old_root, new_root, backup):
 
 
 def activate(old_root, new_root=ROOT):
+    if fcntl is None:raise RuntimeError('macOS 运行目录迁移仅在 macOS 执行；Windows 不复制旧账户或激活旧配对。')
     from launch_desktop import verify_build
     from install_hooks import save
     version = verify_build()
@@ -155,7 +160,7 @@ def activate(old_root, new_root=ROOT):
 def main():
     config = json.loads(PENDING.read_text())
     print('切换到新工程：' + str(ROOT), flush=True)
-    print('请保存当前工作，手动 Command+Q 退出桌面 App，再回到这个 Terminal。', flush=True)
+    print('请保存当前工作，手动 Command+Q 退出 桌面 App，再回到这个 Terminal。', flush=True)
     if input('App 已退出后按回车继续；输入 q 取消：').strip().lower() == 'q':
         return
     activate(Path(config['old_root']))

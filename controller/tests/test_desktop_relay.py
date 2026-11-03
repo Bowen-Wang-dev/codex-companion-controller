@@ -18,6 +18,7 @@ sys.path.insert(0,str(ROOT/'bridge'))
 from stdio_relay import Arbitration,valid_response
 from service import Broker
 import stdio_relay
+from ipc_fixture import ipc_server
 
 
 def approval():
@@ -99,9 +100,9 @@ class RelayCompatibilityTests(unittest.TestCase):
     def test_non_stdio_or_incomplete_listen_arguments_reach_official_cli(self):
         class Executed(Exception):pass
         for arguments in (['app-server','--listen'],['app-server','--listen=unix:///tmp/test.sock']):
-            with self.subTest(arguments=arguments),mock.patch.object(sys,'argv',['relay','--real',sys.executable,'--',*arguments]),mock.patch.object(stdio_relay.os,'execv',side_effect=Executed) as execute,mock.patch.object(stdio_relay.subprocess,'Popen') as start:
+            with self.subTest(arguments=arguments),mock.patch.object(sys,'argv',['relay','--real',sys.executable,'--',*arguments]),mock.patch.object(stdio_relay,'passthrough',side_effect=Executed) as execute,mock.patch.object(stdio_relay.subprocess,'Popen') as start:
                 with self.assertRaises(Executed):stdio_relay.main()
-                self.assertEqual(execute.call_args.args[1],[str(Path(sys.executable).resolve()),*arguments])
+                self.assertEqual(execute.call_args.args,(Path(sys.executable).resolve(),arguments))
                 start.assert_not_called()
 
 
@@ -284,7 +285,6 @@ class StdioIntegrationTests(unittest.TestCase):
                     result=b.desktop_request(event,lambda:not select.select([self.connection],[],[],0)[0])
                 try:self.wfile.write(json.dumps(result).encode()+b'\n')
                 except (OSError,BrokenPipeError):pass # App cancellation closes the pending socket.
-        class Server(socketserver.ThreadingUnixStreamServer):daemon_threads=True
         child_code='''
 import json,sys
 first=json.loads(sys.stdin.readline())
@@ -295,61 +295,56 @@ print(json.dumps({'method':'fixture/echo','params':reply}),flush=True)
 print(json.dumps({'method':'serverRequest/resolved','params':{'threadId':'desktop-thread','requestId':message['id']}}),flush=True)
 sys.stdin.readline() # Keep the backend alive until receipt assertions finish.
 '''
-        with tempfile.TemporaryDirectory(prefix='pcc-relay-',dir='/tmp') as folder:
-            path=Path(folder)/'bridge.sock'
-            with Server(str(path),Handler) as server:
-                server_thread=threading.Thread(target=server.serve_forever,daemon=True);server_thread.start()
-                app_input_read,app_input_write=os.pipe();app_output_read,app_output_write=os.pipe()
-                with os.fdopen(app_input_read,'rb') as app_in,os.fdopen(app_input_write,'wb') as app_writer,os.fdopen(app_output_read,'rb') as app_reader,os.fdopen(app_output_write,'wb') as app_out:
-                    child=subprocess.Popen([sys.executable,'-u','-c',child_code,json.dumps(approval())],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-                    relay=stdio_relay.Relay(child,app_in,app_out)
-                    with mock.patch.object(stdio_relay,'check_directory',return_value=path):
-                        worker=threading.Thread(target=relay.run,daemon=True);worker.start()
-                        try:
-                            app_writer.write(b'{"id":1,"method":"initialize","params":{}}\n');app_writer.flush()
-                            self.assertEqual(json.loads(app_reader.readline())['id'],1)
-                            request=json.loads(app_reader.readline());self.assertEqual(request['method'],'item/permissions/requestApproval')
-                            deadline=time.monotonic()+2
-                            while b.request is None and time.monotonic()<deadline:time.sleep(.005)
-                            self.assertIsNotNone(b.request)
-                            if physical:
-                                req=b.request
-                                message={'boot':'boot','epoch':b.epoch,'id':req['id'],'digest':req['digest'],'choice':choice}
-                                if paged:
-                                    view=b.snapshot()
-                                    self.assertFalse(b.decision(message))
-                                    for index in range(1,view['review_total']+1):
-                                        self.assertTrue(b.review_page(dict(message,review_page=index)))
-                                        view=b.snapshot()
-                                    message['review_page']=view['review_total']
-                                self.assertTrue(b.decision(message))
-                            else:
-                                response={'id':'approval-1','result':{'permissions':{'network':{'enabled':True}} if choice=='allow' else {},'scope':'turn'}}
-                                app_writer.write(json.dumps(response).encode()+b'\n');app_writer.flush()
-                            echo=json.loads(app_reader.readline())
-                            self.assertEqual(echo['method'],'fixture/echo')
-                            self.assertEqual(echo['params']['result'],{'permissions':{'network':{'enabled':True}},'scope':'turn'} if choice=='allow' else {'permissions':{},'scope':'turn'})
-                            resolved=json.loads(app_reader.readline());self.assertEqual(resolved['method'],'serverRequest/resolved')
-                            if physical:
-                                deadline=time.monotonic()+2
-                                expected='批准已送达 Codex' if choice=='allow' else '拒绝已送达 Codex'
-                                while b.receipt!=expected and time.monotonic()<deadline:time.sleep(.005)
-                                self.assertEqual(b.receipt,expected)
-                                self.assertEqual(b.snapshot()['face'],'delight' if choice=='allow' else 'crying')
-                            else:
-                                deadline=time.monotonic()+1
-                                while b.request is not None and time.monotonic()<deadline:time.sleep(.005)
-                                self.assertIsNone(b.request)
-                                self.assertNotIn('req_id',b.snapshot())
-                                self.assertEqual(b.snapshot()['face'],'')
-                            app_writer.write(b'fixture-finish\n');app_writer.flush()
-                            worker.join(timeout=2);self.assertFalse(worker.is_alive())
-                        finally:
-                            relay.stopping.set();relay.arbiter.close()
-                            if child.poll() is None:child.terminate()
-                            child.wait(timeout=2)
-                            child.stdin.close();child.stdout.close();child.stderr.close()
-                server.shutdown();server_thread.join(timeout=2)
+        with ipc_server(Handler) as server:
+            app_input_read,app_input_write=os.pipe();app_output_read,app_output_write=os.pipe()
+            with os.fdopen(app_input_read,'rb') as app_in,os.fdopen(app_input_write,'wb') as app_writer,os.fdopen(app_output_read,'rb') as app_reader,os.fdopen(app_output_write,'wb') as app_out:
+                child=subprocess.Popen([sys.executable,'-u','-c',child_code,json.dumps(approval())],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                relay=stdio_relay.Relay(child,app_in,app_out)
+                worker=threading.Thread(target=relay.run,daemon=True);worker.start()
+                try:
+                    app_writer.write(b'{"id":1,"method":"initialize","params":{}}\n');app_writer.flush()
+                    self.assertEqual(json.loads(app_reader.readline())['id'],1)
+                    request=json.loads(app_reader.readline());self.assertEqual(request['method'],'item/permissions/requestApproval')
+                    deadline=time.monotonic()+2
+                    while b.request is None and time.monotonic()<deadline:time.sleep(.005)
+                    self.assertIsNotNone(b.request)
+                    if physical:
+                        req=b.request
+                        message={'boot':'boot','epoch':b.epoch,'id':req['id'],'digest':req['digest'],'choice':choice}
+                        if paged:
+                            view=b.snapshot()
+                            self.assertFalse(b.decision(message))
+                            for index in range(1,view['review_total']+1):
+                                self.assertTrue(b.review_page(dict(message,review_page=index)))
+                                view=b.snapshot()
+                            message['review_page']=view['review_total']
+                        self.assertTrue(b.decision(message))
+                    else:
+                        response={'id':'approval-1','result':{'permissions':{'network':{'enabled':True}} if choice=='allow' else {},'scope':'turn'}}
+                        app_writer.write(json.dumps(response).encode()+b'\n');app_writer.flush()
+                    echo=json.loads(app_reader.readline())
+                    self.assertEqual(echo['method'],'fixture/echo')
+                    self.assertEqual(echo['params']['result'],{'permissions':{'network':{'enabled':True}},'scope':'turn'} if choice=='allow' else {'permissions':{},'scope':'turn'})
+                    resolved=json.loads(app_reader.readline());self.assertEqual(resolved['method'],'serverRequest/resolved')
+                    if physical:
+                        deadline=time.monotonic()+2
+                        expected='批准已送达 Codex' if choice=='allow' else '拒绝已送达 Codex'
+                        while b.receipt!=expected and time.monotonic()<deadline:time.sleep(.005)
+                        self.assertEqual(b.receipt,expected)
+                        self.assertEqual(b.snapshot()['face'],'delight' if choice=='allow' else 'crying')
+                    else:
+                        deadline=time.monotonic()+1
+                        while b.request is not None and time.monotonic()<deadline:time.sleep(.005)
+                        self.assertIsNone(b.request)
+                        self.assertNotIn('req_id',b.snapshot())
+                        self.assertEqual(b.snapshot()['face'],'')
+                    app_writer.write(b'fixture-finish\n');app_writer.flush()
+                    worker.join(timeout=2);self.assertFalse(worker.is_alive())
+                finally:
+                    relay.stopping.set();relay.arbiter.close()
+                    if child.poll() is None:child.terminate()
+                    child.wait(timeout=2)
+                    child.stdin.close();child.stdout.close();child.stderr.close()
 
     def test_physical_choice_crosses_real_stdio_and_private_unix_ipc(self):self.run_round_trip(True)
     def test_app_choice_cancels_hardware_across_real_transports(self):self.run_round_trip(False,choice='deny')

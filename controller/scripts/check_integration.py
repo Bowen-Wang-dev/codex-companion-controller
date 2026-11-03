@@ -12,7 +12,7 @@ import threading
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'bridge'))
-from ipc_path import check_directory
+from ipc_path import connect
 
 
 def hook_metadata(cwd, binary):
@@ -51,8 +51,7 @@ def main():
     cwd=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else ROOT.parent
     print('检查聊天目录：',cwd)
     try:
-        with socket.socket(socket.AF_UNIX) as connection:
-            connection.settimeout(2);connection.connect(str(check_directory()))
+        with connect(timeout=2) as connection:
             connection.sendall(b'{"type":"status"}\n')
             with connection.makefile('rb') as stream:status=json.loads(stream.readline(4096))
         if 'hook_count' not in status:
@@ -62,7 +61,7 @@ def main():
             if status.get('bridge_revision'):print('Bridge 修订：',status['bridge_revision'])
             print('已收到 Hook：',status['hook_count'],'最近事件距今秒数：',status['hook_age'])
             if status.get('notification_version',0)<2:
-                print('当前 Bridge 尚未加载网络权限提醒修复。先在旧 Bridge 终端 Control+C，再运行「仅启动桥接.command」；无需刷机或重启桌面应用。')
+                print('当前 Bridge 尚未加载网络权限提醒修复。先在旧 Bridge 终端 Control+C，再运行「仅启动桥接.command」；无需刷机或重启 桌面 App。')
             else:
                 print('通知处理版本：',status['notification_version'],'事件类型计数：',status.get('event_counts',{}))
                 print('工具事件计数：',status.get('tool_counts',{}))
@@ -87,8 +86,8 @@ def main():
     if not own:print('尚未注册。运行「安装通知接入.command」，然后在 Codex 审阅并信任 Hook。')
     elif any(h.get('trustStatus') not in ('trusted','managed') for h in own):
         print('存在未信任或已修改的 Hook。Codex 会跳过它们；请手动审阅信任，CLI 使用 /hooks。')
-    print('此检查读取磁盘配置，不代表桌面应用的旧会话已重载。没有发送模型任务或测试批准。')
-    print('若刚安装 / 信任 Hook 而计数仍为 0：保持 Bridge 运行，用 Command+Q 完全退出桌面应用，再打开原聊天并发起新请求。')
+    print('此检查读取磁盘配置，不代表 桌面 App的旧会话已重载。没有发送模型任务或测试批准。')
+    print('若刚安装 / 信任 Hook 而计数仍为 0：保持 Bridge 运行，用 Command+Q 完全退出 桌面 App，再打开原聊天并发起新请求。')
     print('仅切换聊天或关闭窗口不保证卸载旧会话；不要因此重复刷机、配网或 Trust All。')
 
 

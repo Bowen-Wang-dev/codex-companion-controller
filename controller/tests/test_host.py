@@ -38,6 +38,7 @@ def backup(ota=False, overlap=False):
     return image
 
 
+@unittest.skipIf(sys.platform == 'win32', 'Unix socket path limit; Windows IPC tested separately')
 class IPCTests(unittest.TestCase):
     def test_short_path_and_real_bind(self):
         self.assertLess(len(bytes(SOCKET)), 104)
@@ -57,6 +58,7 @@ class IPCTests(unittest.TestCase):
                 address.unlink(missing_ok=True)
 
 
+@unittest.skipIf(sys.platform == 'win32', 'POSIX ownership/flock; Windows lock/DACL tested separately')
 class EndpointTests(unittest.TestCase):
     def exercise(self, active):
         with tempfile.TemporaryDirectory() as directory:

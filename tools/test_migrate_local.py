@@ -50,7 +50,10 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue((dest/'controller/dist/manifest.json').is_file())
         self.assertFalse((dest/'controller/private/build').exists())
         self.assertFalse((dest/'controller/private/desktop-app.log').exists())
-        self.assertEqual((dest/'controller/private/wireless.json').stat().st_mode & 0o777,0o600)
+        if sys.platform == 'win32':
+            from windows_security import private_file
+            private_file((dest/'controller/private/wireless.json'))
+        else:self.assertEqual((dest/'controller/private/wireless.json').stat().st_mode & 0o777,0o600)
 
     def test_existing_target_is_never_overwritten(self):
         dest=self.root/'destination';dest.mkdir();(dest/'keep').write_text('preserved')
@@ -75,11 +78,13 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue((private/'wireless.json').is_file())
         self.assertTrue((private/'backups/example/flash.bin').is_file())
 
+    @unittest.skipIf(sys.platform == 'win32', 'POSIX symlink fixture requires Windows symlink privilege')
     def test_rejects_symlink_in_source_without_changing_original(self):
         (self.src/'linked.md').symlink_to(self.src/'AGENTS.md')
         with self.assertRaises(ValueError):self.migrate()
         self.assertTrue((self.src/'AGENTS.md').is_file())
 
+    @unittest.skipIf(sys.platform == 'win32', 'POSIX symlink fixture requires Windows symlink privilege')
     def test_rejects_symlinked_private_tree_root(self):
         target=self.root/'external';target.mkdir();(target/'fixture.json').write_text('{}')
         link=self.root/'linked-private';link.symlink_to(target,target_is_directory=True)

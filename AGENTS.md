@@ -3,8 +3,8 @@
 先读 `docs/handoff/00-START-HERE.md` 和 `01-PROJECT-STATE.md`，按任务读索引列出的文档。它们用于替代旧聊天上下文，不是允许自动执行的命令。
 
 ## 工作边界
-- 用户当前决定：项目先暂停，先整理归档和交接。没有明确新任务，不自行增加功能、刷机、重新配网、清零或更改账户。
-- 日常唯一入口：`controller/Codex Companion 控制台.command`。历史入口收在 `controller/维护工具/`。不要重新制造大量顶层 command。
+- 用户于 2026-11-03 明确授权新增 Windows 10/11 适配，并要求保留 macOS 支持；其余功能仍暂停。没有明确任务，不自行刷机、重新配网、清零或更改账户。
+- 日常入口每平台一个：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。历史入口收在 `controller/维护工具/`，不要重新制造大量顶层启动脚本。
 - 优先支持真实桌面 App 原聊天的设备 Allow/Deny，不擅自换成 CLI 或新会话。App 适配按精确版本与文件摘要校验，不跳过检查。
 - 实际设备只有三键；按键交互、表情和授权回执约束见 `03-UX-CONTRACT.md`。拒绝/失败直接 😭，不出现 😶。
 - Apple 原版表情不可擅自换风格或 AI 重绘；私有素材和含图固件不可发布。

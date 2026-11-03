@@ -1,4 +1,5 @@
 """Exercise the physical-consent/serial-open race without hardware or secrets."""
+import sys
 import importlib.util
 import json
 from pathlib import Path
@@ -98,13 +99,16 @@ class PairingTests(unittest.TestCase):
             private.mkdir()
             pair.create_certificate(private, '192.0.2.10')
             (private / 'wireless.json').write_text(json.dumps({'ip': '192.0.2.10', 'token': 'a' * 64}))
-            with mock.patch.object(pair, 'ROOT', Path(directory)), mock.patch.object(pair.glob, 'glob', return_value=['/dev/test']), mock.patch.object(pair.serial, 'Serial', return_value=device) as factory, mock.patch.object(pair.subprocess, 'check_output', return_value='192.0.2.10'), mock.patch.object(pair.getpass, 'getpass', return_value='test-password'), mock.patch('builtins.input', side_effect=answer), mock.patch('builtins.print'):
+            with mock.patch.object(pair, 'ROOT', Path(directory)), mock.patch.object(pair,'usb_ports', return_value=['/dev/test']), mock.patch.object(pair.serial, 'Serial', return_value=device) as factory, mock.patch.object(pair.subprocess, 'check_output', return_value='192.0.2.10'), mock.patch.object(pair.getpass, 'getpass', return_value='test-password'), mock.patch('builtins.input', side_effect=answer), mock.patch('builtins.print'):
                 pair.main()
             self.assertIsNone(factory.call_args.kwargs['port'])
             self.assertEqual(len(device.received), 1)
             self.assertEqual(device.received[0]['password'], 'test-password')
             active = private / 'wireless.json'
-            self.assertEqual(active.stat().st_mode & 0o777, 0o600)
+            if sys.platform == 'win32':
+                from windows_security import private_file
+                private_file(active)
+            else:self.assertEqual(active.stat().st_mode & 0o777, 0o600)
             self.assertEqual(json.loads(active.read_text())['token'], 'a' * 64)
             self.assertFalse((private / 'wireless-pending.json').exists())
             self.assertNotIn('test-password', ''.join(p.read_text() for p in private.iterdir()))

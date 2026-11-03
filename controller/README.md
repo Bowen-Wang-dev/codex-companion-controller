@@ -4,7 +4,7 @@
 
 ## 日常操作
 
-双击 `Codex Companion 控制台.command`。这是唯一日常入口；具体菜单及接入条件见[运行手册](../docs/handoff/06-RUNBOOK.md)。历史脚本集中在 `维护工具/`。
+macOS 双击 `Codex Companion 控制台.command`；Windows 双击同名 `.cmd`，每平台一个日常入口。共用控制台与审批逻辑，Mac 原实现保留。具体菜单及接入条件见[运行手册](../docs/handoff/06-RUNBOOK.md)，Windows 安装、当前测试与限制见[双平台说明](../docs/handoff/11-HOST-PLATFORMS.md)。历史 macOS 脚本集中在 `维护工具/`。
 
 审批可在设备或原 App 原生卡片操作，首个有效答复生效。详情页长按交接已在 v0.2.13 移除；二次确认页的长按提交保留。设备拒绝或失败直接显示 😭，批准反馈必须对应实际提交回执。表情、三键及分页规范见[交互契约](../docs/handoff/03-UX-CONTRACT.md)。
 

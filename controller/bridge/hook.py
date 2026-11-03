@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Official lifecycle hook client. Fail back to native approval on every error."""
 import json
-import socket
 import sys
-from ipc_path import check_directory
+from ipc_path import connect
 from permission_result import permission_outcome
 from hook_policy import permission_tool
 
@@ -20,11 +19,8 @@ def main():
             'hook_event_name', 'session_id', 'turn_id', 'cwd', 'tool_name', 'tool_input', 'tool_use_id')}
         if outcome:event['permission_outcome']=outcome
         event['passport_hook_version']=3
-        address = check_directory()
-        with socket.socket(socket.AF_UNIX) as sock:
-            blocking=event.get('hook_event_name')=='PermissionRequest' or (event.get('hook_event_name')=='PreToolUse' and permission_tool(event))
-            sock.settimeout(112 if blocking else .5)
-            sock.connect(str(address))
+        blocking=event.get('hook_event_name')=='PermissionRequest' or (event.get('hook_event_name')=='PreToolUse' and permission_tool(event))
+        with connect(timeout=112 if blocking else .5) as sock:
             sock.sendall(json.dumps(event).encode() + b'\n')
             with sock.makefile('rb') as f:
                 result = json.loads(f.readline(4096))

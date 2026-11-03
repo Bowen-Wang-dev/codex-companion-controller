@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Unified Finder entry for Codex App, device transport and local metering."""
-import glob
 import os
 from pathlib import Path
 import subprocess
@@ -11,6 +10,7 @@ sys.path.insert(0,str(ROOT/'bridge'));sys.path.insert(0,str(ROOT/'scripts'))
 from connection_diagnostics import inspect,show
 from recover_bridge import stop_idle_bridge
 from launch_desktop import app_is_running
+from host_platform import WINDOWS, usb_ports, exec_process
 
 PY=sys.executable
 
@@ -36,19 +36,19 @@ def device_bridge_menu():
     # use the verified launch path so the App, relay and Bridge start as one
     # lifecycle. Keep the existing Bridge-only behavior when App is running.
     if not app_is_running():
-        print('检测到桌面 App 未运行；将通过已核对入口同时启动 App、relay 和 Bridge。',flush=True)
+        print('检测到 桌面 App 未运行；将通过已核对入口同时启动 App、relay 和 Bridge。',flush=True)
         if status:=report['status']:
             stop_idle_bridge(status)
         return launch_app()
     status=report['status']
     stop_idle_bridge(status)
     wireless=ROOT/'private/wireless.json'
-    ports=glob.glob('/dev/cu.usbmodem*')
+    ports=usb_ports()
     port='' if wireless.exists() else ports[0] if len(ports)==1 else None
     if port is None:
         raise RuntimeError('没有无线配对记录，也没有唯一 USB 设备；请先选恢复／配网。')
     print('正在用现有配对启动 Bridge；关闭本终端会停止服务。',flush=True)
-    os.execv(PY,[PY,str(ROOT/'bridge/service.py'),'--desktop','--port',port])
+    exec_process(PY,[PY,str(ROOT/'bridge/service.py'),'--desktop','--port',port])
 
 
 def billing_menu():
@@ -69,7 +69,7 @@ def pairing_menu():
     code=run(ROOT/'scripts/pair_wifi.py')
     if code==0:
         print('配对完成；启动无线 Bridge。关闭终端会停止服务。',flush=True)
-        os.execv(PY,[PY,str(ROOT/'bridge/service.py'),'--desktop','--port',''])
+        exec_process(PY,[PY,str(ROOT/'bridge/service.py'),'--desktop','--port',''])
 
 
 def hooks_menu():
@@ -77,7 +77,15 @@ def hooks_menu():
     if input('输入 YES 安装／更新 Hook；其他输入返回：').strip()!='YES':return
     project=ROOT.parent
     subprocess.run([PY,str(ROOT/'scripts/install_hooks.py'),'--user','--remove-project-copy',str(project)],cwd=ROOT,check=True)
-    print('请在 Codex 审阅并信任 Passport Hook，再通过菜单启动桌面 App 审批。')
+    print('请在 Codex 审阅并信任 Passport Hook，再通过菜单启动 桌面 App 审批。')
+
+
+def firmware_menu():
+    if WINDOWS:
+        print('Windows 固件构建/菜单更新流程尚未验收；本阶段保留现有固件。')
+        print('macOS 原有双备份/live 分区安全更新流程继续保留，详见 docs/handoff/04-HARDWARE-AND-FLASH.md。')
+        return
+    return subprocess.run([str(ROOT/'维护工具'/'更新Token计量与清零固件.command')],cwd=ROOT).returncode
 
 
 def main():
@@ -94,7 +102,7 @@ def main():
         '4':('Token 计费方式、基准价、长上下文及倍率',billing_menu),
         '5':('Token 统计、只读核对、本机清零',usage_menu),
         '6':('安装／修复 Codex Hooks',hooks_menu),
-        '7':('设备固件与备份维护（USB）',lambda:subprocess.run([str(ROOT/'维护工具'/'更新Token计量与清零固件.command')],cwd=ROOT).returncode),
+        '7':('设备固件与备份维护（USB）',firmware_menu),
     }
     while True:
         print('\n'+ '\n'.join(f'{key}  {title}' for key,(title,_) in actions.items())+'\nq 退出')

@@ -17,6 +17,9 @@ CARD={'input':.36,'cached_input':.018,'output':1.8,'cache_write':.45,
       'long_context':{'above_input_tokens':272000,'input':.72,'cached_input':.036,'output':2.7,'cache_write':.90}}
 
 
+sys.path.insert(0, str(ROOT/'bridge'))
+from private_permissions import set_private
+
 def main():
     report=inspect();show(report)
     print('将配置 gpt-6.1-sol：普通档 $0.36 / $0.018 / $1.80，长档 $0.72 / $0.036 / $2.70（输入／缓存读／输出，每百万）。')
@@ -32,7 +35,7 @@ def main():
         data=json.loads(path.read_text())
         if not isinstance(data,dict) or not isinstance(data.get('models'),dict):raise ValueError('原费率文件格式无效，未覆盖。')
         backup=path.with_name('token_rates-before-long-'+datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f')+'.json')
-        shutil.copyfile(path,backup);os.chmod(backup,0o600)
+        shutil.copyfile(path,backup);set_private(backup,0o600)
     else:data={'currency':'USD','models':{}}
     if data.get('currency')!='USD':raise ValueError('原费率不是 USD，请先在编辑器核对；未覆盖。')
     data['models'][MODEL]=CARD

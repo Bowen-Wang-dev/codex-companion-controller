@@ -2,7 +2,8 @@
 """Continue a selected real Codex thread through a private shared App Server."""
 import argparse
 import errno
-import fcntl
+try:import fcntl
+except ImportError:fcntl = None
 import json
 import os
 from pathlib import Path
@@ -44,6 +45,7 @@ def stop(process):
 
 
 def main():
+    if fcntl is None:raise RuntimeError('CLI Unix 接入仅支持 macOS；Windows 请使用 .cmd 控制台接入原 App。')
     parser=argparse.ArgumentParser()
     parser.add_argument('--thread',help='Existing thread UUID; otherwise choose from recent threads')
     parser.add_argument('--check',action='store_true',help='Read-only real App Server startup and protocol check; no resume or model turn')
@@ -101,7 +103,7 @@ def main():
         if args.thread:
             target=client.rpc('thread/read',{'threadId':args.thread}).get('thread',{})
         else:
-            print('正式接管前请确认已用 Command+Q 完全退出桌面 App，释放原会话。')
+            print('正式接管前请确认已用 Command+Q 完全退出 桌面 App，释放原会话。')
             data=client.rpc('thread/list',{'limit':15,'sortKey':'updated_at','archived':False,'useStateDbOnly':True}).get('data',[])
             if not data:raise RuntimeError('没有可继续的原会话；本脚本不会新建无关会话')
             print('选择要继续的原会话；保留同一 ID 与历史，不 fork、不新建：')
@@ -115,7 +117,7 @@ def main():
         identifier=target.get('id');uuid.UUID(identifier)
         client.close();client=None
         print('继续原会话：'+plain(target.get('name') or identifier))
-        print('若该会话仍由桌面 App 加载，请先用 Command+Q 完全退出桌面 App。不会自动关闭或抢占它。')
+        print('若该会话仍由 桌面 App 加载，请先用 Command+Q 完全退出 桌面 App。不会自动关闭或抢占它。')
         print('启动实体审批 Bridge；设备断线 / 超时后仍可在 CLI 原生页面处理。')
         bridge=subprocess.Popen([sys.executable,str(ROOT/'bridge/service.py'),'--native-socket',str(address),'--thread',identifier],
                                 stdout=bridge_log,stderr=bridge_log)
@@ -128,7 +130,7 @@ def main():
                 last_error=native.get('error') or last_error
             except (OSError,ValueError):pass
             time.sleep(.2)
-        else:raise RuntimeError('无法接入原会话。请完全退出桌面 App 后重试；不会复制历史建立新会话。 '+last_error)
+        else:raise RuntimeError('无法接入原会话。请完全退出 桌面 App 后重试；不会复制历史建立新会话。 '+last_error)
         print('实体审批已接入。下面是官方 CLI；按键批准仅限本次 / 本轮，不保存长期权限。')
         print('复杂或显示不全的请求在 CLI 审阅；关闭 CLI 会结束本次 Bridge，原会话历史保留。')
         result=subprocess.run([binary,'resume',identifier,'--remote','unix://'+str(address)])

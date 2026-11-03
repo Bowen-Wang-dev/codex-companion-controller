@@ -152,6 +152,7 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(self.b.permission(event),{})
 
 
+@unittest.skipIf(sys.platform == 'win32', 'Legacy CLI Unix WebSocket transport; desktop relay tested on both hosts')
 class NativeWebSocketTests(unittest.TestCase):
     @contextmanager
     def server(self,handler):

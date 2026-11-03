@@ -175,7 +175,10 @@ class HookInstallationTests(unittest.TestCase):
             first=path.read_bytes();installer.save(path,installer.merge)
             self.assertEqual(path.read_bytes(),first)
             self.assertEqual(len(list(path.parent.glob('hooks.backup-*'))),1)
-            self.assertEqual(path.stat().st_mode & 0o777,0o600)
+            if sys.platform == 'win32':
+                from windows_security import private_file
+                private_file(path)
+            else:self.assertEqual(path.stat().st_mode & 0o777,0o600)
 
 
 if __name__=='__main__':unittest.main()

@@ -31,6 +31,7 @@ class DesktopProbeTests(unittest.TestCase):
         self.assertFalse(report['connected']);self.assertFalse(report['expected_loaded'])
         client.close.assert_called_once()
 
+    @unittest.skipIf(sys.platform == 'win32', 'Legacy CLI Unix socket permissions')
     def test_unsafe_socket_directory_is_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'control.sock'

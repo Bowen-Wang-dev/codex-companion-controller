@@ -15,7 +15,7 @@ import threading
 import time
 import uuid
 
-from ipc_path import check_directory
+from ipc_path import connect
 
 APPROVALS={'item/permissions/requestApproval','item/commandExecution/requestApproval',
            'item/fileChange/requestApproval'}
@@ -120,8 +120,7 @@ class Relay:
             pass
 
     def ipc(self,value,timeout=1):
-        with socket.socket(socket.AF_UNIX) as connection:
-            connection.settimeout(timeout);connection.connect(str(check_directory()))
+        with connect(timeout=timeout) as connection:
             connection.sendall(json.dumps(value).encode()+b'\n')
             with connection.makefile('rb') as stream:
                 return json.loads(stream.readline(65537))
@@ -155,8 +154,7 @@ class Relay:
             encoded=json.dumps({'type':'desktop_request','relay':self.id,
                 'method':message['method'],'native_id':message['id'],'params':message.get('params')}).encode()+b'\n'
             if len(encoded)>65536:return
-            connection=socket.socket(socket.AF_UNIX);connection.settimeout(602)
-            connection.connect(str(check_directory()))
+            connection=connect(timeout=602)
             with self.arbiter.lock:
                 if self.arbiter.pending.get(self.arbiter.key(message['id'])) is not pending:return
                 pending['connection']=connection
@@ -305,6 +303,13 @@ class Relay:
             except (OSError,ValueError):pass
 
 
+def passthrough(real, command):
+    # Windows CRT execv does not preserve Python's argument-list quoting or
+    # reliably propagate the spawned process's exit status to the App.
+    if sys.platform == 'win32':return subprocess.call([str(real), *command])
+    os.execv(str(real), [str(real), *command])
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--real',required=True)
@@ -315,13 +320,13 @@ def main():
     if not real.is_file() or not os.access(real,os.X_OK):raise ValueError('Official Codex executable missing')
     # Version, login and other CLI utility calls remain exact passthroughs.
     if 'app-server' not in command or any(v in command for v in ('daemon','proxy','generate-ts','generate-json-schema')):
-        os.execv(str(real),[str(real),*command])
+        return passthrough(real,command)
     if '--listen' in command:
         index=command.index('--listen')
         if index+1>=len(command) or command[index+1]!='stdio://':
-            os.execv(str(real),[str(real),*command])
+            return passthrough(real,command)
     if any(value.startswith('--listen=') and value!='--listen=stdio://' for value in command):
-        os.execv(str(real),[str(real),*command])
+        return passthrough(real,command)
     child=subprocess.Popen([str(real),*command],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
         stderr=sys.stderr.buffer)
     try:Relay(child,sys.stdin.buffer,sys.stdout.buffer).run()

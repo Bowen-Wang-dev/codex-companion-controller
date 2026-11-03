@@ -9,9 +9,12 @@ from pathlib import Path
 import subprocess
 import tarfile
 import time
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {'bridge-venv', 'bridge-venv-homebrew', 'pycache', 'checks', 'component-cache', '__pycache__'}
+sys.path.insert(0, str(ROOT/'controller/bridge'))
+from private_permissions import set_private
+SKIP_DIRS = {'bridge-venv', 'bridge-venv-homebrew', 'bridge-venv-windows', 'pycache', 'checks', 'component-cache', '__pycache__'}
 
 
 def private_files(root):
@@ -23,7 +26,7 @@ def private_files(root):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not (here / d).is_symlink())
         for name in sorted(files):
             p = here / name
-            if p.is_symlink() or name == 'auth.json' or p.suffix in ('.log', '.pyc'):
+            if p.is_symlink() or name in ('auth.json', 'app-relay.exe', 'app-relay.json') or p.suffix in ('.log', '.pyc'):
                 continue
             if p.is_file(): yield p, p.relative_to(root).as_posix()
     for relative in ('controller/dist',):
@@ -43,7 +46,8 @@ def pack_private(destination, files):
     # Protect even an interrupted/invalid archive before writing private bytes,
     # and never truncate a previous recovery archive or follow its symlink.
     with destination.open('xb') as output:
-        os.fchmod(output.fileno(), 0o600)
+        if sys.platform == 'win32':set_private(destination, 0o600)
+        else:os.fchmod(output.fileno(), 0o600)
         return _pack_private(destination, output, files, records)
 
 
@@ -77,6 +81,7 @@ def archive(destination, root=ROOT, hooks=None):
         raise ValueError('Commit source and documentation before archiving; worktree is not clean')
     destination = destination.expanduser().resolve()
     destination.mkdir(mode=0o700, parents=True, exist_ok=False)
+    set_private(destination, 0o700)
     source = destination / 'source.tar.gz'
     subprocess.run(['git', '-C', str(root), 'archive', '--format=tar.gz', '-o', str(source), 'HEAD'], check=True)
     bundle = destination / 'source-history.bundle'
@@ -104,10 +109,10 @@ Never publish Apple artwork, image-bearing firmware, keys or pairing identities.
                'private_files_verified': count, 'files': {}}
     for p in sorted(destination.iterdir()):
         if p.is_file():
-            p.chmod(0o600)
+            set_private(p, 0o600)
             receipt['files'][p.name] = {'bytes': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
     path = destination / 'ARCHIVE-RECEIPT.json'
-    path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n'); path.chmod(0o600)
+    path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'); set_private(path, 0o600)
     return receipt
 
 

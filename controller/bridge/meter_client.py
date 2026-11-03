@@ -1,14 +1,11 @@
 """Private local IPC for numeric usage diagnostics and explicit counter resets."""
 import json
-import socket
 import datetime
-from ipc_path import check_directory
+from ipc_path import connect
 
 
 def request(message):
-    with socket.socket(socket.AF_UNIX) as client:
-        client.settimeout(3)
-        client.connect(str(check_directory()))
+    with connect(timeout=3) as client:
         client.sendall(json.dumps(message).encode()+b'\n')
         with client.makefile('rb') as stream:
             response=stream.readline(65537)
@@ -27,7 +24,7 @@ REASONS={'request_boundaries_missing':'逐请求记录尚未齐全，无法安�
 def summary(status):
     meter=status.get('metering')
     if not isinstance(meter,dict):
-        return '运行中的 Bridge 尚未更新；请重新运行桌面 App 实体审批入口。'
+        return '运行中的 Bridge 尚未更新；请重新运行 桌面 App 实体审批入口。'
     usage=meter['usage'];cost=meter['cost']
     total=usage.get('total');last=usage.get('last')
     def cost_text(value):

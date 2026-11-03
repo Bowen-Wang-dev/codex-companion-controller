@@ -9,9 +9,17 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'bridge'))
 from meter_client import request
+from host_platform import WINDOWS, powershell
 
 
 def local_ipv4():
+    if WINDOWS:
+        try:
+            values=json.loads(powershell("ConvertTo-Json -Compress -InputObject @(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.AddressState -eq 'Preferred' } | Select-Object -ExpandProperty IPAddress)"))
+            return list(dict.fromkeys(raw for raw in values if not (
+                ipaddress.IPv4Address(raw).is_loopback or ipaddress.IPv4Address(raw).is_link_local
+                or ipaddress.IPv4Address(raw).is_unspecified or ipaddress.IPv4Address(raw).is_multicast)))
+        except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired):return []
     try:
         result = subprocess.run(['/sbin/ifconfig'], capture_output=True, text=True, timeout=3)
     except (OSError, subprocess.TimeoutExpired):
@@ -50,7 +58,7 @@ def show(report):
     if status:
         print('设备：'+('在线 / '+str(status.get('transport','')) if status.get('online') else '离线'), flush=True)
         print('App 实体审批：'+('已接入' if status.get('desktop',{}).get('connected') else '尚未接入；设备链路与 App 审批是两项检查'), flush=True)
-    print('Mac 当前 IPv4：'+(', '.join(report['local_ips']) or '未检测到'), flush=True)
+    print('Mac当前 IPv4：'+(', '.join(report['local_ips']) or '未检测到'), flush=True)
     print('设备配对的 Mac IPv4：'+str(report['paired_ip'] or '未配置'), flush=True)
     if report['address_changed']:
         print('配对地址已不属于当前 Mac。重配无线需更新设备地址和证书；只重启 Bridge 无法修正。USB 可先恢复使用。', flush=True)

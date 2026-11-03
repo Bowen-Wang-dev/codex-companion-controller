@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from host_platform import openssl_binary
 
 # DER SubjectPublicKeyInfo: id-ecPublicKey + prime256v1 OIDs, followed by
 # the BIT STRING containing an uncompressed P-256 point. This checks only
@@ -12,9 +13,11 @@ import tempfile
 P256_SPKI_PREFIX = bytes.fromhex('3059301306072a8648ce3d020106082a8648ce3d03010703420004')
 
 
+from private_permissions import set_private
+
 def certificate_is_named_p256(path):
     try:
-        result = subprocess.run(['openssl', 'x509', '-in', str(path), '-pubkey', '-noout'],
+        result = subprocess.run([openssl_binary(), 'x509', '-in', str(path), '-pubkey', '-noout'],
                                 check=True, capture_output=True)
         pem = result.stdout
         if not pem.startswith(b'-----BEGIN PUBLIC KEY-----'):
@@ -22,7 +25,7 @@ def certificate_is_named_p256(path):
         encoded = b''.join(pem.splitlines()[1:-1])
         der = base64.b64decode(encoded, validate=True)
         return len(der) == 91 and der.startswith(P256_SPKI_PREFIX)
-    except (OSError, ValueError, binascii.Error, subprocess.CalledProcessError):
+    except (OSError, RuntimeError, ValueError, binascii.Error, subprocess.CalledProcessError):
         return False
 
 
@@ -37,7 +40,7 @@ def create_certificate(private, ip):
         key, cert = stage / 'bridge-key.pem', stage / 'bridge-cert.pem'
         # macOS LibreSSL can default to explicit parameters, unlike modern
         # OpenSSL. Specify the encoding instead of relying on either default.
-        subprocess.run(['openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt',
+        subprocess.run([openssl_binary(), 'req', '-x509', '-newkey', 'ec', '-pkeyopt',
                         'ec_paramgen_curve:P-256', '-pkeyopt', 'ec_param_enc:named_curve',
                         '-sha256', '-nodes', '-days', '3650', '-keyout', str(key),
                         '-out', str(cert), '-config', str(cfg)],
@@ -45,5 +48,5 @@ def create_certificate(private, ip):
         if not certificate_is_named_p256(cert):
             raise ValueError('新证书不是设备支持的命名曲线 P-256 格式，未替换原证书。')
         for source in (key, cert, cfg):
-            os.chmod(source, 0o600)
+            set_private(source, 0o600)
             os.replace(source, private / source.name)

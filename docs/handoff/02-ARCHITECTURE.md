@@ -2,8 +2,8 @@
 
 ```text
 Codex desktop App ↔ stdio relay ↔ 官方 Codex App Server
-                         ↕ 私有 Unix IPC
-                     Mac Bridge
+                         ↕ 私有主机 IPC
+                  macOS / Windows Bridge
                          ↕ HTTPS / Wi-Fi（或 PC1 JSONL USB）
                   AI Passport ESP32-C3
 ```
@@ -11,6 +11,8 @@ Codex desktop App ↔ stdio relay ↔ 官方 Codex App Server
 App 适配使用已安装版本的内部启动开关，并非稳定公开设置；协议层用官方 App Server 请求/通知。不能修改 App 安装包、自动点击 GUI 或取消版本校验来声称支持。
 
 ## Mac 源码
+
+以上原有 Python 模块由 macOS 与 Windows 共用。平台差异集中在 `bridge/host_platform.py`、`bridge/ipc_path.py`、`bridge/windows_security.py` 与 `bridge/private_permissions.py`；Windows 使用 `.cmd` → `scripts/setup_windows.py` → 同一 `controller_console.py`，App 使用生成的私有 `app-relay.exe` → `scripts/app_relay.py` → 同一 `stdio_relay.py`。macOS 继续使用现有 `.command` 和 Unix IPC。细节及待验收项见 [11-HOST-PLATFORMS.md](11-HOST-PLATFORMS.md)。
 - `controller/scripts/controller_console.py`：统一菜单；`Codex Companion 控制台.command` 为主入口。
 - `scripts/launch_desktop.py`：精确 App 版本/摘要、环境与 relay 启动、Bridge 生命周期。
 - `scripts/app_relay.command` + `bridge/stdio_relay.py`：透明 JSONL 转发、硬件/原 App 审批竞争及唯一回执。

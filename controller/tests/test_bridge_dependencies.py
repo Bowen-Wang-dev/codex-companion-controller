@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import sys
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,7 +23,10 @@ class DependencyTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(wheel.read_bytes()).hexdigest(), digest)
                 pth = site / ('passport_' + name + '.pth')
                 self.assertEqual(pth.read_text(), str(wheel.resolve()) + '\n')
-                self.assertEqual(pth.stat().st_mode & 0o777, 0o600)
+                if sys.platform == 'win32':
+                    from windows_security import private_file
+                    private_file(pth)
+                else:self.assertEqual(pth.stat().st_mode & 0o777, 0o600)
 
     def test_corrupt_wheel_changes_no_import_paths(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -39,6 +43,7 @@ class DependencyTests(unittest.TestCase):
             with self.assertRaises(ValueError): deps.enable(site, site)
             self.assertEqual(existing.read_text(), 'original\n')
 
+    @unittest.skipIf(sys.platform == 'win32', 'macOS shell launchers')
     def test_shell_launchers_use_configured_interpreter_and_parse(self):
         paths = list((ROOT / 'scripts').glob('*.sh')) + list((ROOT / 'scripts').glob('*.command'))
         paths += list((ROOT / '维护工具').glob('*.command')) + [ROOT / 'Codex Companion 控制台.command']

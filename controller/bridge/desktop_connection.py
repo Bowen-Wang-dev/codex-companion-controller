@@ -8,6 +8,8 @@ import time
 from native_approvals import NativeClient
 
 
+from private_permissions import set_private
+
 def control_socket(codex_home=None):
     home=Path(codex_home or os.environ.get('CODEX_HOME') or Path.home()/'.codex')
     return home/'app-server-control'/'app-server-control.sock'
@@ -63,7 +65,7 @@ def save_report(path,report):
     path=Path(path);path.parent.mkdir(parents=True,mode=0o700,exist_ok=True)
     temporary=path.with_suffix('.tmp')
     with temporary.open('w') as stream:
-        os.chmod(temporary,0o600)
+        set_private(temporary,0o600)
         json.dump(report,stream,ensure_ascii=False,indent=2)
         stream.write('\n');stream.flush();os.fsync(stream.fileno())
     os.replace(temporary,path)

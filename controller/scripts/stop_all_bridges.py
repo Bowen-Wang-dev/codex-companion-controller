@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Stop only this project's per-user Bridge endpoint."""
-import socket
 import sys
 from pathlib import Path
 
@@ -8,7 +7,7 @@ from pathlib import Path
 # when launched from Finder or a normal Terminal.
 BRIDGE_DIR = Path(__file__).resolve().parents[1] / 'bridge'
 sys.path.insert(0, str(BRIDGE_DIR))
-from ipc_path import SOCKET, check_directory
+from ipc_path import SOCKET, check_directory, connect, WINDOWS
 
 try:
     path = check_directory()
@@ -17,16 +16,14 @@ except FileNotFoundError:
     raise SystemExit(0)
 
 try:
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-        client.settimeout(2)
-        client.connect(str(path))
+    with connect(timeout=2) as client:
         client.sendall(b'{"type":"shutdown"}\n')
         response = client.makefile('rb').readline(1024)
     if b'"stopping": true' not in response and b'"stopping":true' not in response:
         raise RuntimeError('Bridge did not confirm shutdown')
 except (ConnectionRefusedError, FileNotFoundError):
     try:
-        SOCKET.unlink(missing_ok=True)
+        if not WINDOWS:SOCKET.unlink(missing_ok=True)
     except OSError:
         pass
     print('本项目没有可响应的 Bridge；已清理遗留 socket。')

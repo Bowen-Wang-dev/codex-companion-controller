@@ -8,6 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'bridge'))
 from tls_material import certificate_is_named_p256, create_certificate
+from host_platform import openssl_binary
 
 
 class CertificateTests(unittest.TestCase):
@@ -18,8 +19,11 @@ class CertificateTests(unittest.TestCase):
             cert = p / 'bridge-cert.pem'
             self.assertTrue(certificate_is_named_p256(cert))
             for name in ['bridge-cert.pem', 'bridge-key.pem']:
-                self.assertEqual((p / name).stat().st_mode & 0o777, 0o600)
-            subprocess.run(['openssl', 'verify', '-CAfile', str(cert), str(cert)],
+                if sys.platform == 'win32':
+                    from windows_security import private_file
+                    private_file((p / name))
+                else:self.assertEqual((p / name).stat().st_mode & 0o777, 0o600)
+            subprocess.run([openssl_binary(), 'verify', '-CAfile', str(cert), str(cert)],
                            check=True, capture_output=True)
             # The optional probe is built from IDF's actual Mbed TLS sources.
             probe = os.environ.get('PASSPORT_MBEDTLS_CERT_PROBE')
@@ -34,7 +38,7 @@ class CertificateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             p = Path(directory)
             create_certificate(p, '192.0.2.10')
-            subprocess.run(['openssl', 'req', '-x509', '-newkey', 'ec', '-pkeyopt',
+            subprocess.run([openssl_binary(), 'req', '-x509', '-newkey', 'ec', '-pkeyopt',
                             'ec_paramgen_curve:P-256', '-pkeyopt', 'ec_param_enc:explicit',
                             '-nodes', '-days', '1', '-keyout', str(p / 'bridge-key.pem'),
                             '-out', str(p / 'bridge-cert.pem'), '-config', str(p / 'cert.cnf')],

@@ -5,10 +5,12 @@ import shlex
 import subprocess
 import tempfile
 import unittest
+import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 
 
+@unittest.skipIf(sys.platform == 'win32', 'macOS shell updater; Windows updater remains unavailable')
 class FirmwareLauncherTests(unittest.TestCase):
     def run_launcher(self,configured=True,dependency_ok=True):
         with tempfile.TemporaryDirectory(prefix='passport update ') as folder:

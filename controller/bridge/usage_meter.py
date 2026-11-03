@@ -30,6 +30,8 @@ OPENAI_PRICES = {
 }
 
 
+from private_permissions import set_private
+
 def breakdown(value):
     if not isinstance(value, dict):
         return None
@@ -226,7 +228,7 @@ def private_json(path, data):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = path.with_suffix('.tmp')
     with temporary.open('w', encoding='utf-8') as stream:
-        os.chmod(temporary, 0o600)
+        set_private(temporary, 0o600)
         json.dump(data, stream, ensure_ascii=False, separators=(',', ':'))
         stream.flush()
         os.fsync(stream.fileno())

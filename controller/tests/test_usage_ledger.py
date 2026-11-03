@@ -83,7 +83,10 @@ class LedgerTests(unittest.TestCase):
             self.assertEqual(m.view('thread','turn',MODEL,BOOK)['usage']['total'],zero())
             second=tokens(500,100,100,30);m.observe(value(plus(tokens(),second),second),MODEL)
             self.assertEqual(m.view('thread','turn',MODEL,BOOK)['usage']['total'],second)
-            self.assertEqual(p.stat().st_mode & 0o777,0o600)
+            if sys.platform == 'win32':
+                from windows_security import private_file
+                private_file(p)
+            else:self.assertEqual(p.stat().st_mode & 0o777,0o600)
 
     def test_mixed_models_are_not_repriced_with_latest_model(self):
         m=UsageLedger();m.observe(value(),MODEL);b=tokens(500,100,100,30)
@@ -158,18 +161,13 @@ class BrokerMeterTests(unittest.TestCase):
                 message=json.loads(self.rfile.readline())
                 response=b.status() if message['type']=='status' else b.clear_meter(message)
                 self.wfile.write(json.dumps(response).encode()+b'\n')
-        with tempfile.TemporaryDirectory(dir='/private/tmp') as directory:
-            path=Path(directory)/'meter.sock'
-            with socketserver.UnixStreamServer(str(path),Handler) as server:
-                thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-                try:
-                    with mock.patch.object(meter_client,'check_directory',return_value=path):
-                        status=meter_client.request({'type':'status'})
-                        result=meter_client.request({'type':'meter_reset',
-                            'meter_id':status['metering']['usage']['meter_id']})
-                        self.assertTrue(result['cleared'])
-                        self.assertEqual(meter_client.request({'type':'status'})['metering']['usage']['total'],zero())
-                finally:server.shutdown();thread.join()
+        from ipc_fixture import ipc_server
+        with ipc_server(Handler) as server:
+            status=meter_client.request({'type':'status'})
+            result=meter_client.request({'type':'meter_reset',
+                'meter_id':status['metering']['usage']['meter_id']})
+            self.assertTrue(result['cleared'])
+            self.assertEqual(meter_client.request({'type':'status'})['metering']['usage']['total'],zero())
 
     def test_periodic_replay_carries_numeric_baseline_only(self):
         class Child:stdin=io.BytesIO()

@@ -1,4 +1,5 @@
 """Publication regressions stage synthetic fixtures in disposable Git indexes."""
+import sys
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -41,6 +42,7 @@ class SourceAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'forbidden publication path'):
             audit.audit(self.root)
 
+    @unittest.skipIf(sys.platform == 'win32', 'POSIX symlink fixture requires Windows symlink privilege')
     def test_staged_symlink_is_rejected_after_worktree_replacement(self):
         self.stage('notes.md', b'text')
         path = self.root / 'link.md'

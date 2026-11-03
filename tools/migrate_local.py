@@ -14,6 +14,8 @@ import uuid
 import venv
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'controller/bridge'))
+from private_permissions import set_private
 DEFAULT_DEST=Path.home()/'Developer'/'codex-companion-controller'
 EXTRA_ROOT_FILES=('LOCAL-MIGRATION-INPUT.json',)
 
@@ -42,7 +44,7 @@ def copy_checked(src,dst,records,private=False):
     if src.is_symlink() or not src.is_file():raise ValueError('Expected regular source file: '+str(src))
     dst.parent.mkdir(parents=True,exist_ok=True)
     shutil.copy2(src,dst)
-    if private:dst.chmod(0o600)
+    if private:set_private(dst, 0o600)
     if digest(src)!=digest(dst):raise ValueError('Copy checksum mismatch')
     records.append({'sha256':digest(dst),'bytes':dst.stat().st_size})
 
@@ -55,15 +57,16 @@ def private_tree(source,dest,records):
         if p.is_file() and p.name != 'auth.json':
             copy_checked(p,dest/p.relative_to(source),records,private=True)
     for p in [dest,*dest.rglob('*')]:
-        if p.is_dir():p.chmod(0o700)
+        if p.is_dir():set_private(p, 0o700)
 
 
 def copy_runtime(runtime,dest,records):
     private=runtime/'private'
     if private.is_symlink():raise ValueError('Refusing symlink private directory')
     out=dest/'controller/private';out.mkdir(parents=True,mode=0o700,exist_ok=True)
+    set_private(out, 0o700)
     for p in private.iterdir():
-        if p.name != 'auth.json' and p.is_file() and not p.is_symlink() and p.suffix.lower() in ('.json','.csv','.tsv','.pem','.key','.cnf'):
+        if p.name not in ('auth.json','app-relay.json') and p.is_file() and not p.is_symlink() and p.suffix.lower() in ('.json','.csv','.tsv','.pem','.key','.cnf'):
             copy_checked(p,out/p.name,records,True)
     for name in ('backups','apple-originals','hook-backups'):
         if (private/name).exists():private_tree(private/name,out/name,records)
@@ -77,6 +80,9 @@ def copy_runtime(runtime,dest,records):
 
 
 def prepare_environment(dest):
+    if sys.platform == 'win32':
+        subprocess.run([sys.executable, str(dest/'controller/scripts/setup_windows.py'), '--setup-only'], check=True)
+        return
     # Build at the final destination: an absolute wheel .pth must not refer to
     # the temporary staging directory or the old project venv.
     env=dest/'controller/private/bridge-venv'
@@ -95,7 +101,7 @@ def prepare_environment(dest):
     local=dest/'controller/private/local-env.sh'
     # Quote paths as shell data, not interpolation or command substitution.
     local.write_text('export CONTROLLER_MODERN_PYTHON='+shlex.quote(str(base))+'\n')
-    local.chmod(0o600)
+    set_private(local, 0o600)
 
 
 def migrate(source,destination,runtime=None,build_env=True):
@@ -125,7 +131,7 @@ def migrate(source,destination,runtime=None,build_env=True):
                  'files_verified':len(records),'bytes_verified':sum(r['bytes'] for r in records),'private_copied':runtime is not None,
                  'environment':env_status,'live_services_changed':False,'hooks_changed':False,
                  'note':'Copy only; activate new App/Bridge and switch exact old Hook paths separately.'}
-        p=destination/'LOCAL-MIGRATION-RECEIPT.json';p.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n');p.chmod(0o600)
+        p=destination/'LOCAL-MIGRATION-RECEIPT.json';p.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');set_private(p,0o600)
         return receipt
     except BaseException:
         # Leave a recoverable copy for inspection. Never delete a partially

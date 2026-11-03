@@ -30,11 +30,13 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(activation.migrate_hooks(result, old, new), result)
 
     def test_existing_new_hook_is_not_duplicated(self):
-        data = {'hooks': {'Stop': [{'hooks': [{'command': '/usr/bin/python3 /old/bridge/hook.py'},
-            {'command': 'third-party'}]}, {'hooks': [{'command': '/usr/bin/python3 /new/bridge/hook.py'}]}]}}
+        old='/usr/bin/python3 '+shlex.quote(str(Path('/old')/'bridge/hook.py'))
+        new='/usr/bin/python3 '+shlex.quote(str(Path('/new')/'bridge/hook.py'))
+        data = {'hooks': {'Stop': [{'hooks': [{'command': old},
+            {'command': 'third-party'}]}, {'hooks': [{'command': new}]}]}}
         result = activation.migrate_hooks(data, Path('/old'), Path('/new'))
         self.assertEqual([h['command'] for g in result['hooks']['Stop'] for h in g['hooks']],
-                         ['third-party', '/usr/bin/python3 /new/bridge/hook.py'])
+                         ['third-party', new])
 
     def test_ledger_refresh_keeps_backup_and_private_permissions(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -45,7 +47,10 @@ class ActivationTests(unittest.TestCase):
             activation.copy_ledger(old, new, backup)
             self.assertEqual(source.read_bytes(), target.read_bytes())
             self.assertEqual(json.loads((backup / 'token-ledger.before.json').read_text())['total'], 1)
-            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            if sys.platform == 'win32':
+                from windows_security import private_file
+                private_file(target)
+            else:self.assertEqual(target.stat().st_mode & 0o777, 0o600)
 
     def test_invalid_ledger_does_not_overwrite_destination(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -56,6 +61,7 @@ class ActivationTests(unittest.TestCase):
             with self.assertRaises(ValueError): activation.copy_ledger(base / 'old', base / 'new', base / 'backup')
             self.assertEqual(target.read_text(), '{}')
 
+    @unittest.skipIf(sys.platform == 'win32', 'macOS runtime migration')
     def test_running_app_never_stops_services(self):
         with tempfile.TemporaryDirectory() as folder:
             old = Path(folder) / 'old'; (old / 'bridge').mkdir(parents=True)
@@ -67,6 +73,7 @@ class ActivationTests(unittest.TestCase):
                     activation.activate(old, Path(folder) / 'new')
                 request.assert_not_called()
 
+    @unittest.skipIf(sys.platform == 'win32', 'macOS runtime migration')
     def test_pending_approval_prevents_shutdown_and_copy(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder); old = base / 'old'; new = base / 'new'

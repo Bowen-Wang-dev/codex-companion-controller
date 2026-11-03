@@ -11,6 +11,9 @@ WHEELS = {
 }
 
 
+sys.path.insert(0, str(ROOT/'bridge'))
+from private_permissions import set_private
+
 def enable(root=ROOT, site=None):
     site = Path(site) if site is not None else Path(sysconfig.get_path('purelib'))
     verified = {}
@@ -22,8 +25,8 @@ def enable(root=ROOT, site=None):
         verified[name] = wheel.resolve()
     for name, wheel in verified.items():
         pth = site / ('passport_' + name + '.pth')
-        pth.write_text(str(wheel) + '\n')
-        pth.chmod(0o600)
+        pth.write_text(str(wheel) + '\n', encoding='utf-8')
+        set_private(pth, 0o600)
 
 
 if __name__ == '__main__':

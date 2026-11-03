@@ -86,7 +86,7 @@ class AppApprovalTests(unittest.TestCase):
         identifier=self.b.request['id']
         self.assertTrue(self.choose('allow'));self.wait(lambda:bool(result))
         self.assertEqual(result,[{}]);self.assertIsNone(self.b.awaiting_execution)
-        self.assertEqual(self.b.state,'working');self.assertEqual(self.b.receipt,'请在 Mac 确认权限')
+        self.assertEqual(self.b.state,'working');self.assertEqual(self.b.receipt,'请在 Mac确认权限')
         data=self.b.snapshot();self.assertEqual(data['req_id'],identifier)
         self.assertFalse(data['can_allow'] or data['can_deny'])
         self.b.set_state('completed')
@@ -198,7 +198,11 @@ class DisplayPolicyTests(unittest.TestCase):
 
     def test_symlink_to_hidden_credentials_stays_on_mac(self):
         with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory);(root/'.ssh').mkdir();(root/'public').symlink_to(root/'.ssh')
+            root=Path(directory);(root/'.ssh').mkdir()
+            try:(root/'public').symlink_to(root/'.ssh', target_is_directory=True)
+            except OSError as error:
+                if getattr(error,'winerror',None)==1314:self.skipTest('Windows symlink privilege unavailable')
+                raise
             e=event();e['cwd']=directory;e['tool_input']['command']='cat public/key'
             self.assertFalse(display(e)['can_allow'])
 
@@ -210,26 +214,23 @@ class HookOutputTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('passport_hook',ROOT/'bridge/hook.py')
         hook=importlib.util.module_from_spec(spec);spec.loader.exec_module(hook)
         for decision in ('deny','allow'):
-            with tempfile.TemporaryDirectory(prefix='pcc-hook-',dir='/tmp') as directory:
-                path=str(Path(directory)/'hook.sock')
-                class Handler(socketserver.StreamRequestHandler):
-                    def handle(self):
-                        incoming=json.loads(self.rfile.readline())
-                        self.server.received=incoming
-                        self.wfile.write(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse',
-                            'permissionDecision':decision}}).encode()+b'\n')
-                with socketserver.UnixStreamServer(path,Handler) as server:
-                    thread=threading.Thread(target=server.handle_request,daemon=True);thread.start()
-                    e=event('PreToolUse');e['tool_name']='request_permissions'
-                    e['tool_input']={'permissions':{'network':{'enabled':True}}}
-                    output=io.StringIO()
-                    with mock.patch.object(hook,'check_directory',return_value=Path(path)),mock.patch.object(hook.sys,'stdin',SimpleNamespace(buffer=io.BytesIO(json.dumps(e).encode()))),mock.patch.object(hook.sys,'stdout',output):
-                        hook.main()
-                    thread.join(timeout=1)
-                    self.assertEqual(server.received['passport_hook_version'],3)
-                    result=json.loads(output.getvalue())
-                    if decision=='deny':self.assertEqual(result['hookSpecificOutput']['permissionDecision'],'deny')
-                    else:self.assertEqual(result,{})
+            class Handler(socketserver.StreamRequestHandler):
+                def handle(self):
+                    incoming=json.loads(self.rfile.readline())
+                    self.server.received=incoming
+                    self.wfile.write(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse',
+                        'permissionDecision':decision}}).encode()+b'\n')
+            from ipc_fixture import ipc_server
+            with ipc_server(Handler) as server:
+                e=event('PreToolUse');e['tool_name']='request_permissions'
+                e['tool_input']={'permissions':{'network':{'enabled':True}}}
+                output=io.StringIO()
+                with mock.patch.object(hook.sys,'stdin',SimpleNamespace(buffer=io.BytesIO(json.dumps(e).encode()))),mock.patch.object(hook.sys,'stdout',output):
+                    hook.main()
+                self.assertEqual(server.received['passport_hook_version'],3)
+                result=json.loads(output.getvalue())
+                if decision=='deny':self.assertEqual(result['hookSpecificOutput']['permissionDecision'],'deny')
+                else:self.assertEqual(result,{})
 
 
 if __name__=='__main__':unittest.main()

@@ -7,10 +7,23 @@ from pathlib import Path
 import shlex
 import shutil
 import time
+import sys
+import base64
 
 ROOT = Path(__file__).resolve().parents[1]
 EVENTS = ['UserPromptSubmit', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'Stop', 'Interrupt', 'SessionEnd']
-COMMAND = '/usr/bin/python3 ' + shlex.quote(str(ROOT / 'bridge' / 'hook.py'))
+sys.path.insert(0, str(ROOT/'bridge'))
+from private_permissions import set_private
+
+def hook_command(root=ROOT, interpreter=None):
+    if sys.platform != 'win32':return '/usr/bin/python3 ' + shlex.quote(str(root / 'bridge' / 'hook.py'))
+    # Fixed UTF-16 command avoids shell injection and non-ASCII path loss.
+    quoted = lambda value: "'" + str(value).replace("'", "''") + "'"
+    script = '& ' + quoted(interpreter or sys.executable) + ' ' + quoted(root/'bridge/hook.py') + '; exit $LASTEXITCODE'
+    return 'powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ' + base64.b64encode(script.encode('utf-16le')).decode('ascii')
+
+
+COMMAND = hook_command()
 
 
 def merge(data, command=COMMAND):
@@ -59,7 +72,7 @@ def save(path, transform, backup_directory=None):
         shutil.copy2(path, backup_directory / ('hooks.backup-' + str(time.time_ns()) + '.json'))
     temporary = path.with_suffix('.tmp')
     with temporary.open('w') as output:
-        os.chmod(temporary, 0o600)
+        set_private(temporary, 0o600)
         json.dump(data, output, indent=2, ensure_ascii=False)
         output.write('\n')
         output.flush()
@@ -94,7 +107,7 @@ def main():
                 except PermissionError:
                     print('用户级注册已完成；项目副本受目录权限保护，未清理：',local)
     print('注册已完成，但尚未授予 Hook 信任。请在 Codex 审阅并信任这些 Hook；CLI 使用 /hooks。')
-    print('常规 Hook 审批支持设备批准 / 拒绝；原生目录 / 网络请求可先在设备拒绝，或选择到 Mac 继续授权。')
+    print('常规 Hook 审批支持设备批准 / 拒绝；原生目录 / 网络请求可先在设备拒绝，或选择到 Mac继续授权。')
 
 
 if __name__ == '__main__':

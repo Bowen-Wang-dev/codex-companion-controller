@@ -4,7 +4,7 @@
 
 ## 日常启动
 
-唯一入口：`controller/Codex Companion 控制台.command`。
+每平台一个入口：macOS 为 `controller/Codex Companion 控制台.command`，Windows 为同名 `.cmd`。Windows 环境准备、只读检查及测试命令见 [双平台说明](11-HOST-PLATFORMS.md)；下表菜单 7 的固件更新目前仅适用于 macOS。
 
 | 菜单 | 操作 |
 |---|---|

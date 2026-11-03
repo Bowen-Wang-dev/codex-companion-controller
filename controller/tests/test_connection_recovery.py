@@ -19,7 +19,7 @@ import restart_desktop_bridge as restart
 from usb_transport import open_usb
 
 
-def archive(app,version,files):
+def archive(app,version,files,windows=False):
     files={'package.json':json.dumps({'version':version}).encode(),**files}
     header={'files':{}};payload=b''
     for name,data in files.items():
@@ -28,11 +28,20 @@ def archive(app,version,files):
         for part in parts[:-1]:entry=entry.setdefault('files',{}).setdefault(part,{'files':{}})
         entry['files'][parts[-1]]={'size':len(data),'offset':str(len(payload))}
         payload+=data
-    raw=json.dumps(header).encode();path=app/'Contents/Resources/app.asar'
+    raw=json.dumps(header).encode();path=app/('resources/app.asar' if windows else 'Contents/Resources/app.asar')
     path.parent.mkdir(parents=True);path.write_bytes(struct.pack('<4I',4,len(raw)+8,0,len(raw))+raw+payload)
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_windows_manifest_is_separate_and_tampering_is_rejected(self):
+        source=b'CODEX_APP_SERVER_FORCE_CLI CODEX_CLI_PATH'
+        known={'test':{'bootstrap.js':hashlib.sha256(source).hexdigest()}}
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(launcher,'WINDOWS_VERIFIED_BUILDS',known), mock.patch.object(launcher,'VERIFIED_BUILDS',{}):
+            app=Path(folder);archive(app,'test',{'bootstrap.js':source},windows=True)
+            self.assertEqual(launcher.verify_build(app),'test')
+            path=app/'resources/app.asar';path.write_bytes(path.read_bytes().replace(b'CODEX_CLI_PATH',b'CODEX_CLI_FAIL'))
+            with self.assertRaisesRegex(ValueError,'已变化'):launcher.verify_build(app)
+
     def test_adapter_checks_all_registered_chunks(self):
         sources={'a.js':b'CODEX_APP_SERVER_FORCE_CLI','b.js':b'CODEX_CLI_PATH'}
         known={'test':{p:hashlib.sha256(b).hexdigest() for p,b in sources.items()}}
@@ -60,7 +69,7 @@ class RecoveryTests(unittest.TestCase):
 
     def test_local_addresses_ignore_loopback_ipv6_and_duplicates(self):
         fake=mock.Mock(stdout='inet 127.0.0.1\ninet6 fe80::1\ninet 169.254.1.3\ninet 10.10.0.20\ninet 10.10.0.20')
-        with mock.patch.object(diagnostics.subprocess,'run',return_value=fake):
+        with mock.patch.object(diagnostics,'WINDOWS',False), mock.patch.object(diagnostics.subprocess,'run',return_value=fake):
             self.assertEqual(diagnostics.local_ipv4(),['10.10.0.20'])
 
     def test_recovery_never_stops_a_pending_approval(self):
@@ -75,10 +84,11 @@ class RecoveryTests(unittest.TestCase):
             stop.assert_not_called();execute.assert_not_called()
 
     def test_failed_app_probe_prevents_launcher_from_starting_bridge(self):
-        with mock.patch.object(launcher,'verify_build',return_value='test'), mock.patch.object(diagnostics,'inspect',return_value={}), mock.patch.object(diagnostics,'show'), mock.patch('usage_meter.load_rates',return_value={'models':{}}), mock.patch.object(launcher.subprocess,'run',return_value=mock.Mock(returncode=2)), mock.patch.object(launcher,'acquire_endpoint') as endpoint, mock.patch.object(launcher.subprocess,'Popen') as start:
+        with mock.patch.object(launcher,'WINDOWS',False), mock.patch.object(launcher,'desktop_app',return_value=Path('/synthetic')), mock.patch.object(launcher,'verify_build',return_value='test'), mock.patch.object(diagnostics,'inspect',return_value={}), mock.patch.object(diagnostics,'show'), mock.patch('usage_meter.load_rates',return_value={'models':{}}), mock.patch.object(launcher.subprocess,'run',return_value=mock.Mock(returncode=2)), mock.patch.object(launcher,'acquire_endpoint') as endpoint, mock.patch.object(launcher.subprocess,'Popen') as start:
             with self.assertRaisesRegex(RuntimeError,'无法检查'):launcher.main()
             endpoint.assert_not_called();start.assert_not_called()
 
+    @unittest.skipIf(sys.platform == 'win32', 'macOS termios normalization')
     def test_macos_termios_permission_error_becomes_actionable_oserror(self):
         import termios
         serial=mock.Mock();device=serial.Serial.return_value

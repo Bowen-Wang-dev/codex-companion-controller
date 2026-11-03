@@ -7,7 +7,7 @@ import copy
 import hashlib
 import json
 import math
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import queue
 import threading
 import time
@@ -23,7 +23,7 @@ def permission_display(params):
     """Return a fully visible bounded grant, or require review in the CLI."""
     permissions=params.get('permissions')
     cwd=params.get('cwd')
-    name=Path(cwd).name if isinstance(cwd,str) else ''
+    name=(PurePosixPath(cwd) if cwd.startswith('/') else PureWindowsPath(cwd)).name if isinstance(cwd,str) else ''
     fallback=('权限请求 · 在 CLI 查看',name,'范围过长或复杂 · CLI 审阅',False,{})
     if not name or not name.isascii() or len(name)>58 or params.get('environmentId') is not None:return fallback
     if not isinstance(permissions,dict) or set(permissions)-{'network','fileSystem'}:return fallback
@@ -57,14 +57,17 @@ def permission_display(params):
         paths=list(dict.fromkeys(paths))
         if len(paths)!=1:return fallback
         for mode,value in paths:
-            p=Path(value)
+            p=PurePosixPath(value)
             # Broad roots, hidden state and unresolved aliases need a full
             # CLI review. Never clip a path and leave approval enabled.
             if not value.isascii() or not value.startswith('/') or any(ord(c)<32 for c in value):return fallback
             if len(p.parts)<4 or '..' in p.parts or any(part.startswith('.') for part in p.parts[1:]):return fallback
             if len(p.parts)==4 and p.name in ('Documents','Downloads','Desktop'):return fallback
             if any(part in ('Library','System','etc','private','var','Applications') for part in p.parts[1:]):return fallback
-            if str(p.resolve())!=value or len(value)>58:return fallback
+            # The legacy CLI renderer is POSIX-only. Resolve aliases only
+            # when that filesystem is local; a Windows drive cannot resolve it.
+            import os
+            if (os.name != 'nt' and str(Path(value).resolve())!=value) or str(p)!=value or len(value)>58:return fallback
             lines.append(('读取' if mode=='read' else '写入')+'：'+value)
         grant['fileSystem']=file_grant;kinds.append('目录')
     summary='\n'.join(lines)

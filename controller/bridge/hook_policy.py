@@ -76,8 +76,8 @@ def display(event):
     """All approvable details fit the existing 2 / 6 / 2 line device layout."""
     tool=event.get('tool_name','Operation');args=event.get('tool_input')
     name=project_name(event)
-    result={'command':'操作审批 · 在 Mac 查看','project':name or 'Unknown project',
-            'scope':'复杂操作：请在 Mac 审阅','can_allow':False,'can_deny':True}
+    result={'command':'操作审批 · 在 Mac查看','project':name or 'Unknown project',
+            'scope':'复杂操作：请在 Mac审阅','can_allow':False,'can_deny':True}
     if not isinstance(args,dict) or name is None:return result
     if tool=='Bash':
         command=args.get('command',args.get('cmd'))
