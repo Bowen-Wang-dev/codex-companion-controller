@@ -86,7 +86,7 @@ class AppApprovalTests(unittest.TestCase):
         identifier=self.b.request['id']
         self.assertTrue(self.choose('allow'));self.wait(lambda:bool(result))
         self.assertEqual(result,[{}]);self.assertIsNone(self.b.awaiting_execution)
-        self.assertEqual(self.b.state,'working');self.assertEqual(self.b.receipt,'请在 Mac确认权限')
+        self.assertEqual(self.b.state,'working');self.assertEqual(self.b.receipt,'请在 PC 端确认权限')
         data=self.b.snapshot();self.assertEqual(data['req_id'],identifier)
         self.assertFalse(data['can_allow'] or data['can_deny'])
         self.b.set_state('completed')

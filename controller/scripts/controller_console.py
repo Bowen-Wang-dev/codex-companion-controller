@@ -36,7 +36,7 @@ def device_bridge_menu():
     # use the verified launch path so the App, relay and Bridge start as one
     # lifecycle. Keep the existing Bridge-only behavior when App is running.
     if not app_is_running():
-        print('检测到 桌面 App 未运行；将通过已核对入口同时启动 App、relay 和 Bridge。',flush=True)
+        print('检测到 PC 端 App 未运行；将通过已核对入口同时启动 App、relay 和 Bridge。',flush=True)
         if status:=report['status']:
             stop_idle_bridge(status)
         return launch_app()
@@ -77,7 +77,7 @@ def hooks_menu():
     if input('输入 YES 安装／更新 Hook；其他输入返回：').strip()!='YES':return
     project=ROOT.parent
     subprocess.run([PY,str(ROOT/'scripts/install_hooks.py'),'--user','--remove-project-copy',str(project)],cwd=ROOT,check=True)
-    print('请在 Codex 审阅并信任 Passport Hook，再通过菜单启动 桌面 App 审批。')
+    print('请在 Codex 审阅并信任 Passport Hook，再通过菜单启动 PC 端 App 审批。')
 
 
 def firmware_menu():
@@ -94,7 +94,7 @@ def main():
     if sys.argv[1:]==['--restart-app']:
         return run(ROOT/'scripts/restart_desktop_bridge.py')
     print('Codex Companion 控制台 · AI Passport')
-    print('USB 方向键与确认键审批由设备固件处理；此处管理 Mac Bridge 和费率。')
+    print('USB 方向键与确认键审批由设备固件处理；此处管理 PC 端 Bridge 和费率。')
     actions={
         '1':('启动 Codex App + 实体按键审批',launch_app),
         '2':('设备 / Bridge 连接管理',device_bridge_menu),

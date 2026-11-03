@@ -18,7 +18,7 @@ from host_platform import usb_ports, exec_process
 def stop_idle_bridge(status):
     if status is None:return
     if status.get('permission_pending') or status.get('hook_pending'):
-        raise RuntimeError('存在待处理审批，请先在 Mac完成或取消，再恢复连接；未停止 Bridge。')
+        raise RuntimeError('存在待处理审批，请先在 PC 端完成或取消，再恢复连接；未停止 Bridge。')
     if request({'type':'shutdown'}).get('stopping') is not True:
         raise RuntimeError('旧 Bridge 未确认停止；未强制结束进程。')
     for _ in range(60):

@@ -122,7 +122,7 @@ class Broker:
                     if pending.get('relay')==relay:pending['cancelled']=True
                 self.desktop_deliveries={k:v for k,v in self.desktop_deliveries.items() if v['relay']!=relay}
                 if self.state=='approval_sent':
-                    self.set_state('idle');self.receipt='App 已断开 · 请在 Mac检查结果'
+                    self.set_state('idle');self.receipt='App 已断开 · 请在 PC 端检查结果'
             else:
                 if relay not in self.desktop_relays and len(self.desktop_relays)>=16:return {}
                 self.desktop_relays[relay]={'at':time.monotonic(),'sessions':set(sessions),
@@ -187,7 +187,7 @@ class Broker:
                 status=event.get('status')
                 if status in ('completed','failed','interrupted'):
                     self.set_state({'completed':'completed','failed':'failed','interrupted':'idle'}[status])
-                    self.receipt={'completed':'本轮响应已结束','failed':'任务失败 · 请在 Mac查看','interrupted':'操作已中断'}[status]
+                    self.receipt={'completed':'本轮响应已结束','failed':'任务失败 · 请在 PC 端查看','interrupted':'操作已中断'}[status]
                     self.history.insert(0,self.receipt);self.history=self.history[:20]
         return {}
 
@@ -212,13 +212,13 @@ class Broker:
             if params.get('additionalPermissions') is not None:can_allow=False
             available=params.get('availableDecisions')
             if available is not None and (not isinstance(available,list) or 'accept' not in available):can_allow=False
-            command=view.get('command','文件修改 · 请在 Mac查看');project=view.get('project','')
-            scope=view.get('scope','修改内容请在 Mac审阅')
+            command=view.get('command','文件修改 · 请在 PC 端查看');project=view.get('project','')
+            scope=view.get('scope','修改内容请在 PC 端审阅')
             allow={'decision':'accept'};deny={'decision':'decline'}
         normalized={'hook_event_name':'DesktopApproval','session_id':thread,'turn_id':turn,
             'tool_use_id':relay+':'+json.dumps(event['native_id']),'tool_name':method,
             'tool_input':params}
-        view={'command':command.replace('CLI','Mac'),'project':project,'scope':scope.replace('CLI','Mac'),
+        view={'command':command.replace('CLI','PC 端'),'project':project,'scope':scope.replace('CLI','PC 端'),
             'can_allow':can_allow,'can_deny':True,'allow_result':allow,'deny_result':deny,
             'relay':relay,'native_item':item,'native_method':method,
             'delivery_receipt':registered.get('approval_receipts',False)}
@@ -243,7 +243,7 @@ class Broker:
         if call and any(n.get('tool_use_id')==call and n.get('session')==session for n in self.input_notices):return
         self.input_notices.append({'id':str(uuid.uuid4()),'session':session,'tool_use_id':call,
             'turn':event.get('turn_id'),'deadline':time.monotonic()+110,
-            'command':'等待你回复','project':'\n'.join(texts),'scope':'请在 Mac查看完整问题并回复',
+            'command':'等待你回复','project':'\n'.join(texts),'scope':'请在 PC 端查看完整问题并回复',
             'digest':hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest(),
             'request_kind':'user_input','can_allow':False,'can_deny':False})
         self.input_notices=self.input_notices[-8:]
@@ -346,7 +346,7 @@ class Broker:
         if event.get('hook_event_name') == 'PostToolUse':
             if self.notice and event.get('session_id') == self.notice['session'] and event.get('tool_use_id') == self.notice['tool_use_id']:
                 self.notice = None
-                self.receipt = '权限请求已返回，结果以 Mac为准'
+                self.receipt = '权限请求已返回，结果以 PC 端为准'
             return
         summary=permission_summary(event)
         if summary is None:return
@@ -357,10 +357,10 @@ class Broker:
         heading,details=summary
         self.notice={'id':str(uuid.uuid4()),'session':key[0],'tool_use_id':key[1],
                      'turn':event.get('turn_id'),
-                     'deadline':time.monotonic()+110,'command':heading+' · 在 Mac确认',
-                     'project':details,'scope':'详情与授权范围请在 Mac查看',
+                     'deadline':time.monotonic()+110,'command':heading+' · 在 PC 端确认',
+                     'project':details,'scope':'详情与授权范围请在 PC 端查看',
                      'digest':hashlib.sha256(json.dumps(event,sort_keys=True).encode()).hexdigest()}
-        print('检测到'+heading+'：设备提醒，授权在 Mac完成。',flush=True)
+        print('检测到'+heading+'：设备提醒，授权在 PC 端完成。',flush=True)
 
     def online(self):
         return bool(self.boot) and time.monotonic() - self.last_seen < 5
@@ -394,7 +394,7 @@ class Broker:
                     self.set_state('denied' if outcome=='denied' else 'working')
                     self.expression='delight' if outcome=='granted' else 'crying' if outcome=='denied' else ''
                     self.expression_until=time.monotonic()+3
-                    self.receipt='权限已授予' if outcome=='granted' else '权限未授予' if outcome=='denied' else '仅部分权限授予 · 请在 Mac查看'
+                    self.receipt='权限已授予' if outcome=='granted' else '权限未授予' if outcome=='denied' else '仅部分权限授予 · 请在 PC 端查看'
                     return {}
             if name in ('UserPromptSubmit', 'PreToolUse'):
                 self.set_state('working')
@@ -440,7 +440,7 @@ class Broker:
     def pre_permission(self,event,timeout=110,alive=lambda:True):
         # This blocks the *tool invocation* before the native grant dialog.
         # It cannot grant filesystem/network permissions. Returning {} hands
-        # off to the Mac immediately when no device is available.
+        # off to the PC 端 immediately when no device is available.
         self.event(event)
         with self.lock:
             summary=permission_summary(event)
@@ -449,7 +449,7 @@ class Broker:
             if self.notice and self.notice['session']==event.get('session_id') and self.notice['tool_use_id']==event.get('tool_use_id'):
                 self.notice=None
         view={'command':heading,'project':details,
-              'scope':'批准在 Mac · 下键拒绝','can_allow':True,'can_deny':True,'action_mode':'mac_confirm'}
+              'scope':'批准在 PC 端 · 下键拒绝','can_allow':True,'can_deny':True,'action_mode':'mac_confirm'}
         return self.wait_hook(event,view,'prehook',timeout,alive)
 
     def permission(self, event, timeout=110,alive=lambda:True):
@@ -497,10 +497,10 @@ class Broker:
                         self.request=req
                     if req['choice'] in ('allow','deny'):
                         if source=='prehook' and req['choice']=='allow':
-                            # Continue the original invocation; the Mac still
+                            # Continue the original invocation; the PC 端 still
                             # asks for the actual grant. Never return Hook allow.
-                            self.set_state('working');self.receipt='请在 Mac确认权限'
-                            self.notice=dict(req,can_allow=False,can_deny=False,command=req['command']+' · 在 Mac确认',
+                            self.set_state('working');self.receipt='请在 PC 端确认权限'
+                            self.notice=dict(req,can_allow=False,can_deny=False,command=req['command']+' · 在 PC 端确认',
                                              tool_use_id=event.get('tool_use_id'),action_mode='')
                             self.expression='';req['result']={}
                             return {}
@@ -597,13 +597,13 @@ class Broker:
             for key in expired:self.desktop_deliveries.pop(key)
             if expired and self.state=='approval_sent':
                 self.set_state('working')
-                self.receipt='回执未确认 · 请在 Mac查看'
+                self.receipt='回执未确认 · 请在 PC 端查看'
             # Legacy relay/Hook outcomes can be absent. Never leave a sticky
             # approval_sent screen or manufacture a successful permission grant.
             if self.native_awaiting and time.monotonic()>=self.native_awaiting['until']:
                 self.native_awaiting=None
                 if self.state=='approval_sent':
-                    self.set_state('working');self.receipt='回执未确认 · 请在 Mac查看'
+                    self.set_state('working');self.receipt='回执未确认 · 请在 PC 端查看'
             if self.state == 'completed' and self.completed_until and time.monotonic() >= self.completed_until:
                 self.set_state('idle')
                 if self.receipt == '本轮响应已结束':self.receipt = ''
@@ -894,8 +894,8 @@ def serve(port,native_socket=None,thread_id=None,desktop=False):
             stopping.wait(1)
     threading.Thread(target=response_usage_worker, daemon=True).start()
     https=start_https(broker)
-    print('桌面 App 实体审批模式：等待启动适配接入实际 App 会话。' if desktop else 'CLI 实体审批模式：原生请求由设备或 CLI 处理。' if native_socket else
-          '权限接入 v3：Hook 支持设备审批；原生网络 / 目录请求可在调用前拒绝，批准仍在 Mac。',flush=True)
+    print('PC 端 App 实体审批模式：等待启动适配接入实际 App 会话。' if desktop else 'CLI 实体审批模式：原生请求由设备或 CLI 处理。' if native_socket else
+          '权限接入 v3：Hook 支持设备审批；原生网络 / 目录请求可在调用前拒绝，批准仍在 PC 端。',flush=True)
     print('Bridge 已启动，等待设备连接。Control+C 停止。',flush=True)
     try:
         while not stopping.is_set():

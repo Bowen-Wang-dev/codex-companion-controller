@@ -1,6 +1,6 @@
 """Lossless, bounded pages of the original approval; no model summarization.
 
-Only one page crosses the device transport. The complete review stays on Mac
+Only one page crosses the device transport. The complete review stays on PC 端
 and is bound to the request's original digest. Unknown glyphs use visible Unicode
 escapes rather than disappearing on the device's subset font.
 """
@@ -128,7 +128,7 @@ def native_text(method,params,scope):
         lines.extend(['请求执行以下命令',str(params.get('command') or '未提供命令')])
         if params.get('kind')=='writeStdin':lines.append('操作：向运行中的终端输入内容')
     else:
-        lines.extend(['请求修改文件','未提供修改明细，请在 Mac审阅。'])
+        lines.extend(['请求修改文件','未提供修改明细，请在 PC 端审阅。'])
     if params.get('reason'):lines.extend(['申请原因：',str(params['reason'])])
     if params.get('cwd'):lines.extend(['工作目录：',str(params['cwd'])])
     if params.get('environmentId') is not None:lines.extend(describe(params['environmentId'],'执行环境'))
@@ -184,7 +184,7 @@ def native_view(method, params):
         # and deniable here; do not present missing changes as a complete review.
         allowed = command and isinstance(params.get('command'), str) and bool(params['command'])
         if command and params.get('kind','command') not in ('command','writeStdin'):allowed=False
-        # Unknown extra-grant semantics remain on Mac until supported explicitly.
+        # Unknown extra-grant semantics remain on PC 端 until supported explicitly.
         if params.get('additionalPermissions') is not None:
             allowed = False
         decisions = params.get('availableDecisions')

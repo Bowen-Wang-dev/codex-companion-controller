@@ -24,7 +24,7 @@ REASONS={'request_boundaries_missing':'逐请求记录尚未齐全，无法安�
 def summary(status):
     meter=status.get('metering')
     if not isinstance(meter,dict):
-        return '运行中的 Bridge 尚未更新；请重新运行 桌面 App 实体审批入口。'
+        return '运行中的 Bridge 尚未更新；请重新运行 PC 端 App 实体审批入口。'
     usage=meter['usage'];cost=meter['cost']
     total=usage.get('total');last=usage.get('last')
     def cost_text(value):

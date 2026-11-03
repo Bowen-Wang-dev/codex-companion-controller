@@ -10,7 +10,7 @@ if [[ ${#CONTROLLER_PORTS[@]} != 1 ]]; then
   echo '需要且只能连接一台 USB AI Passport。'; exit 1
 fi
 CONTROLLER_PORT="${CONTROLLER_PORTS[0]}"
-echo '校验 Mac 上的 ChatGPT 账户（只读，不消费额度）…'
+echo '校验 PC 端上的 ChatGPT 账户（只读，不消费额度）…'
 python "$CONTROLLER_ROOT/bridge/account.py"
 echo '将双读验证 8 MB 备份，然后只更新 factory 应用；不擦除整片 Flash。'
 python "$CONTROLLER_ROOT/scripts/flash.py" flash --port "$CONTROLLER_PORT" --execute

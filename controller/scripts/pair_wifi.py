@@ -41,7 +41,7 @@ def encode_config(message):
     if not isinstance(token, str) or len(token) != 64 or any(c not in '0123456789abcdef' for c in token):
         raise PairingError('本机配对密钥格式无效；尚未发送。')
     if message.get('type') != 'provision' or not isinstance(message.get('utc'), int) or message['utc'] < 1700000000:
-        raise PairingError('配置类型或 Mac系统时间无效；尚未发送。')
+        raise PairingError('配置类型或 PC 端系统时间无效；尚未发送。')
     frame = b'PC1 ' + json.dumps(message, ensure_ascii=False, separators=(',', ':')).encode('utf-8') + b'\n'
     if len(frame) > 4096:
         raise PairingError('配置超过设备接收缓冲区；尚未发送。')
@@ -117,7 +117,7 @@ def provision(device, message, ask=None, say=None, attempts=3):
     for attempt in range(attempts):
         say('在设备用方向键找到第六页「连接与配网」。')
         say('短按并松开确认键（不要长按，也不要按电源键）。')
-        say('屏幕应变为「请在 Mac运行无线配对」；从此时起 60 秒内回到终端。')
+        say('屏幕应变为「请在 PC 端运行无线配对」；从此时起 60 秒内回到终端。')
         answer = ask('看到上述提示后按回车发送；输入 q 取消：').strip().lower()
         if answer == 'q':
             raise PairingError('已取消，没有发送本次配置。')
@@ -153,7 +153,7 @@ def provision(device, message, ask=None, say=None, attempts=3):
                 if reply.get('ok') is True:
                     return
                 say('设备未接受配置。请确认已短按并松开确认键，屏幕出现配对提示，且未超过 60 秒。')
-                say('配置长度已在 Mac检查通过；V0.2.0 回执不能区分未授权与设备存储失败。')
+                say('配置长度已在 PC 端检查通过；V0.2.0 回执不能区分未授权与设备存储失败。')
                 rejected = True
                 break
             if rejected:
@@ -200,13 +200,13 @@ def main():
         from connection_diagnostics import local_ipv4
         candidates = local_ipv4()
         default_ip = candidates[0] if len(candidates) == 1 else ''
-    ip = input(f'Mac局域网 IPv4 地址 [{default_ip}]：').strip() or default_ip
+    ip = input(f'PC 端局域网 IPv4 地址 [{default_ip}]：').strip() or default_ip
     try:
         address = ipaddress.IPv4Address(ip)
     except ipaddress.AddressValueError:
-        raise PairingError('Mac地址需要是局域网 IPv4 地址，例如 192.168.1.110。') from None
+        raise PairingError('PC 端地址需要是局域网 IPv4 地址，例如 192.168.1.110。') from None
     if address.is_loopback or address.is_unspecified or address.is_multicast or address.is_reserved:
-        raise PairingError('请填写设备可访问的 Mac局域网地址。')
+        raise PairingError('请填写设备可访问的 PC 端局域网地址。')
     ip = str(address)
     config_path = private / 'wireless.json'
     pending_path = private / 'wireless-pending.json'

@@ -65,19 +65,19 @@ def verify_build(app=None):
             version=package.get('version')
             expected=(VERIFIED_BUILDS if mac_layout else WINDOWS_VERIFIED_BUILDS).get(version)
             if not expected:
-                raise ValueError('桌面 App 版本 '+str(version)+' 尚未核对；未启用旧版适配。设备同步仍可单独启动。')
+                raise ValueError('PC 端 App 版本 '+str(version)+' 尚未核对；未启用旧版适配。设备同步仍可单独启动。')
             sources=[]
             for path,digest in expected.items():
                 source=read_asar(stream,header,data_offset,path)
                 if hashlib.sha256(source).hexdigest()!=digest:
-                    raise ValueError('桌面 App 启动文件已变化；未启用旧版适配。设备同步仍可单独启动。')
+                    raise ValueError('PC 端 App 启动文件已变化；未启用旧版适配。设备同步仍可单独启动。')
                 sources.append(source)
         combined=b'\n'.join(sources)
         if b'CODEX_APP_SERVER_FORCE_CLI' not in combined or b'CODEX_CLI_PATH' not in combined:
-            raise ValueError('桌面 App 没有已核对的本地执行器启动开关')
+            raise ValueError('PC 端 App 没有已核对的本地执行器启动开关')
         return version
     except (KeyError,struct.error,UnicodeError) as error:
-        raise ValueError('桌面 App 文件布局无法识别；请保留原 App，先运行恢复 Bridge 连接入口。') from error
+        raise ValueError('PC 端 App 文件布局无法识别；请保留原 App，先运行恢复 Bridge 连接入口。') from error
 
 
 def stop_bridge(process):
@@ -96,19 +96,19 @@ def app_is_running():
     if WINDOWS:
         values = json.loads(powershell("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process -Filter \"Name='ChatGPT.exe' OR Name='Codex.exe'\" | Select-Object -ExpandProperty ExecutablePath)"))
         if not isinstance(values,list) or any(not isinstance(v,str) or not v for v in values):
-            raise RuntimeError('无法检查 桌面 App 是否运行；未启动或停止 Bridge。')
+            raise RuntimeError('无法检查 PC 端 App 是否运行；未启动或停止 Bridge。')
         override=os.environ.get('COMPANION_DESKTOP_APP')
         return any(re.search(r'\\OpenAI[.]Codex_[^\\]+\\app\\(ChatGPT|Codex)[.]exe$',value,re.I)
                    or (override and Path(value).parent.resolve()==Path(override).resolve()) for value in values)
     result=subprocess.run(['/usr/bin/pgrep','-f','^/Applications/ChatGPT.app/Contents/MacOS/ChatGPT'],
                           capture_output=True)
     if result.returncode not in (0,1):
-        raise RuntimeError('无法检查 桌面 App 是否运行；未启动或停止 Bridge。')
+        raise RuntimeError('无法检查 PC 端 App 是否运行；未启动或停止 Bridge。')
     return result.returncode==0
 
 
 def main():
-    print('桌面 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。',flush=True)
+    print('PC 端 App 实体审批接入：保留 App 界面与账户，不打开 CLI 操作界面。',flush=True)
     print('Controller 0.2.13 · 原 App 原生审批与设备同步 · 双端直接允许或拒绝。',flush=True)
     print('程序目录：'+str(ROOT),flush=True)
     from usage_meter import load_rates
@@ -119,7 +119,7 @@ def main():
     app_root=desktop_app()
     version=verify_build(app_root)
     if app_is_running():
-        raise RuntimeError('请先手动完全退出 桌面 App，再运行本入口；不会自动关闭正在工作的 App。')
+        raise RuntimeError('请先手动完全退出 PC 端 App，再运行本入口；不会自动关闭正在工作的 App。')
     lease=acquire_endpoint();lease.close()
     private=ROOT/'private';private.mkdir(mode=0o700,exist_ok=True)
     if WINDOWS:
@@ -155,7 +155,7 @@ def main():
                 stdout=app_log,stderr=app_log,**child_options)
             print('已启动 App '+version+'；请打开原来的本地聊天。',flush=True)
             print('设备连接页出现「App 实体审批已接入」后，再进行批准 / 拒绝测试。',flush=True)
-            print('如果没有出现该状态，本次接入没有成功；不要把“在 Mac确认”当成设备批准。',flush=True)
+            print('如果没有出现该状态，本次接入没有成功；不要把“在 PC 端确认”当成设备批准。',flush=True)
             print('关闭 App 后本次 Bridge 自动停止；日后仍通过这个入口启动。',flush=True)
             while app.poll() is None:
                 if bridge.poll() is not None:raise RuntimeError('Bridge 已退出；App 可继续处理原生请求，请检查私有日志。')

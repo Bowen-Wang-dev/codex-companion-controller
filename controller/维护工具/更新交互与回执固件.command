@@ -17,7 +17,7 @@ if [[ ${#CONTROLLER_PORTS[@]} != 1 ]]; then
  echo '请用可传数据的 USB 线连接一台 AI Passport，再重新打开本更新入口。'
  exit 1
 fi
-echo '更新 V0.2.5：长按方向键跳到首/末页，确认页可以返回，长按确认转到 Mac。'
+echo '更新 V0.2.5：长按方向键跳到首/末页，确认页可以返回，长按确认转到 PC 端。'
 echo '先双读完整备份，只更新应用；保留 Wi-Fi 配对、NVS、bootloader 和分区表。'
 echo '刷机期间可保持当前 App 打开。此脚本不自动退出 App，不发任务，不批准权限。'
 python "$CONTROLLER_ROOT/scripts/flash.py" flash --port "${CONTROLLER_PORTS[0]}" --execute

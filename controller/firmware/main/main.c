@@ -128,7 +128,7 @@ static void action(action_t a) {
  cJSON_AddStringToObject(o,"choice",a==ACTION_ALLOW?"allow":"deny");
  if(s.review_protocol==1)cJSON_AddNumberToObject(o,"review_page",s.review_page);
  send_json(o);
- snprintf(s.receipt,sizeof(s.receipt),"Sent; waiting for Mac");
+ snprintf(s.receipt,sizeof(s.receipt),"已发送，等待 PC 端");
 }
 static void snapshot(cJSON *o) {
  if(strcmp(text(o,"type"),"snapshot") || strcmp(text(o,"boot"),boot)) return;
@@ -312,7 +312,7 @@ static const char *token_cost_hint(bool total) {
  if(!strcmp(status,"request_boundaries_missing"))return "旧记录缺少请求明细";
  if(!strcmp(status,"cache_write_rate_missing"))return "缓存写入费率未配置";
  if(!strcmp(status,"model_rate_missing"))return "此模型费率未配置";
- return s.token_priced?"费率已配置 · 等待用量":"请在 Mac 检查费率";
+ return s.token_priced?"费率已配置 · 等待用量":"请在 PC 端检查费率";
 }
 static void token_cost_text(char *out,size_t size,const char *prefix,double value) {
  if(!strcmp(s.token_cost_currency,"USD"))snprintf(out,size,"%s$%.4f",prefix,value);
@@ -354,7 +354,7 @@ static void render(void) {
  char b[256];
  if(s.utc) {
   time_t t=s.utc+(now_ms()-s.clock_at)/1000+s.utc_offset; struct tm local;
-  // Mac sends its current UTC offset each snapshot, including DST changes.
+  // PC 端 sends its current UTC offset each snapshot, including DST changes.
   gmtime_r(&t,&local); strftime(b,sizeof(b),"%H:%M",&local);
  } else snprintf(b,sizeof(b),"--:--");
  label(r,16,12,72,b,0xffffff,14);
@@ -367,7 +367,7 @@ static void render(void) {
   lv_image_set_scale(face,128); lv_obj_set_pos(face,144,20);
 #endif
   if(s.stage==1) {
-   label(r,16,106,210,s.selected==0?(s.mac_confirm?"在 Mac 确认本次权限？":"确认批准本次请求？"):"确认拒绝本次请求？",0xffffff,14);
+   label(r,16,106,210,s.selected==0?(s.mac_confirm?"在 PC 端确认本次权限？":"确认批准本次请求？"):"确认拒绝本次请求？",0xffffff,14);
    label(r,16,150,210,"释放按键后，\n长按确认 1 秒提交。",0xffbf5c,14);
    label(r,16,212,210,s.command,0xffffff,12);
    label(r,16,277,210,s.review_protocol==1?"长按上/下：取消并回首/末页\n长按确认：提交当前选择":"上键取消 · 下键静音\n长按方向键离开",0x92a6b9,12);
@@ -379,12 +379,12 @@ static void render(void) {
     label(r,16,94,210,b,0x8bf0cd,14);
     lv_obj_t *body=label(r,16,120,210,ready?s.review_text:"正在读取本页…",0xffffff,16);
     lv_obj_set_style_text_line_space(body,2,0);lv_obj_set_height(body,160);
-    label(r,16,277,210,"长按上/下：首/末页\n可在电脑查看详情",0x92a6b9,12);
+    label(r,16,277,210,"长按上/下：首/末页\n可在 PC 端查看详情",0x92a6b9,12);
    } else {
-    label(r,16,94,210,s.user_input?"请在 Mac 回复此问题":"请选择本次操作",0x8bf0cd,16);
+    label(r,16,94,210,s.user_input?"请在 PC 端回复此问题":"请选择本次操作",0x8bf0cd,16);
     label(r,16,131,210,s.scope,0x92a6b9,14);
-    label(r,16,190,210,"可在电脑查看详情",0xffbf5c,14);
-    label(r,16,247,210,s.stage==2?"已发送，等待回执":s.user_input?"按确认：标记已读":s.selected==0?"> 允许 · 按确认继续":s.selected==1?"> 拒绝 · 按确认继续":s.can_allow?"上键允许 · 下键拒绝":"请在 Mac 审阅 · 下键拒绝",0xffffff,14);
+    label(r,16,190,210,"可在 PC 端查看详情",0xffbf5c,14);
+    label(r,16,247,210,s.stage==2?"已发送，等待回执":s.user_input?"按确认：标记已读":s.selected==0?"> 允许 · 按确认继续":s.selected==1?"> 拒绝 · 按确认继续":s.can_allow?"上键允许 · 下键拒绝":"请在 PC 端审阅 · 下键拒绝",0xffffff,14);
     label(r,16,291,210,s.user_input?"已读不会代替你的回复":"长按上键：返回详情开头",0x92a6b9,12);
    }
   } else {
@@ -392,7 +392,7 @@ static void render(void) {
    lv_obj_t *project=label(r,16,130,210,s.project,0x92a6b9,12); lv_obj_set_height(project,120);
    lv_obj_t *scope=label(r,16,254,210,s.scope,0x92a6b9,12); lv_obj_set_height(scope,36);
    if(s.stage==2) label(r,16,294,210,"已发送，等待处理",0xffbf5c,12);
-   else label(r,16,294,210,s.user_input?"在 Mac 回复 · 确认已读":!s.can_deny?"在 Mac 确认 · 按确认静音":s.selected==1?"> 拒绝 · 确认继续":s.selected==0?(s.mac_confirm?"> 在 Mac 确认":"> 批准 · 确认继续"):s.mac_confirm?"上到 Mac · 下拒绝":s.can_allow?"上批准 · 下拒绝":"需 Mac 审阅 · 下键拒绝",0xffffff,14);
+   else label(r,16,294,210,s.user_input?"在 PC 端回复 · 确认已读":!s.can_deny?"在 PC 端确认 · 按确认静音":s.selected==1?"> 拒绝 · 确认继续":s.selected==0?(s.mac_confirm?"> 在 PC 端确认":"> 批准 · 确认继续"):s.mac_confirm?"上到 PC 端 · 下拒绝":s.can_allow?"上批准 · 下拒绝":"需 PC 端审阅 · 下键拒绝",0xffffff,14);
   }
 
  } else if(s.page==0) {
@@ -502,7 +502,7 @@ static void render(void) {
    label(r,16,174,210,*s.hook_status?s.hook_status:"等待 Bridge 更新事件状态",0xffbf5c,12);
    label(r,16,224,210,"短按确认：允许 USB 重配\n配对窗口有效期为 60 秒",0x92a6b9,12);
   } else {
-   label(r,16,136,210,"首次用 USB 安全配对。\n在 Mac 运行无线配置，\n随后即可拔掉数据线。\n\n短按确认：允许配对 60 秒",0x92a6b9,14);
+   label(r,16,136,210,"首次用 USB 安全配对。\n在 PC 端运行无线配置，\n随后即可拔掉数据线。\n\n短按确认：允许配对 60 秒",0x92a6b9,14);
    label(r,16,254,210,s.usage_status,0x92a6b9,12);
   }
  }

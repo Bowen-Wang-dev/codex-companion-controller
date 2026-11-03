@@ -160,7 +160,7 @@ def activate(old_root, new_root=ROOT):
 def main():
     config = json.loads(PENDING.read_text())
     print('切换到新工程：' + str(ROOT), flush=True)
-    print('请保存当前工作，手动 Command+Q 退出 桌面 App，再回到这个 Terminal。', flush=True)
+    print('请保存当前工作，手动 Command+Q 退出 PC 端 App，再回到这个 Terminal。', flush=True)
     if input('App 已退出后按回车继续；输入 q 取消：').strip().lower() == 'q':
         return
     activate(Path(config['old_root']))

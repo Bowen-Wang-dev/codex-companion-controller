@@ -58,10 +58,10 @@ def show(report):
     if status:
         print('设备：'+('在线 / '+str(status.get('transport','')) if status.get('online') else '离线'), flush=True)
         print('App 实体审批：'+('已接入' if status.get('desktop',{}).get('connected') else '尚未接入；设备链路与 App 审批是两项检查'), flush=True)
-    print('Mac当前 IPv4：'+(', '.join(report['local_ips']) or '未检测到'), flush=True)
-    print('设备配对的 Mac IPv4：'+str(report['paired_ip'] or '未配置'), flush=True)
+    print('PC 端当前 IPv4：'+(', '.join(report['local_ips']) or '未检测到'), flush=True)
+    print('设备配对的 PC 端 IPv4：'+str(report['paired_ip'] or '未配置'), flush=True)
     if report['address_changed']:
-        print('配对地址已不属于当前 Mac。重配无线需更新设备地址和证书；只重启 Bridge 无法修正。USB 可先恢复使用。', flush=True)
+        print('配对地址已不属于当前 PC 端。重配无线需更新设备地址和证书；只重启 Bridge 无法修正。USB 可先恢复使用。', flush=True)
     if report['pairing_problem']: print(report['pairing_problem'], flush=True)
 
 

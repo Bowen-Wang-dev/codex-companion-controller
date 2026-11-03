@@ -15,7 +15,7 @@ def main():
     parser.add_argument('--socket',type=Path)
     parser.add_argument('--expected-thread',default=os.environ.get('CODEX_THREAD_ID'))
     args=parser.parse_args()
-    print('只读检查 桌面 App 的官方审批接口；请保持 App 打开。',flush=True)
+    print('只读检查 PC 端 App 的官方审批接口；请保持 App 打开。',flush=True)
     print('不启动会话、不发送任务、不批准请求、不改变账户或配网。',flush=True)
     report=probe(args.socket,args.expected_thread)
     save_report(ROOT/'private/desktop-probe.json',report)

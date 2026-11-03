@@ -8,7 +8,7 @@ if [[ ! -x "${CONTROLLER_FLASH_PYTHON:-}" ]]; then
  exit 1
 fi
 "$CONTROLLER_FLASH_PYTHON" -c 'import esptool; assert esptool.__version__.split(".")[0]=="4", "需要 esptool 4.x"; print("Flash runtime: esptool",esptool.__version__)'
-echo '0.2.13：原 App 与设备双端直接审批，移除长按转到 Mac。'
+echo '0.2.13：原 App 与设备双端直接审批，移除长按转到 PC 端。'
 echo '程序目录：'"$CONTROLLER_ROOT"
 echo '先运行主机测试；不会调用模型，也不会消耗重置次数。'
 "$CONTROLLER_BRIDGE_PYTHON" -m unittest discover -s "$CONTROLLER_ROOT/tests" -v

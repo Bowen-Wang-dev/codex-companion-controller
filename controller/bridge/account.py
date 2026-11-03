@@ -66,7 +66,7 @@ class AccountClient:
     def read(self):
         account = self.rpc('account/read', {'refreshToken': False}).get('account')
         if not account or account.get('type') != 'chatgpt':
-            raise RuntimeError('ChatGPT login required. Run codex login on the Mac; API keys use different billing.')
+            raise RuntimeError('ChatGPT login required. Run codex login on the PC 端; API keys use different billing.')
         usage = self.rpc('account/rateLimits/read')
         self.account_binding=hashlib.sha256(str(usage.get('accountId') or account.get('email') or '').encode()).hexdigest() if (usage.get('accountId') or account.get('email')) else None
         # Only forward display data, never email, account IDs, credit IDs or tokens.

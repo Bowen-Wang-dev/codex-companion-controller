@@ -26,7 +26,7 @@ def desktop_app():
     if not WINDOWS:return Path('/Applications/ChatGPT.app')
     paths = json.loads(powershell("ConvertTo-Json -Compress -InputObject @(Get-AppxPackage -Name OpenAI.Codex | Select-Object -ExpandProperty InstallLocation)"))
     if len(paths) != 1:
-        raise RuntimeError('未找到唯一的 Windows 桌面 App；可设置 COMPANION_DESKTOP_APP 为 App 的 app 目录。')
+        raise RuntimeError('未找到唯一的 Windows PC 端 App；可设置 COMPANION_DESKTOP_APP 为 App 的 app 目录。')
     return Path(paths[0]) / 'app'
 
 

@@ -46,7 +46,7 @@ static esp_err_t http_event(esp_http_client_event_t *event) {
 bool network_pairing_armed(void) { return armed_until && esp_timer_get_time()<armed_until; }
 static const char *value(cJSON *o,const char *key) { cJSON *v=cJSON_GetObjectItem(o,key); return cJSON_IsString(v)?v->valuestring:""; }
 const char *network_status(void) {
- static const char *states[]={"未配置：按确认配对","正在连接 Wi-Fi","Wi-Fi 已连接","正在验证 Bridge","无线同步正常","连接失败：检查网络","证书或 Bridge 连接失败","配置存储不可用","请在 Mac 运行无线配对"};
+ static const char *states[]={"未配置：按确认配对","正在连接 Wi-Fi","Wi-Fi 已连接","正在验证 Bridge","无线同步正常","连接失败：检查网络","证书或 Bridge 连接失败","配置存储不可用","请在 PC 端运行无线配对"};
  if(network_pairing_armed())return states[8];
  int current=atomic_load(&status); return states[current==8?0:current];
 }
